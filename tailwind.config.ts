@@ -57,6 +57,16 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        game: {
+          correct: "hsl(var(--game-correct))",
+          present: "hsl(var(--game-present))",
+          absent: "hsl(var(--game-absent))",
+          empty: "hsl(var(--game-empty))",
+          border: "hsl(var(--game-border))",
+          "border-active": "hsl(var(--game-border-active))",
+          text: "hsl(var(--game-text))",
+          "key-bg": "hsl(var(--game-key-bg))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -80,10 +90,48 @@ export default {
             height: "0",
           },
         },
+        "flip": {
+          "0%": {
+            transform: "rotateX(0)",
+          },
+          "50%": {
+            transform: "rotateX(-90deg)",
+          },
+          "100%": {
+            transform: "rotateX(0)",
+          },
+        },
+        "bounce-in": {
+          "0%": {
+            transform: "scale(0.8)",
+            opacity: "0",
+          },
+          "50%": {
+            transform: "scale(1.1)",
+          },
+          "100%": {
+            transform: "scale(1)",
+            opacity: "1",
+          },
+        },
+        "shake": {
+          "0%, 100%": {
+            transform: "translateX(0)",
+          },
+          "25%": {
+            transform: "translateX(-10px)",
+          },
+          "75%": {
+            transform: "translateX(10px)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "flip": "flip 0.6s ease-in-out",
+        "bounce-in": "bounce-in 0.3s ease-out",
+        "shake": "shake 0.4s ease-in-out",
       },
     },
   },
