@@ -1,5 +1,5 @@
-// Common 5-letter words for Wordle
-export const WORD_LIST = [
+// Common 5-letter words used to select the target word
+const TARGET_WORDS = [
   "ABOUT", "ABOVE", "ABUSE", "ACTOR", "ACUTE", "ADMIT", "ADOPT", "ADULT", "AFTER", "AGAIN",
   "AGENT", "AGREE", "AHEAD", "ALARM", "ALBUM", "ALERT", "ALIKE", "ALIVE", "ALLOW", "ALONE",
   "ALONG", "ALTER", "ANGEL", "ANGER", "ANGLE", "ANGRY", "APART", "APPLE", "APPLY", "ARENA",
@@ -53,10 +53,22 @@ export const WORD_LIST = [
   "WORTH", "WOULD", "WOUND", "WRITE", "WRONG", "WROTE", "YOUNG", "YOUTH",
 ];
 
+// Comprehensive list of all valid 5-letter English words (loaded from file)
+import validWordsRaw from './validWords.txt?raw';
+
+// Parse the valid words list from the imported text file
+const VALID_WORDS = validWordsRaw
+  .trim()
+  .split('\n')
+  .map(word => word.trim().toUpperCase())
+  .filter(word => word.length === 5);
+
+// Validate if a word is in the comprehensive valid words list
 export const isValidWord = (word: string): boolean => {
-  return WORD_LIST.includes(word.toUpperCase());
+  return VALID_WORDS.includes(word.toUpperCase());
 };
 
+// Get a random word from the common target words list
 export const getRandomWord = (): string => {
-  return WORD_LIST[Math.floor(Math.random() * WORD_LIST.length)];
+  return TARGET_WORDS[Math.floor(Math.random() * TARGET_WORDS.length)];
 };
