@@ -28,6 +28,7 @@ const Index = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [revealedHints, setRevealedHints] = useState<number[]>([]);
   
   // Timed mode state
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
@@ -178,6 +179,7 @@ const Index = () => {
     setGameOver(false);
     setWon(false);
     setShowResult(false);
+    setRevealedHints([]);
     if (gameMode === "timed") {
       setTimeLeft(TIMED_INITIAL_SECONDS);
       setWordsCompleted(0);
@@ -198,6 +200,41 @@ const Index = () => {
     setTimeLeft(TIMED_INITIAL_SECONDS);
     setWordsCompleted(0);
     setTimedGameActive(false);
+    setRevealedHints([]);
+  };
+
+  const handleHint = () => {
+    if (gameOver) return;
+    
+    // Find positions that haven't been guessed correctly yet
+    const correctPositions = new Set<number>();
+    evaluations.forEach(evaluation => {
+      evaluation.forEach((status, index) => {
+        if (status === "correct") {
+          correctPositions.add(index);
+        }
+      });
+    });
+
+    // Find available positions to reveal (not correct and not already hinted)
+    const availablePositions = [];
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      if (!correctPositions.has(i) && !revealedHints.includes(i)) {
+        availablePositions.push(i);
+      }
+    }
+
+    if (availablePositions.length === 0) {
+      toast.info("No more hints available!");
+      return;
+    }
+
+    // Pick a random position to reveal
+    const randomIndex = Math.floor(Math.random() * availablePositions.length);
+    const positionToReveal = availablePositions[randomIndex];
+    
+    setRevealedHints(prev => [...prev, positionToReveal]);
+    toast.success(`Hint: Letter ${positionToReveal + 1} is "${targetWord[positionToReveal]}"`);
   };
 
   const handleSelectMode = (mode: GameMode) => {
@@ -255,6 +292,7 @@ const Index = () => {
       <GameHeader 
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowStats(true)}
+        onHint={handleHint}
       />
       
       <div className="flex items-center justify-between px-4 py-2 border-b">
@@ -285,6 +323,8 @@ const Index = () => {
           maxGuesses={maxGuesses}
           wordLength={WORD_LENGTH}
           shake={shake}
+          revealedHints={revealedHints}
+          targetWord={targetWord}
         />
         
         <Keyboard

@@ -5,9 +5,10 @@ interface TileProps {
   status: "empty" | "filled" | "correct" | "present" | "absent";
   animate?: boolean;
   delay?: number;
+  isHint?: boolean;
 }
 
-const Tile = ({ letter, status, animate, delay = 0 }: TileProps) => {
+const Tile = ({ letter, status, animate, delay = 0, isHint }: TileProps) => {
   return (
     <div
       className={cn(
@@ -17,7 +18,8 @@ const Tile = ({ letter, status, animate, delay = 0 }: TileProps) => {
         status === "correct" && "bg-game-correct border-game-correct text-white",
         status === "present" && "bg-game-present border-game-present text-white",
         status === "absent" && "bg-game-absent border-game-absent text-white",
-        animate && "animate-flip"
+        animate && "animate-flip",
+        isHint && "ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
       style={animate ? { animationDelay: `${delay}ms` } : undefined}
     >
@@ -33,6 +35,8 @@ interface GameGridProps {
   maxGuesses: number;
   wordLength: number;
   shake?: boolean;
+  revealedHints: number[];
+  targetWord: string;
 }
 
 export const GameGrid = ({
@@ -42,6 +46,8 @@ export const GameGrid = ({
   maxGuesses,
   wordLength,
   shake,
+  revealedHints,
+  targetWord,
 }: GameGridProps) => {
   const rows = Array.from({ length: maxGuesses }, (_, i) => {
     if (i < guesses.length) {
@@ -53,10 +59,11 @@ export const GameGrid = ({
         delay: j * 150,
       }));
     } else if (i === guesses.length) {
-      // Current guess
+      // Current guess with hints
       return Array.from({ length: wordLength }, (_, j) => ({
-        letter: currentGuess[j] || "",
+        letter: currentGuess[j] || (revealedHints.includes(j) ? targetWord[j] : ""),
         status: currentGuess[j] ? ("filled" as const) : ("empty" as const),
+        isHint: !currentGuess[j] && revealedHints.includes(j),
       }));
     } else {
       // Empty row
