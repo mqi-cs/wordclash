@@ -1,15 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Clock, Zap, Target, Trophy, Flame, Timer } from "lucide-react";
+import { Clock, Zap, Target, Trophy, Flame, Timer, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export type GameMode = "classic" | "hard" | "timed";
 
 interface GameMenuProps {
   onSelectMode: (mode: GameMode) => void;
+  onShowLeaderboard: () => void;
 }
 
-export const GameMenu = ({ onSelectMode }: GameMenuProps) => {
+export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col items-center justify-center p-4">
       <div className="max-w-5xl w-full space-y-12">
@@ -18,9 +19,19 @@ export const GameMenu = ({ onSelectMode }: GameMenuProps) => {
           <div className="flex items-center justify-center gap-3 mb-2">
             <Trophy className="w-12 h-12 text-primary animate-pulse" />
           </div>
-          <h1 className="text-7xl font-black tracking-tighter bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
-            WORDLE
-          </h1>
+          <div className="flex items-center justify-center gap-4">
+            <h1 className="text-7xl font-black tracking-tighter bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+              WORDLE
+            </h1>
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={onShowLeaderboard}
+              className="hover:bg-amber-600/10 hover:text-amber-600 hover:border-amber-600 transition-all"
+            >
+              <Award className="w-5 h-5" />
+            </Button>
+          </div>
           <p className="text-lg text-muted-foreground font-medium">
             Test your vocabulary • Challenge yourself • Beat the clock
           </p>

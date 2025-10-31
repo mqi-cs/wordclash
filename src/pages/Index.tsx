@@ -8,6 +8,8 @@ import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy } from "lucide-react";
+import { Leaderboard } from "@/components/Leaderboard";
+import { saveGameResult } from "@/lib/gameHistory";
 
 const WORD_LENGTH = 5;
 const CLASSIC_GUESSES = 6;
@@ -28,6 +30,7 @@ const Index = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [availableHints, setAvailableHints] = useState(0);
   
@@ -141,6 +144,21 @@ const Index = () => {
     if (currentGuess === targetWord) {
       setWon(true);
       setGameOver(true);
+      
+      // Count green letters
+      const greenLetters = evaluation.filter(e => e === "correct").length;
+      
+      // Save game result
+      if (gameMode && gameMode !== "timed") {
+        saveGameResult({
+          mode: gameMode,
+          won: true,
+          guesses: newGuesses.length,
+          greenLetters,
+          timestamp: Date.now(),
+        });
+      }
+      
       setTimeout(() => {
         toast.success("Congratulations! 🎉");
         setShowResult(true);
@@ -171,6 +189,21 @@ const Index = () => {
     // Check lose condition for classic/hard modes
     if (gameMode !== "timed" && newGuesses.length >= maxGuesses) {
       setGameOver(true);
+      
+      // Count green letters in last guess
+      const greenLetters = evaluation.filter(e => e === "correct").length;
+      
+      // Save game result
+      if (gameMode) {
+        saveGameResult({
+          mode: gameMode,
+          won: false,
+          guesses: newGuesses.length,
+          greenLetters,
+          timestamp: Date.now(),
+        });
+      }
+      
       setTimeout(() => {
         toast.error(`The word was ${targetWord}`);
         setShowResult(true);
@@ -275,6 +308,21 @@ const Index = () => {
           if (prev <= 1) {
             setGameOver(true);
             setTimedGameActive(false);
+            
+            // Count green letters in last evaluation
+            const lastEvaluation = evaluations[evaluations.length - 1] || [];
+            const greenLetters = lastEvaluation.filter(e => e === "correct").length;
+            
+            // Save timed mode result
+            saveGameResult({
+              mode: "timed",
+              won: wordsCompleted > 0,
+              guesses: guesses.length,
+              wordsCompleted: wordsCompleted,
+              greenLetters,
+              timestamp: Date.now(),
+            });
+            
             setTimeout(() => {
               toast.error(`Time's up! You completed ${wordsCompleted} word${wordsCompleted !== 1 ? 's' : ''}!`);
               setShowResult(true);
@@ -305,14 +353,19 @@ const Index = () => {
   }, [handleKeyPress, handleDelete, handleEnter]);
 
   if (!gameMode) {
-    return <GameMenu onSelectMode={handleSelectMode} />;
+    return (
+      <>
+        <GameMenu onSelectMode={handleSelectMode} onShowLeaderboard={() => setShowLeaderboard(true)} />
+        <Leaderboard open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <GameHeader 
         onShowHelp={() => setShowHelp(true)}
-        onShowStats={() => setShowStats(true)}
+        onShowStats={() => setShowLeaderboard(true)}
         onHint={handleHint}
         availableHints={availableHints}
         hintsDisabled={gameMode === "hard" || gameOver}
@@ -370,6 +423,11 @@ const Index = () => {
       <HelpModal
         open={showHelp}
         onClose={() => setShowHelp(false)}
+      />
+      
+      <Leaderboard
+        open={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
       />
     </div>
   );
