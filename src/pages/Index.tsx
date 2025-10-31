@@ -29,6 +29,7 @@ const Index = () => {
   const [showStats, setShowStats] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
+  const [availableHints, setAvailableHints] = useState(0);
   
   // Timed mode state
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
@@ -130,6 +131,11 @@ const Index = () => {
     setGuesses(newGuesses);
     setEvaluations(newEvaluations);
     setCurrentGuess("");
+    
+    // Grant one hint after each guess (except in hard mode)
+    if (gameMode !== "hard") {
+      setAvailableHints(prev => prev + 1);
+    }
 
     // Check win condition
     if (currentGuess === targetWord) {
@@ -156,6 +162,8 @@ const Index = () => {
         setLetterStatus({});
         setGameOver(false);
         setWon(false);
+        setRevealedHints([]);
+        setAvailableHints(0);
       }, 1000);
       return;
     }
@@ -180,6 +188,7 @@ const Index = () => {
     setWon(false);
     setShowResult(false);
     setRevealedHints([]);
+    setAvailableHints(0);
     if (gameMode === "timed") {
       setTimeLeft(TIMED_INITIAL_SECONDS);
       setWordsCompleted(0);
@@ -201,10 +210,21 @@ const Index = () => {
     setWordsCompleted(0);
     setTimedGameActive(false);
     setRevealedHints([]);
+    setAvailableHints(0);
   };
 
   const handleHint = () => {
-    if (gameOver) return;
+    if (gameOver || gameMode === "hard") return;
+    
+    // Check if hints are available
+    if (availableHints === 0) {
+      if (guesses.length === 0) {
+        toast.error("Make your first guess to unlock hints!");
+      } else {
+        toast.error("No hints available! Make another guess to earn a hint.");
+      }
+      return;
+    }
     
     // Find positions that haven't been guessed correctly yet
     const correctPositions = new Set<number>();
@@ -225,7 +245,7 @@ const Index = () => {
     }
 
     if (availablePositions.length === 0) {
-      toast.info("No more hints available!");
+      toast.info("All letters are already revealed!");
       return;
     }
 
@@ -234,7 +254,8 @@ const Index = () => {
     const positionToReveal = availablePositions[randomIndex];
     
     setRevealedHints(prev => [...prev, positionToReveal]);
-    toast.success(`Hint: Letter ${positionToReveal + 1} is "${targetWord[positionToReveal]}"`);
+    setAvailableHints(prev => prev - 1);
+    toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
   };
 
   const handleSelectMode = (mode: GameMode) => {
@@ -293,6 +314,8 @@ const Index = () => {
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowStats(true)}
         onHint={handleHint}
+        availableHints={availableHints}
+        hintsDisabled={gameMode === "hard" || gameOver}
       />
       
       <div className="flex items-center justify-between px-4 py-2 border-b">

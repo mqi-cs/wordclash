@@ -19,7 +19,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint }: TileProps) => {
         status === "present" && "bg-game-present border-game-present text-white",
         status === "absent" && "bg-game-absent border-game-absent text-white",
         animate && "animate-flip",
-        isHint && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+        isHint && "bg-purple-600 border-purple-600 text-white"
       )}
       style={animate ? { animationDelay: `${delay}ms` } : undefined}
     >
