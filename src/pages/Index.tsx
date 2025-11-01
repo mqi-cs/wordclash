@@ -171,8 +171,8 @@ const Index = () => {
       return;
     }
 
-    // Handle timed mode win
-    if (gameMode === "timed" && currentGuess === targetWord) {
+    // Handle timed mode - continue with unlimited wordles until time runs out
+    if (gameMode === "timed") {
       setWordsCompleted(prev => prev + 1);
       setTimeLeft(prev => prev + TIMED_BONUS_SECONDS);
       toast.success(`+${TIMED_BONUS_SECONDS} seconds! Next word!`);
@@ -183,16 +183,18 @@ const Index = () => {
         setCurrentGuess("");
         setEvaluations([]);
         setLetterStatus({});
-        setGameOver(false);
-        setWon(false);
         setRevealedHints([]);
         setAvailableHints(0);
+        // Reset bot state for new word in timed mode
+        if (botActive) {
+          setBotState(getInitialBotState());
+        }
       }, 1000);
       return;
     }
 
     // Check lose condition for classic/hard modes
-    if (gameMode !== "timed" && newGuesses.length >= maxGuesses) {
+    if (newGuesses.length >= maxGuesses) {
       setGameOver(true);
       
       // Count green letters in last guess
@@ -329,9 +331,11 @@ const Index = () => {
     if (!botActive || gameOver || gameMode === null) return;
 
     const makeGuess = () => {
+      const isHardMode = gameMode === "hard";
+      
       // If this is the first guess, make a random guess
       if (guesses.length === 0) {
-        const nextGuess = getBotNextGuess(botState);
+        const nextGuess = getBotNextGuess(botState, isHardMode);
         if (nextGuess) {
           setCurrentGuess(nextGuess);
           setTimeout(() => handleEnter(), 500);
@@ -346,7 +350,7 @@ const Index = () => {
       setBotState(newBotState);
 
       // Get next guess from bot
-      const nextGuess = getBotNextGuess(newBotState);
+      const nextGuess = getBotNextGuess(newBotState, isHardMode);
       if (nextGuess) {
         setCurrentGuess(nextGuess);
         setTimeout(() => handleEnter(), 500);

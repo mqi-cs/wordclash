@@ -54,7 +54,7 @@ export const updateBotState = (
   return newState;
 };
 
-export const getBotNextGuess = (state: BotState): string | null => {
+export const getBotNextGuess = (state: BotState, isHardMode: boolean = false): string | null => {
   const candidates = ALL_WORDS.filter(word => {
     // Check grey letters - word shouldn't contain any grey letters
     for (const greyLetter of state.greyLetters) {
@@ -71,23 +71,26 @@ export const getBotNextGuess = (state: BotState): string | null => {
     }
 
     // Check yellow letters - word must contain yellow letters but not in their yellow positions
-    for (const [letter, yellowPositions] of state.yellowLetters.entries()) {
-      // Word must contain this letter
-      if (!word.includes(letter)) {
-        return false;
-      }
-
-      // Letter must not be in any of the yellow positions
-      for (const position of yellowPositions) {
-        if (word[position] === letter) {
+    // Note: In hard mode, there are no yellow letters (only correct/absent), so this check is skipped
+    if (!isHardMode) {
+      for (const [letter, yellowPositions] of state.yellowLetters.entries()) {
+        // Word must contain this letter
+        if (!word.includes(letter)) {
           return false;
         }
-      }
 
-      // Letter must not be in a green position (already handled by green check, but double-check)
-      for (const [greenPos, greenLetter] of state.greenLetters.entries()) {
-        if (letter === greenLetter && word[greenPos] !== letter) {
-          return false;
+        // Letter must not be in any of the yellow positions
+        for (const position of yellowPositions) {
+          if (word[position] === letter) {
+            return false;
+          }
+        }
+
+        // Letter must not be in a green position (already handled by green check, but double-check)
+        for (const [greenPos, greenLetter] of state.greenLetters.entries()) {
+          if (letter === greenLetter && word[greenPos] !== letter) {
+            return false;
+          }
         }
       }
     }
