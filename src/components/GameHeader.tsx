@@ -1,4 +1,4 @@
-import { HelpCircle, BarChart3, Lightbulb } from "lucide-react";
+import { HelpCircle, BarChart3, Lightbulb, Bot } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 
@@ -8,9 +8,12 @@ interface GameHeaderProps {
   onHint: () => void;
   availableHints: number;
   hintsDisabled: boolean;
+  onToggleBot: () => void;
+  botActive: boolean;
+  botDisabled: boolean;
 }
 
-export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hintsDisabled }: GameHeaderProps) => {
+export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hintsDisabled, onToggleBot, botActive, botDisabled }: GameHeaderProps) => {
   return (
     <header className="border-b border-border py-4 px-4">
       <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -37,6 +40,15 @@ export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hi
               </Badge>
             )}
           </div>
+          <Button 
+            variant={botActive ? "default" : "ghost"}
+            size="icon" 
+            onClick={onToggleBot}
+            disabled={botDisabled}
+            className={botActive ? "bg-purple-600 hover:bg-purple-700" : ""}
+          >
+            <Bot className="w-6 h-6" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={onShowStats}>
             <BarChart3 className="w-6 h-6" />
           </Button>

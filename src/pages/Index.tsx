@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { Leaderboard } from "@/components/Leaderboard";
 import { saveGameResult } from "@/lib/gameHistory";
+import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
 
 const WORD_LENGTH = 5;
 const CLASSIC_GUESSES = 6;
@@ -33,6 +34,10 @@ const Index = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [availableHints, setAvailableHints] = useState(0);
+  
+  // Bot state
+  const [botActive, setBotActive] = useState(false);
+  const [botState, setBotState] = useState<BotState>(getInitialBotState());
   
   // Timed mode state
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
@@ -222,6 +227,8 @@ const Index = () => {
     setShowResult(false);
     setRevealedHints([]);
     setAvailableHints(0);
+    setBotActive(false);
+    setBotState(getInitialBotState());
     if (gameMode === "timed") {
       setTimeLeft(TIMED_INITIAL_SECONDS);
       setWordsCompleted(0);
@@ -244,6 +251,8 @@ const Index = () => {
     setTimedGameActive(false);
     setRevealedHints([]);
     setAvailableHints(0);
+    setBotActive(false);
+    setBotState(getInitialBotState());
   };
 
   const handleHint = () => {
@@ -299,6 +308,58 @@ const Index = () => {
       setTimeLeft(TIMED_INITIAL_SECONDS);
     }
   };
+
+  const handleToggleBot = () => {
+    if (gameOver) {
+      toast.error("Game is over! Start a new game to use the bot.");
+      return;
+    }
+
+    if (!botActive) {
+      setBotActive(true);
+      toast.success("Bot activated! It will make guesses automatically.");
+    } else {
+      setBotActive(false);
+      toast.info("Bot deactivated.");
+    }
+  };
+
+  // Bot auto-play effect
+  useEffect(() => {
+    if (!botActive || gameOver || gameMode === null) return;
+
+    const makeGuess = () => {
+      // If this is the first guess, make a random guess
+      if (guesses.length === 0) {
+        const nextGuess = getBotNextGuess(botState);
+        if (nextGuess) {
+          setCurrentGuess(nextGuess);
+          setTimeout(() => handleEnter(), 500);
+        }
+        return;
+      }
+
+      // Update bot state with last guess evaluation
+      const lastGuess = guesses[guesses.length - 1];
+      const lastEvaluation = evaluations[evaluations.length - 1];
+      const newBotState = updateBotState(botState, lastGuess, lastEvaluation);
+      setBotState(newBotState);
+
+      // Get next guess from bot
+      const nextGuess = getBotNextGuess(newBotState);
+      if (nextGuess) {
+        setCurrentGuess(nextGuess);
+        setTimeout(() => handleEnter(), 500);
+      } else {
+        toast.error("Bot couldn't find a valid word!");
+        setBotActive(false);
+      }
+    };
+
+    // Delay between guesses to make it visible
+    const timer = setTimeout(makeGuess, 1500);
+    return () => clearTimeout(timer);
+  }, [botActive, guesses, evaluations, gameOver, gameMode]);
 
   // Timed mode timer
   useEffect(() => {
@@ -369,6 +430,9 @@ const Index = () => {
         onHint={handleHint}
         availableHints={availableHints}
         hintsDisabled={gameMode === "hard" || gameOver}
+        onToggleBot={handleToggleBot}
+        botActive={botActive}
+        botDisabled={gameOver}
       />
       
       <div className="flex items-center justify-between px-4 py-2 border-b">
