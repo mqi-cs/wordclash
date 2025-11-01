@@ -153,6 +153,29 @@ const Index = () => {
 
     // Check win condition
     if (currentGuess === targetWord) {
+      // Handle timed mode - continue with unlimited wordles until time runs out
+      if (gameMode === "timed") {
+        setWordsCompleted(prev => prev + 1);
+        setTimeLeft(prev => prev + TIMED_BONUS_SECONDS);
+        toast.success(`+${TIMED_BONUS_SECONDS} seconds! Next word!`);
+        // Start new word immediately without resetting totalGuesses
+        setTimeout(() => {
+          setTargetWord(getRandomWord());
+          setGuesses([]);
+          setCurrentGuess("");
+          setEvaluations([]);
+          setLetterStatus({});
+          setRevealedHints([]);
+          setAvailableHints(0);
+          // Reset bot state for new word in timed mode
+          if (botActive) {
+            setBotState(getInitialBotState());
+          }
+        }, 1000);
+        return;
+      }
+      
+      // Handle classic/hard mode win
       setWon(true);
       setGameOver(true);
       
@@ -160,42 +183,18 @@ const Index = () => {
       const greenLetters = evaluation.filter(e => e === "correct").length;
       
       // Save game result
-      if (gameMode && gameMode !== "timed") {
-        saveGameResult({
-          mode: gameMode,
-          won: true,
-          guesses: newGuesses.length,
-          greenLetters,
-          timestamp: Date.now(),
-        });
-      }
+      saveGameResult({
+        mode: gameMode!,
+        won: true,
+        guesses: newGuesses.length,
+        greenLetters,
+        timestamp: Date.now(),
+      });
       
       setTimeout(() => {
         toast.success("Congratulations! 🎉");
         setShowResult(true);
       }, 1500);
-      return;
-    }
-
-    // Handle timed mode - continue with unlimited wordles until time runs out
-    if (gameMode === "timed") {
-      setWordsCompleted(prev => prev + 1);
-      setTimeLeft(prev => prev + TIMED_BONUS_SECONDS);
-      toast.success(`+${TIMED_BONUS_SECONDS} seconds! Next word!`);
-      // Start new word immediately
-      setTimeout(() => {
-        setTargetWord(getRandomWord());
-        setGuesses([]);
-        setCurrentGuess("");
-        setEvaluations([]);
-        setLetterStatus({});
-        setRevealedHints([]);
-        setAvailableHints(0);
-        // Reset bot state for new word in timed mode
-        if (botActive) {
-          setBotState(getInitialBotState());
-        }
-      }, 1000);
       return;
     }
 
