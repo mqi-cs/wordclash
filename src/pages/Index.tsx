@@ -43,6 +43,7 @@ const Index = () => {
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
   const [wordsCompleted, setWordsCompleted] = useState(0);
   const [timedGameActive, setTimedGameActive] = useState(false);
+  const [totalGuesses, setTotalGuesses] = useState(0);
 
   const maxGuesses = gameMode === "hard" ? HARD_GUESSES : gameMode === "timed" ? 999 : CLASSIC_GUESSES;
 
@@ -140,6 +141,11 @@ const Index = () => {
     setEvaluations(newEvaluations);
     setCurrentGuess("");
     
+    // Track total guesses in timed mode
+    if (gameMode === "timed") {
+      setTotalGuesses(prev => prev + 1);
+    }
+    
     // Grant one hint after each guess (except in hard mode)
     if (gameMode !== "hard") {
       setAvailableHints(prev => prev + 1);
@@ -234,6 +240,7 @@ const Index = () => {
     if (gameMode === "timed") {
       setTimeLeft(TIMED_INITIAL_SECONDS);
       setWordsCompleted(0);
+      setTotalGuesses(0);
       setTimedGameActive(true);
     }
     toast.success("New game started!");
@@ -250,6 +257,7 @@ const Index = () => {
     setShowResult(false);
     setTimeLeft(TIMED_INITIAL_SECONDS);
     setWordsCompleted(0);
+    setTotalGuesses(0);
     setTimedGameActive(false);
     setRevealedHints([]);
     setAvailableHints(0);
@@ -382,7 +390,7 @@ const Index = () => {
             saveGameResult({
               mode: "timed",
               won: wordsCompleted > 0,
-              guesses: guesses.length,
+              guesses: totalGuesses,
               wordsCompleted: wordsCompleted,
               greenLetters,
               timestamp: Date.now(),
@@ -484,7 +492,7 @@ const Index = () => {
         onClose={() => setShowResult(false)}
         won={won}
         word={targetWord}
-        guesses={gameMode === "timed" ? wordsCompleted : guesses.length}
+        guesses={gameMode === "timed" ? totalGuesses : guesses.length}
         onPlayAgain={handlePlayAgain}
       />
 
