@@ -457,7 +457,9 @@ const Index = () => {
           {gameMode === "timed" && (
             <div className="flex items-center gap-2">
               <Trophy className="w-4 h-4 text-primary" />
-              <span className="text-sm font-bold">{wordsCompleted}</span>
+              <span className="text-sm font-bold">{wordsCompleted} words</span>
+              <span className="text-sm">|</span>
+              <span className="text-sm font-bold">{totalGuesses} guesses</span>
               <span className="text-sm">|</span>
               <span className={`text-sm font-bold ${timeLeft <= 10 ? 'text-destructive' : ''}`}>
                 {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
