@@ -32,9 +32,9 @@ export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus }: Keyboa
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto mt-8 px-2">
+    <div className="w-full max-w-lg mx-auto mt-4 sm:mt-8 px-1 sm:px-2">
       {KEYBOARD_ROWS.map((row, i) => (
-        <div key={i} className="flex gap-1.5 justify-center mb-2">
+        <div key={i} className="flex gap-1 sm:gap-1.5 justify-center mb-1.5 sm:mb-2">
           {row.map((key) => {
             const status = getKeyStatus(key);
             return (
@@ -42,15 +42,15 @@ export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus }: Keyboa
                 key={key}
                 onClick={() => handleClick(key)}
                 className={cn(
-                  "h-14 font-semibold text-sm transition-colors",
-                  key === "ENTER" || key === "⌫" ? "px-4" : "px-3 min-w-[40px]",
+                  "h-12 sm:h-14 font-semibold text-xs sm:text-sm transition-colors",
+                  key === "ENTER" || key === "⌫" ? "px-2 sm:px-4 text-[10px] sm:text-sm" : "px-2 sm:px-3 min-w-[32px] sm:min-w-[40px]",
                   !status && "bg-game-key-bg hover:bg-muted text-game-text",
                   status === "correct" && "bg-game-correct hover:bg-game-correct text-white",
                   status === "present" && "bg-game-present hover:bg-game-present text-white",
                   status === "absent" && "bg-game-absent hover:bg-game-absent text-white"
                 )}
               >
-                {key === "⌫" ? <Delete className="w-5 h-5" /> : key}
+                {key === "⌫" ? <Delete className="w-4 h-4 sm:w-5 sm:h-5" /> : key}
               </Button>
             );
           })}

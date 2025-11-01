@@ -446,21 +446,23 @@ const Index = () => {
         botDisabled={gameOver}
       />
       
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <Button variant="ghost" size="sm" onClick={handleBackToMenu}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Menu
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 border-b gap-2">
+        <Button variant="ghost" size="sm" onClick={handleBackToMenu} className="h-8">
+          <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+          <span className="text-xs sm:text-sm">Menu</span>
         </Button>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium capitalize">{gameMode} Mode</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+          <span className="font-medium capitalize">{gameMode} Mode</span>
           {gameMode === "timed" && (
-            <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-primary" />
-              <span className="text-sm font-bold">{wordsCompleted} words</span>
-              <span className="text-sm">|</span>
-              <span className="text-sm font-bold">{totalGuesses} guesses</span>
-              <span className="text-sm">|</span>
-              <span className={`text-sm font-bold ${timeLeft <= 10 ? 'text-destructive' : ''}`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <div className="flex items-center gap-1">
+                <Trophy className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
+                <span className="font-bold">{wordsCompleted} words</span>
+              </div>
+              <span className="hidden sm:inline">|</span>
+              <span className="font-bold">{totalGuesses} guesses</span>
+              <span className="hidden sm:inline">|</span>
+              <span className={`font-bold ${timeLeft <= 10 ? 'text-destructive' : ''}`}>
                 {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
               </span>
             </div>
@@ -468,7 +470,7 @@ const Index = () => {
         </div>
       </div>
       
-      <main className="flex-1 flex flex-col items-center justify-start pt-4 pb-8 px-4">
+      <main className="flex-1 flex flex-col items-center justify-start pt-2 sm:pt-4 pb-4 sm:pb-8 px-2 sm:px-4">
         <GameGrid
           guesses={guesses}
           currentGuess={currentGuess}

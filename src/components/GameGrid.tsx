@@ -12,7 +12,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint }: TileProps) => {
   return (
     <div
       className={cn(
-        "w-14 h-14 border-2 flex items-center justify-center text-2xl font-bold uppercase transition-all duration-100",
+        "w-11 h-11 sm:w-14 sm:h-14 border-2 flex items-center justify-center text-xl sm:text-2xl font-bold uppercase transition-all duration-100",
         status === "empty" && "border-game-border bg-game-empty",
         status === "filled" && "border-game-border-active bg-game-empty animate-bounce-in",
         status === "correct" && "bg-game-correct border-game-correct text-white",
@@ -75,12 +75,12 @@ export const GameGrid = ({
   });
 
   return (
-    <div className="flex flex-col gap-1.5 my-8">
+    <div className="flex flex-col gap-1 sm:gap-1.5 my-4 sm:my-8">
       {rows.map((row, i) => (
         <div
           key={i}
           className={cn(
-            "flex gap-1.5 justify-center",
+            "flex gap-1 sm:gap-1.5 justify-center",
             shake && i === guesses.length && "animate-shake"
           )}
         >
