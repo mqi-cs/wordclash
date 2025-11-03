@@ -59,28 +59,75 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     if (!supabase) return;
     
     const initGame = async () => {
-      const word = getRandomWord();
-      setTargetWord(word);
+      // Check if joining existing game
+      const urlParams = new URLSearchParams(window.location.search);
+      const joinGameId = urlParams.get('join');
       
-      // Create new game
-      const { data: game, error } = await supabase
-        .from("multiplayer_games")
-        .insert({
-          target_word: word,
-          player1_id: playerId,
-          status: "waiting"
-        })
-        .select()
-        .single();
+      if (joinGameId) {
+        // Join existing game
+        const { data: game, error } = await supabase
+          .from("multiplayer_games")
+          .select()
+          .eq("id", joinGameId)
+          .single();
+        
+        if (error || !game) {
+          toast.error("Game not found");
+          window.history.replaceState({}, '', '/');
+          return;
+        }
+        
+        if (game.status !== "waiting") {
+          toast.error("Game already started or finished");
+          window.history.replaceState({}, '', '/');
+          return;
+        }
+        
+        // Update game with player 2
+        const { error: updateError } = await supabase
+          .from("multiplayer_games")
+          .update({
+            player2_id: playerId,
+            status: "active",
+            started_at: new Date().toISOString()
+          })
+          .eq("id", joinGameId);
+        
+        if (updateError) {
+          toast.error("Failed to join game");
+          return;
+        }
+        
+        setGameId(joinGameId);
+        setTargetWord(game.target_word);
+        setIsHost(false);
+        setWaiting(false);
+        toast.success("Joined game!");
+        window.history.replaceState({}, '', '/');
+      } else {
+        // Create new game
+        const word = getRandomWord();
+        setTargetWord(word);
+        
+        const { data: game, error } = await supabase
+          .from("multiplayer_games")
+          .insert({
+            target_word: word,
+            player1_id: playerId,
+            status: "waiting"
+          })
+          .select()
+          .single();
 
-      if (error) {
-        console.error("Error creating game:", error);
-        toast.error("Failed to create game");
-        return;
+        if (error) {
+          console.error("Error creating game:", error);
+          toast.error("Failed to create game");
+          return;
+        }
+
+        setGameId(game.id);
+        setIsHost(true);
       }
-
-      setGameId(game.id);
-      setIsHost(true);
     };
 
     initGame();
