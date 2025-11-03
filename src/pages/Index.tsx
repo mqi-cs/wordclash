@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { GameHeader } from "@/components/GameHeader";
 import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
 import { ResultModal, HelpModal } from "@/components/GameModal";
 import { GameMenu, GameMode } from "@/components/GameMenu";
-import { MultiplayerGame } from "@/components/MultiplayerGame";
 import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,8 @@ import { ArrowLeft, Trophy } from "lucide-react";
 import { Leaderboard } from "@/components/Leaderboard";
 import { saveGameResult } from "@/lib/gameHistory";
 import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
+
+const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 
 const WORD_LENGTH = 5;
 const CLASSIC_GUESSES = 6;
@@ -435,7 +436,18 @@ const Index = () => {
   }
 
   if (gameMode === "multiplayer") {
-    return <MultiplayerGame onBackToMenu={handleBackToMenu} />;
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-muted-foreground">Loading multiplayer...</p>
+          </div>
+        </div>
+      }>
+        <MultiplayerGame onBackToMenu={handleBackToMenu} />
+      </Suspense>
+    );
   }
 
   return (
