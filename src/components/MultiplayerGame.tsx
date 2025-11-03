@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Users, Crown, Copy, Check } from "lucide-react";
 import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +23,15 @@ interface GameState {
 }
 
 export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
+  // Dynamically import supabase to avoid initialization issues
+  const [supabase, setSupabase] = useState<any>(null);
+  
+  useEffect(() => {
+    import("@/integrations/supabase/client").then(module => {
+      setSupabase(module.supabase);
+    });
+  }, []);
+  
   const [gameId, setGameId] = useState<string | null>(null);
   const [playerId] = useState(() => `player_${Math.random().toString(36).substr(2, 9)}`);
   const [targetWord, setTargetWord] = useState("");
@@ -48,6 +56,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   // Create or join game
   useEffect(() => {
+    if (!supabase) return;
+    
     const initGame = async () => {
       const word = getRandomWord();
       setTargetWord(word);
@@ -74,11 +84,11 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     };
 
     initGame();
-  }, [playerId]);
+  }, [playerId, supabase]);
 
   // Listen for player 2 joining
   useEffect(() => {
-    if (!gameId || !isHost) return;
+    if (!gameId || !isHost || !supabase) return;
 
     const channel = supabase
       .channel(`game-${gameId}`)
@@ -102,11 +112,11 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, isHost]);
+  }, [gameId, isHost, supabase]);
 
   // Listen for opponent guesses
   useEffect(() => {
-    if (!gameId || waiting) return;
+    if (!gameId || waiting || !supabase) return;
 
     const channel = supabase
       .channel(`guesses-${gameId}`)
@@ -139,7 +149,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, playerId, targetWord, waiting]);
+  }, [gameId, playerId, targetWord, waiting, supabase]);
 
   const evaluateGuess = (guess: string, target: string) => {
     const result: Array<"correct" | "present" | "absent"> = [];
@@ -197,7 +207,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   }, [myGameOver, waiting]);
 
   const handleEnter = useCallback(async () => {
-    if (myGameOver || waiting) return;
+    if (myGameOver || waiting || !supabase) return;
 
     if (myCurrentGuess.length !== WORD_LENGTH) {
       toast.error("Not enough letters");
@@ -257,7 +267,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       setMyGameOver(true);
       toast.error(`The word was ${targetWord}`);
     }
-  }, [myCurrentGuess, myGuesses, myEvaluations, targetWord, myGameOver, gameId, playerId, waiting]);
+  }, [myCurrentGuess, myGuesses, myEvaluations, targetWord, myGameOver, gameId, playerId, waiting, supabase]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -284,7 +294,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (waiting) {
+  if (!supabase || waiting) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 space-y-6">
