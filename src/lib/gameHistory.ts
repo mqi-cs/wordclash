@@ -31,10 +31,10 @@ export const saveGameResult = (result: GameResult) => {
 export const getGameHistory = (): Record<GameMode, GameResult[]> => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return { classic: [], hard: [], timed: [] };
+    if (!stored) return { classic: [], hard: [], timed: [], multiplayer: [] };
     return JSON.parse(stored);
   } catch {
-    return { classic: [], hard: [], timed: [] };
+    return { classic: [], hard: [], timed: [], multiplayer: [] };
   }
 };
 

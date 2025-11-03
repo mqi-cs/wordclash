@@ -52,6 +52,7 @@ All colors MUST be HSL.
     --menu-classic: 142 76% 36%;
     --menu-hard: 0 84% 60%;
     --menu-timed: 217 91% 60%;
+    --menu-multiplayer: 160 85% 50%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -106,6 +107,7 @@ All colors MUST be HSL.
     --menu-classic: 142 76% 36%;
     --menu-hard: 0 84% 60%;
     --menu-timed: 217 91% 60%;
+    --menu-multiplayer: 160 85% 50%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;

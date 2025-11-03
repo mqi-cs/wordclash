@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Clock, Zap, Target, Trophy, Flame, Timer, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-export type GameMode = "classic" | "hard" | "timed";
+export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
 interface GameMenuProps {
   onSelectMode: (mode: GameMode) => void;
@@ -177,6 +177,55 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
             </div>
           </Card>
         </div>
+
+        {/* Multiplayer Mode - Full Width */}
+        <Card 
+          className="group relative overflow-hidden border-2 hover:border-[hsl(var(--menu-multiplayer))] transition-all duration-300 hover:shadow-2xl hover:shadow-[hsl(var(--menu-multiplayer))]/20 cursor-pointer hover:-translate-y-2 animate-scale-in"
+          onClick={() => onSelectMode("multiplayer")}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative p-6 md:p-8">
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-[hsl(var(--menu-multiplayer))]/10 group-hover:bg-[hsl(var(--menu-multiplayer))]/20 transition-colors">
+                    <Zap className="w-8 h-8 text-[hsl(var(--menu-multiplayer))]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-3xl font-bold text-foreground">Multiplayer Mode</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Challenge a friend in split-screen battle
+                    </p>
+                  </div>
+                </div>
+                <Badge className="text-xs bg-[hsl(var(--menu-multiplayer))] text-white">New</Badge>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-background/50">
+                  <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                  <p className="text-sm text-muted-foreground">Real-time split screen</p>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-background/50">
+                  <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                  <p className="text-sm text-muted-foreground">See opponent's colors</p>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-background/50">
+                  <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                  <p className="text-sm text-muted-foreground">First to guess wins</p>
+                </div>
+              </div>
+
+              <Button 
+                className="w-full md:w-auto bg-[hsl(var(--menu-multiplayer))] hover:bg-[hsl(var(--menu-multiplayer))]/90 text-white font-semibold shadow-lg"
+                size="lg"
+                onClick={() => onSelectMode("multiplayer")}
+              >
+                Start Multiplayer Game
+              </Button>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
 import { ResultModal, HelpModal } from "@/components/GameModal";
 import { GameMenu, GameMode } from "@/components/GameMenu";
+import { MultiplayerGame } from "@/components/MultiplayerGame";
 import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -431,6 +432,10 @@ const Index = () => {
         <Leaderboard open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       </>
     );
+  }
+
+  if (gameMode === "multiplayer") {
+    return <MultiplayerGame onBackToMenu={handleBackToMenu} />;
   }
 
   return (

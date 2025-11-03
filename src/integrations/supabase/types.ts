@@ -14,7 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      multiplayer_games: {
+        Row: {
+          created_at: string
+          finished_at: string | null
+          id: string
+          player1_id: string
+          player2_id: string | null
+          started_at: string | null
+          status: string
+          target_word: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          player1_id: string
+          player2_id?: string | null
+          started_at?: string | null
+          status?: string
+          target_word: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          player1_id?: string
+          player2_id?: string | null
+          started_at?: string | null
+          status?: string
+          target_word?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
+      multiplayer_guesses: {
+        Row: {
+          created_at: string
+          evaluation: Json
+          game_id: string
+          guess: string
+          guess_number: number
+          id: string
+          player_id: string
+        }
+        Insert: {
+          created_at?: string
+          evaluation: Json
+          game_id: string
+          guess: string
+          guess_number: number
+          id?: string
+          player_id: string
+        }
+        Update: {
+          created_at?: string
+          evaluation?: Json
+          game_id?: string
+          guess?: string
+          guess_number?: number
+          id?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multiplayer_guesses_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "multiplayer_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
