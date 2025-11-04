@@ -13,6 +13,7 @@ import { saveGameResult } from "@/lib/gameHistory";
 import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
+const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
 
 const WORD_LENGTH = 5;
 const CLASSIC_GUESSES = 6;
@@ -446,6 +447,21 @@ const Index = () => {
         </div>
       }>
         <MultiplayerGame onBackToMenu={handleBackToMenu} />
+      </Suspense>
+    );
+  }
+
+  if (botActive) {
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-muted-foreground">Loading bot game...</p>
+          </div>
+        </div>
+      }>
+        <BotGame onBackToMenu={handleBackToMenu} gameMode={gameMode === "hard" ? "hard" : "classic"} />
       </Suspense>
     );
   }
