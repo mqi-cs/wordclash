@@ -53,6 +53,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [opponentEvaluations, setOpponentEvaluations] = useState<Array<Array<"correct" | "present" | "absent">>>([]);
   const [opponentGameOver, setOpponentGameOver] = useState(false);
   const [opponentWon, setOpponentWon] = useState(false);
+  const [opponentCurrentRow, setOpponentCurrentRow] = useState(0);
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
 
   // Create or join game
   useEffect(() => {
@@ -161,12 +163,12 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     };
   }, [gameId, isHost, supabase]);
 
-  // Listen for opponent guesses
+  // Listen for opponent guesses and track presence
   useEffect(() => {
     if (!gameId || waiting || !supabase) return;
 
     const channel = supabase
-      .channel(`guesses-${gameId}`)
+      .channel(`game-room-${gameId}`)
       .on(
         "postgres_changes",
         {
@@ -180,6 +182,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           if (guess.player_id !== playerId) {
             setOpponentGuesses(prev => [...prev, guess.guess]);
             setOpponentEvaluations(prev => [...prev, guess.evaluation]);
+            setOpponentCurrentRow(guess.guess_number);
             
             // Check if opponent won
             if (guess.guess === targetWord) {
@@ -191,12 +194,27 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           }
         }
       )
-      .subscribe();
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const presences = Object.values(state).flat() as any[];
+        const opponent = presences.find((p: any) => p.player_id !== playerId);
+        if (opponent) {
+          setOpponentCurrentRow(opponent.current_row);
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            player_id: playerId,
+            current_row: myGuesses.length
+          });
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, playerId, targetWord, waiting, supabase]);
+  }, [gameId, playerId, targetWord, waiting, supabase, myGuesses.length]);
 
   const evaluateGuess = (guess: string, target: string) => {
     const result: Array<"correct" | "present" | "absent"> = [];
@@ -256,6 +274,16 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const handleEnter = useCallback(async () => {
     if (myGameOver || waiting || !supabase) return;
 
+    // Check if both players are on the same row
+    if (myGuesses.length !== opponentCurrentRow) {
+      const message = myGuesses.length > opponentCurrentRow 
+        ? "Waiting for opponent to catch up..."
+        : "Opponent is waiting for you!";
+      toast.info(message);
+      setWaitingForOpponent(true);
+      return;
+    }
+
     if (myCurrentGuess.length !== WORD_LENGTH) {
       toast.error("Not enough letters");
       setShake(true);
@@ -279,6 +307,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setMyGuesses(newGuesses);
     setMyEvaluations(newEvaluations);
     setMyCurrentGuess("");
+    setWaitingForOpponent(false);
 
     // Save guess to database
     await supabase.from("multiplayer_guesses").insert({
@@ -394,9 +423,16 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           "flex flex-col items-center justify-between p-2 md:p-4 border-2 transition-all",
           myWon && "border-green-500 bg-green-500/5"
         )}>
-          <div className="flex items-center gap-2 mb-2">
-            {myWon && <Crown className="w-5 h-5 text-yellow-500" />}
-            <span className="text-sm md:text-base font-bold">You</span>
+          <div className="flex flex-col items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              {myWon && <Crown className="w-5 h-5 text-yellow-500" />}
+              <span className="text-sm md:text-base font-bold">You</span>
+            </div>
+            {waitingForOpponent && myGuesses.length !== opponentCurrentRow && (
+              <span className="text-xs text-muted-foreground animate-pulse">
+                {myGuesses.length > opponentCurrentRow ? "Waiting for opponent..." : "Opponent is waiting!"}
+              </span>
+            )}
           </div>
           <GameGrid
             guesses={myGuesses}
