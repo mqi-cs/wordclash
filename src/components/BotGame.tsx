@@ -15,11 +15,17 @@ const MAX_GUESSES = 6;
 
 interface BotGameProps {
   onBackToMenu: () => void;
-  gameMode: "classic" | "hard";
+  gameMode: "classic" | "hard" | "timed";
 }
 
 export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
-  const [targetWord] = useState(() => getRandomWord());
+  const [targetWord, setTargetWord] = useState(() => getRandomWord());
+  
+  // Timed mode state
+  const [playerWordsCompleted, setPlayerWordsCompleted] = useState(0);
+  const [botWordsCompleted, setBotWordsCompleted] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(90);
+  const [timedGameActive, setTimedGameActive] = useState(gameMode === "timed");
   
   // Player game state
   const [myGuesses, setMyGuesses] = useState<string[]>([]);
@@ -138,6 +144,28 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
 
     // Check win condition
     if (myCurrentGuess === targetWord) {
+      // Handle timed mode - continue with new word
+      if (gameMode === "timed") {
+        setPlayerWordsCompleted(prev => prev + 1);
+        setTimeLeft(prev => prev + 30);
+        toast.success("+30 seconds! Next word!");
+        
+        // Start new word for both
+        setTimeout(() => {
+          const newWord = getRandomWord();
+          setTargetWord(newWord);
+          setMyGuesses([]);
+          setMyCurrentGuess("");
+          setMyEvaluations([]);
+          setMyLetterStatus({});
+          setBotGuesses([]);
+          setBotEvaluations([]);
+          setBotState(getInitialBotState());
+          setWaitingForBot(false);
+        }, 1000);
+        return;
+      }
+      
       setMyWon(true);
       setMyGameOver(true);
       setBotGameOver(true);
@@ -157,6 +185,12 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
 
     // Check lose condition
     if (newGuesses.length >= MAX_GUESSES) {
+      if (gameMode === "timed") {
+        // In timed mode, just wait for bot
+        setWaitingForBot(true);
+        return;
+      }
+      
       setMyGameOver(true);
       const greenLetters = evaluation.filter(e => e === "correct").length;
       
@@ -213,6 +247,27 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
 
       // Check if bot won
       if (nextGuess === targetWord) {
+        // Handle timed mode - continue with new word
+        if (gameMode === "timed") {
+          setBotWordsCompleted(prev => prev + 1);
+          toast.info("Bot completed the word!");
+          
+          // Start new word for both
+          setTimeout(() => {
+            const newWord = getRandomWord();
+            setTargetWord(newWord);
+            setMyGuesses([]);
+            setMyCurrentGuess("");
+            setMyEvaluations([]);
+            setMyLetterStatus({});
+            setBotGuesses([]);
+            setBotEvaluations([]);
+            setBotState(getInitialBotState());
+            setWaitingForBot(false);
+          }, 1000);
+          return;
+        }
+        
         setBotWon(true);
         setBotGameOver(true);
         setMyGameOver(true);
@@ -232,6 +287,24 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
 
       // Check if both lost
       if (newBotGuesses.length >= MAX_GUESSES && myGuesses.length >= MAX_GUESSES) {
+        if (gameMode === "timed") {
+          // In timed mode, start new word
+          toast.info("New word! Neither solved it.");
+          setTimeout(() => {
+            const newWord = getRandomWord();
+            setTargetWord(newWord);
+            setMyGuesses([]);
+            setMyCurrentGuess("");
+            setMyEvaluations([]);
+            setMyLetterStatus({});
+            setBotGuesses([]);
+            setBotEvaluations([]);
+            setBotState(getInitialBotState());
+            setWaitingForBot(false);
+          }, 1000);
+          return;
+        }
+        
         setMyGameOver(true);
         setBotGameOver(true);
         
@@ -252,6 +325,47 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
     const timer = setTimeout(makeBotGuess, 1500);
     return () => clearTimeout(timer);
   }, [waitingForBot, myGuesses.length, botGuesses.length, myGameOver, botGameOver, targetWord, gameMode, botState, botGuesses, botEvaluations, myEvaluations]);
+
+  // Timed mode timer
+  useEffect(() => {
+    if (gameMode === "timed" && timedGameActive && timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            setMyGameOver(true);
+            setBotGameOver(true);
+            setTimedGameActive(false);
+            
+            const winner = playerWordsCompleted > botWordsCompleted ? "player" : 
+                          botWordsCompleted > playerWordsCompleted ? "bot" : "tie";
+            
+            const greenLetters = myEvaluations[myEvaluations.length - 1]?.filter(e => e === "correct").length || 0;
+            saveGameResult({
+              mode: "timed",
+              won: winner === "player",
+              guesses: myGuesses.length,
+              wordsCompleted: playerWordsCompleted,
+              greenLetters,
+              timestamp: Date.now(),
+            });
+            
+            setTimeout(() => {
+              if (winner === "player") {
+                toast.success(`You won! ${playerWordsCompleted} vs ${botWordsCompleted} words 🎉`);
+              } else if (winner === "bot") {
+                toast.error(`Bot won! ${botWordsCompleted} vs ${playerWordsCompleted} words 🤖`);
+              } else {
+                toast.info(`Tie! Both completed ${playerWordsCompleted} words`);
+              }
+            }, 500);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [gameMode, timedGameActive, timeLeft, playerWordsCompleted, botWordsCompleted, myEvaluations]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -276,9 +390,22 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Menu
         </Button>
-        <div className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-primary" />
-          <span className="font-bold capitalize">{gameMode} vs Bot</span>
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-primary" />
+            <span className="font-bold capitalize">{gameMode} vs Bot</span>
+          </div>
+          {gameMode === "timed" && (
+            <div className="flex items-center gap-3 text-xs mt-1">
+              <span className="font-bold">You: {playerWordsCompleted}</span>
+              <span>|</span>
+              <span className="font-bold">Bot: {botWordsCompleted}</span>
+              <span>|</span>
+              <span className={`font-bold ${timeLeft <= 10 ? 'text-destructive' : ''}`}>
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              </span>
+            </div>
+          )}
         </div>
         <div className="w-20" />
       </div>

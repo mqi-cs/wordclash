@@ -461,7 +461,10 @@ const Index = () => {
           </div>
         </div>
       }>
-        <BotGame onBackToMenu={handleBackToMenu} gameMode={gameMode === "hard" ? "hard" : "classic"} />
+        <BotGame 
+          onBackToMenu={handleBackToMenu} 
+          gameMode={gameMode === "hard" ? "hard" : gameMode === "timed" ? "timed" : "classic"} 
+        />
       </Suspense>
     );
   }
