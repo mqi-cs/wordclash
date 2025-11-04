@@ -353,6 +353,7 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
                           hasGuess && status === "present" && "bg-game-present border-game-present",
                           hasGuess && status === "absent" && "bg-game-absent border-game-absent"
                         )}
+                        style={hasGuess && !myGameOver ? { filter: "blur(8px)" } : undefined}
                       >
                         {hasGuess ? guess[colIndex] : ""}
                       </div>
