@@ -22,6 +22,11 @@ interface GameState {
   won: boolean;
 }
 
+interface JoinedPlayer {
+  id: string;
+  slot: number;
+}
+
 export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   // Dynamically import supabase to avoid initialization issues
   const [supabase, setSupabase] = useState<any>(null);
@@ -38,6 +43,9 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [isHost, setIsHost] = useState(false);
   const [waiting, setWaiting] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [joinedPlayers, setJoinedPlayers] = useState<JoinedPlayer[]>([]);
+  const [playerSlot, setPlayerSlot] = useState<number>(1);
+  const [gameStarted, setGameStarted] = useState(false);
   
   // My game state
   const [myGuesses, setMyGuesses] = useState<string[]>([]);
@@ -79,20 +87,35 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           return;
         }
         
-        if (game.status !== "waiting") {
-          toast.error("Game already started or finished");
+        if (game.game_started) {
+          toast.error("Game already started");
           window.history.replaceState({}, '', '/');
           return;
         }
         
-        // Update game with player 2
+        // Find available slot
+        let slot = 0;
+        let updateData: any = {};
+        
+        if (!game.player2_id) {
+          slot = 2;
+          updateData.player2_id = playerId;
+        } else if (!game.player3_id) {
+          slot = 3;
+          updateData.player3_id = playerId;
+        } else if (!game.player4_id) {
+          slot = 4;
+          updateData.player4_id = playerId;
+        } else {
+          toast.error("Game is full");
+          window.history.replaceState({}, '', '/');
+          return;
+        }
+        
+        // Update game with new player
         const { error: updateError } = await supabase
           .from("multiplayer_games")
-          .update({
-            player2_id: playerId,
-            status: "active",
-            started_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq("id", joinGameId);
         
         if (updateError) {
@@ -103,7 +126,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         setGameId(joinGameId);
         setTargetWord(game.target_word);
         setIsHost(false);
-        setWaiting(false);
+        setPlayerSlot(slot);
         toast.success("Joined game!");
         window.history.replaceState({}, '', '/');
       } else {
@@ -129,15 +152,16 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
         setGameId(game.id);
         setIsHost(true);
+        setPlayerSlot(1);
       }
     };
 
     initGame();
   }, [playerId, supabase]);
 
-  // Listen for player 2 joining
+  // Listen for players joining and game start
   useEffect(() => {
-    if (!gameId || !isHost || !supabase) return;
+    if (!gameId || !supabase) return;
 
     const channel = supabase
       .channel(`game-${gameId}`)
@@ -150,9 +174,20 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           filter: `id=eq.${gameId}`
         },
         (payload: any) => {
-          if (payload.new.player2_id && payload.new.status === "active") {
+          const game = payload.new;
+          const players: JoinedPlayer[] = [];
+          
+          if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
+          if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
+          if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
+          if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
+          
+          setJoinedPlayers(players);
+          
+          if (game.game_started && !gameStarted) {
+            setGameStarted(true);
             setWaiting(false);
-            toast.success("Opponent joined! Game starting...");
+            toast.success("Game starting!");
           }
         }
       )
@@ -161,7 +196,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, isHost, supabase]);
+  }, [gameId, supabase, gameStarted]);
 
   // Listen for opponent guesses and track presence
   useEffect(() => {
@@ -370,6 +405,22 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleStartGame = async () => {
+    if (!gameId || !supabase || joinedPlayers.length < 2) {
+      toast.error("Need at least 2 players to start");
+      return;
+    }
+
+    await supabase
+      .from("multiplayer_games")
+      .update({
+        game_started: true,
+        status: "active",
+        started_at: new Date().toISOString()
+      })
+      .eq("id", gameId);
+  };
+
   if (!supabase || waiting) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -378,20 +429,64 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             <div className="flex items-center justify-center">
               <Users className="w-16 h-16 text-primary animate-pulse" />
             </div>
-            <h2 className="text-2xl font-bold">Waiting for Opponent</h2>
-            <p className="text-muted-foreground">Share this link with a friend to start the game</p>
+            <h2 className="text-2xl font-bold">
+              {isHost ? "Waiting Room" : "Waiting for Host"}
+            </h2>
+            <p className="text-muted-foreground">
+              {isHost ? "Share this link and start when ready" : "Waiting for host to start the game"}
+            </p>
             
-            <div className="flex gap-2">
-              <input
-                type="text"
-                readOnly
-                value={`${window.location.origin}?join=${gameId}`}
-                className="flex-1 px-4 py-2 rounded-lg border bg-background text-sm"
-              />
-              <Button onClick={copyGameLink} size="icon">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </Button>
+            {isHost && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.origin}?join=${gameId}`}
+                  className="flex-1 px-4 py-2 rounded-lg border bg-background text-sm"
+                />
+                <Button onClick={copyGameLink} size="icon">
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Players ({joinedPlayers.length}/4):</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[1, 2, 3, 4].map((slot) => {
+                  const player = joinedPlayers.find(p => p.slot === slot);
+                  return (
+                    <div
+                      key={slot}
+                      className={cn(
+                        "p-3 rounded-lg border-2 text-sm font-medium",
+                        player ? "border-primary bg-primary/10" : "border-muted bg-muted/30"
+                      )}
+                    >
+                      {player ? (
+                        <div className="flex items-center gap-2">
+                          {slot === 1 && <Crown className="w-4 h-4 text-yellow-500" />}
+                          Player {slot}
+                          {player.id === playerId && " (You)"}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Empty</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            {isHost && (
+              <Button 
+                onClick={handleStartGame} 
+                className="w-full"
+                disabled={joinedPlayers.length < 2}
+              >
+                Start Game
+              </Button>
+            )}
           </div>
           
           <Button variant="outline" onClick={onBackToMenu} className="w-full">

@@ -18,9 +18,12 @@ export type Database = {
         Row: {
           created_at: string
           finished_at: string | null
+          game_started: boolean
           id: string
           player1_id: string
           player2_id: string | null
+          player3_id: string | null
+          player4_id: string | null
           started_at: string | null
           status: string
           target_word: string
@@ -29,9 +32,12 @@ export type Database = {
         Insert: {
           created_at?: string
           finished_at?: string | null
+          game_started?: boolean
           id?: string
           player1_id: string
           player2_id?: string | null
+          player3_id?: string | null
+          player4_id?: string | null
           started_at?: string | null
           status?: string
           target_word: string
@@ -40,9 +46,12 @@ export type Database = {
         Update: {
           created_at?: string
           finished_at?: string | null
+          game_started?: boolean
           id?: string
           player1_id?: string
           player2_id?: string | null
+          player3_id?: string | null
+          player4_id?: string | null
           started_at?: string | null
           status?: string
           target_word?: string
