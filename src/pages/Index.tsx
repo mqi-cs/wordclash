@@ -11,6 +11,8 @@ import { ArrowLeft, Trophy } from "lucide-react";
 import { Leaderboard } from "@/components/Leaderboard";
 import { saveGameResult } from "@/lib/gameHistory";
 import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
+import { useStatsUpdate } from "@/hooks/useStatsUpdate";
+import { useAuth } from "@/contexts/AuthContext";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -22,6 +24,8 @@ const TIMED_INITIAL_SECONDS = 90;
 const TIMED_BONUS_SECONDS = 30;
 
 const Index = () => {
+  const { user } = useAuth();
+  const { updateStats } = useStatsUpdate();
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
   const [guesses, setGuesses] = useState<string[]>([]);
@@ -185,7 +189,7 @@ const Index = () => {
       // Count green letters
       const greenLetters = evaluation.filter(e => e === "correct").length;
       
-      // Save game result
+      // Save game result to localStorage
       saveGameResult({
         mode: gameMode!,
         won: true,
@@ -193,6 +197,11 @@ const Index = () => {
         greenLetters,
         timestamp: Date.now(),
       });
+      
+      // Update database stats if user is logged in
+      if (user) {
+        updateStats(gameMode!, true, greenLetters);
+      }
       
       setTimeout(() => {
         toast.success("Congratulations! 🎉");
@@ -208,7 +217,7 @@ const Index = () => {
       // Count green letters in last guess
       const greenLetters = evaluation.filter(e => e === "correct").length;
       
-      // Save game result
+      // Save game result to localStorage
       if (gameMode) {
         saveGameResult({
           mode: gameMode,
@@ -217,6 +226,11 @@ const Index = () => {
           greenLetters,
           timestamp: Date.now(),
         });
+      }
+      
+      // Update database stats if user is logged in
+      if (user && gameMode) {
+        updateStats(gameMode, false, greenLetters);
       }
       
       setTimeout(() => {
@@ -388,7 +402,7 @@ const Index = () => {
             const lastEvaluation = evaluations[evaluations.length - 1] || [];
             const greenLetters = lastEvaluation.filter(e => e === "correct").length;
             
-            // Save timed mode result
+            // Save timed mode result to localStorage
             saveGameResult({
               mode: "timed",
               won: wordsCompleted > 0,
@@ -397,6 +411,11 @@ const Index = () => {
               greenLetters,
               timestamp: Date.now(),
             });
+            
+            // Update database stats if user is logged in
+            if (user) {
+              updateStats("timed", wordsCompleted > 0, greenLetters);
+            }
             
             setTimeout(() => {
               toast.error(`Time's up! You completed ${wordsCompleted} word${wordsCompleted !== 1 ? 's' : ''}!`);

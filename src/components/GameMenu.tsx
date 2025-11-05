@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Clock, Zap, Target, Trophy, Flame, Timer, Award } from "lucide-react";
+import { Clock, Zap, Target, Trophy, Flame, Timer, Award, LogIn, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { UserStats } from "./UserStats";
+import { toast } from "sonner";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
@@ -11,6 +15,14 @@ interface GameMenuProps {
 }
 
 export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col items-center justify-center p-4">
       <div className="max-w-5xl w-full space-y-12">
@@ -35,7 +47,29 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
           <p className="text-lg text-muted-foreground font-medium">
             Test your vocabulary • Challenge yourself • Beat the clock
           </p>
+          
+          {/* Auth Status */}
+          <div className="flex items-center justify-center gap-3 pt-2">
+            {user ? (
+              <Button variant="outline" onClick={handleSignOut} size="sm">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            ) : (
+              <Button variant="default" onClick={() => navigate("/auth")} size="sm">
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In / Sign Up
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* User Stats */}
+        {user && (
+          <div className="animate-fade-in">
+            <UserStats />
+          </div>
+        )}
 
         {/* Game Mode Cards */}
         <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
