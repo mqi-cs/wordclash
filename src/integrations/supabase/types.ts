@@ -97,6 +97,81 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      user_stats: {
+        Row: {
+          best_streak: number
+          classic_played: number
+          classic_won: number
+          created_at: string
+          current_streak: number
+          hard_played: number
+          hard_won: number
+          id: string
+          multiplayer_played: number
+          multiplayer_won: number
+          timed_played: number
+          timed_won: number
+          total_green_letters: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          best_streak?: number
+          classic_played?: number
+          classic_won?: number
+          created_at?: string
+          current_streak?: number
+          hard_played?: number
+          hard_won?: number
+          id?: string
+          multiplayer_played?: number
+          multiplayer_won?: number
+          timed_played?: number
+          timed_won?: number
+          total_green_letters?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          best_streak?: number
+          classic_played?: number
+          classic_won?: number
+          created_at?: string
+          current_streak?: number
+          hard_played?: number
+          hard_won?: number
+          id?: string
+          multiplayer_played?: number
+          multiplayer_won?: number
+          timed_played?: number
+          timed_won?: number
+          total_green_letters?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
