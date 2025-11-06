@@ -55,7 +55,7 @@ export const FriendRequests = ({ onUpdate }: { onUpdate?: () => void }) => {
 
       setRequests(requestsWithSenders);
     } catch (error) {
-      console.error("Error fetching friend requests:", error);
+      // Error fetching requests - fail silently
     }
   };
 
@@ -89,7 +89,6 @@ export const FriendRequests = ({ onUpdate }: { onUpdate?: () => void }) => {
       fetchRequests();
       onUpdate?.();
     } catch (error) {
-      console.error("Error handling friend request:", error);
       toast({
         title: "Error",
         description: "Failed to handle friend request",

@@ -34,7 +34,6 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
       if (error) throw error;
       setSearchResults(data || []);
     } catch (error) {
-      console.error("Error searching users:", error);
       toast({
         title: "Error",
         description: "Failed to search users",
@@ -81,7 +80,6 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
       setSearchQuery("");
       onRequestSent?.();
     } catch (error) {
-      console.error("Error sending friend request:", error);
       toast({
         title: "Error",
         description: "Failed to send friend request",

@@ -70,7 +70,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
 
       setFriends(friendsData);
     } catch (error) {
-      console.error("Error fetching friends:", error);
+      // Error fetching friends - fail silently
     }
   };
 

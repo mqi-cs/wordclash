@@ -7,6 +7,8 @@ import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -28,6 +30,9 @@ interface JoinedPlayer {
 }
 
 export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
   // Dynamically import supabase to avoid initialization issues
   const [supabase, setSupabase] = useState<any>(null);
   
@@ -38,7 +43,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   }, []);
   
   const [gameId, setGameId] = useState<string | null>(null);
-  const [playerId] = useState(() => `player_${Math.random().toString(36).substr(2, 9)}`);
+  const playerId = user?.id || "";
   const [targetWord, setTargetWord] = useState("");
   const [isHost, setIsHost] = useState(false);
   const [waiting, setWaiting] = useState(true);
@@ -64,9 +69,17 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [opponentCurrentRow, setOpponentCurrentRow] = useState(0);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
 
+  // Require authentication
+  useEffect(() => {
+    if (!user) {
+      toast.error("Please sign in to play multiplayer games");
+      navigate("/auth");
+    }
+  }, [user, navigate]);
+
   // Create or join game
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !user) return;
     
     const initGame = async () => {
       // Check if joining existing game
@@ -145,7 +158,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           .single();
 
         if (error) {
-          console.error("Error creating game:", error);
           toast.error("Failed to create game");
           return;
         }
@@ -157,11 +169,11 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     };
 
     initGame();
-  }, [playerId, supabase]);
+  }, [playerId, supabase, user]);
 
   // Listen for players joining and game start
   useEffect(() => {
-    if (!gameId || !supabase) return;
+    if (!gameId || !supabase || !user) return;
 
     const channel = supabase
       .channel(`game-${gameId}`)
