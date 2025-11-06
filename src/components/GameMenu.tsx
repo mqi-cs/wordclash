@@ -5,7 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { UserStats } from "./UserStats";
+import { FriendSearch } from "./FriendSearch";
+import { FriendRequests } from "./FriendRequests";
+import { FriendsList } from "./FriendsList";
 import { toast } from "sonner";
+import { useState } from "react";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
@@ -17,10 +21,20 @@ interface GameMenuProps {
 export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [friendsKey, setFriendsKey] = useState(0);
 
   const handleSignOut = async () => {
     await signOut();
     toast.success("Signed out successfully");
+  };
+
+  const handleChallengeFriend = (friendId: string) => {
+    // TODO: Implement challenge friend to multiplayer game
+    toast.info("Challenge system coming soon!");
+  };
+
+  const refreshFriends = () => {
+    setFriendsKey(prev => prev + 1);
   };
 
   return (
@@ -68,6 +82,20 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
         {user && (
           <div className="animate-fade-in">
             <UserStats />
+          </div>
+        )}
+
+        {/* Friends Section */}
+        {user && (
+          <div className="grid gap-6 md:grid-cols-2 animate-fade-in">
+            <div className="space-y-6">
+              <Card className="p-6">
+                <h3 className="text-xl font-bold mb-4">Add Friends</h3>
+                <FriendSearch onRequestSent={refreshFriends} />
+              </Card>
+              <FriendRequests key={friendsKey} onUpdate={refreshFriends} />
+            </div>
+            <FriendsList key={friendsKey} onChallenge={handleChallengeFriend} />
           </div>
         )}
 
