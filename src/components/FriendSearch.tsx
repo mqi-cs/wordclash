@@ -6,6 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Search, UserPlus } from "lucide-react";
+import { z } from "zod";
+
+const searchSchema = z.object({
+  query: z.string()
+    .trim()
+    .min(1, "Search query cannot be empty")
+    .max(50, "Search query must be less than 50 characters")
+    .regex(/^[a-zA-Z0-9_-\s]+$/, "Search can only contain letters, numbers, underscores, hyphens, and spaces")
+});
 
 interface SearchResult {
   id: string;
@@ -22,12 +31,25 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
   const searchUsers = async () => {
     if (!searchQuery.trim()) return;
     
+    // Validate search query
+    const validationResult = searchSchema.safeParse({ query: searchQuery });
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors[0].message;
+      toast({
+        title: "Validation Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
+      const sanitizedQuery = searchQuery.trim();
       const { data, error } = await supabase
         .from("profiles")
         .select("id, username")
-        .ilike("username", `%${searchQuery}%`)
+        .ilike("username", `%${sanitizedQuery}%`)
         .neq("id", user?.id)
         .limit(5);
 

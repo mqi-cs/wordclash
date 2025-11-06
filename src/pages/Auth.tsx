@@ -6,6 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+
+const signUpSchema = z.object({
+  username: z.string()
+    .trim()
+    .min(3, "Username must be at least 3 characters")
+    .max(20, "Username must be less than 20 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens"),
+  email: z.string().trim().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters")
+});
+
+const signInSchema = z.object({
+  email: z.string().trim().email("Invalid email address"),
+  password: z.string().min(1, "Password is required")
+});
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -22,7 +38,20 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Validate inputs
       if (isSignUp) {
+        const validationResult = signUpSchema.safeParse({ username, email, password });
+        if (!validationResult.success) {
+          const errorMessage = validationResult.error.errors[0].message;
+          toast({
+            variant: "destructive",
+            title: "Validation Error",
+            description: errorMessage,
+          });
+          setLoading(false);
+          return;
+        }
+        
         const { error } = await signUp(email, password, username);
         if (error) throw error;
         toast({
@@ -31,6 +60,18 @@ const Auth = () => {
         });
         setIsSignUp(false);
       } else {
+        const validationResult = signInSchema.safeParse({ email, password });
+        if (!validationResult.success) {
+          const errorMessage = validationResult.error.errors[0].message;
+          toast({
+            variant: "destructive",
+            title: "Validation Error",
+            description: errorMessage,
+          });
+          setLoading(false);
+          return;
+        }
+        
         const { error } = await signIn(email, password);
         if (error) throw error;
         toast({
