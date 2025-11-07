@@ -88,7 +88,6 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
       const { data: game, error: gameError } = await supabase
         .from("multiplayer_games")
         .insert({
-          target_word: word,
           player1_id: user.id,
           status: "waiting"
         })
@@ -96,6 +95,16 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
         .single();
 
       if (gameError) throw gameError;
+
+      // Store target word in secrets table
+      const { error: secretError } = await supabase
+        .from("multiplayer_game_secrets")
+        .insert({
+          game_id: game.id,
+          target_word: word
+        });
+
+      if (secretError) throw secretError;
 
       // Create a game invitation
       const { error: inviteError } = await supabase
@@ -114,7 +123,9 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
       // Call the optional onChallenge callback
       onChallenge?.(friendId);
     } catch (error) {
-      console.error("Error sending challenge:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error sending challenge:", error);
+      }
       toast.error("Failed to send challenge");
     } finally {
       setSendingChallenge(null);

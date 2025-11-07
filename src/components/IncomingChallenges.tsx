@@ -77,7 +77,9 @@ export const IncomingChallenges = () => {
 
       setChallenges(challengesData);
     } catch (error) {
-      console.error("Error fetching challenges:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error fetching challenges:", error);
+      }
     }
   };
 
@@ -87,13 +89,12 @@ export const IncomingChallenges = () => {
     setProcessingChallenge(challenge.id);
     
     try {
-      // Update game to add player 2
-      const { error: gameError } = await supabase
-        .from("multiplayer_games")
-        .update({ player2_id: user.id })
-        .eq("id", challenge.game_id);
+      // Use secure function to join game
+      const { data, error: joinError } = await supabase.rpc('join_multiplayer_game', {
+        game_id_param: challenge.game_id
+      });
 
-      if (gameError) throw gameError;
+      if (joinError) throw joinError;
 
       // Update invitation status
       const { error: inviteError } = await supabase
@@ -109,7 +110,9 @@ export const IncomingChallenges = () => {
       navigate(`/?join=${challenge.game_id}`);
       window.location.reload();
     } catch (error) {
-      console.error("Error accepting challenge:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error accepting challenge:", error);
+      }
       toast.error("Failed to accept challenge");
     } finally {
       setProcessingChallenge(null);
@@ -130,7 +133,9 @@ export const IncomingChallenges = () => {
       toast.success("Challenge declined");
       fetchChallenges();
     } catch (error) {
-      console.error("Error declining challenge:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error declining challenge:", error);
+      }
       toast.error("Failed to decline challenge");
     } finally {
       setProcessingChallenge(null);

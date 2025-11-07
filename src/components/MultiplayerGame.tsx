@@ -106,40 +106,19 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           return;
         }
         
-        // Find available slot
-        let slot = 0;
-        let updateData: any = {};
+        // Use secure function to join game
+        const { data: joinResult, error: joinError } = await supabase.rpc('join_multiplayer_game', {
+          game_id_param: joinGameId
+        });
         
-        if (!game.player2_id) {
-          slot = 2;
-          updateData.player2_id = playerId;
-        } else if (!game.player3_id) {
-          slot = 3;
-          updateData.player3_id = playerId;
-        } else if (!game.player4_id) {
-          slot = 4;
-          updateData.player4_id = playerId;
-        } else {
-          toast.error("Game is full");
-          window.history.replaceState({}, '', '/');
-          return;
-        }
-        
-        // Update game with new player
-        const { error: updateError } = await supabase
-          .from("multiplayer_games")
-          .update(updateData)
-          .eq("id", joinGameId);
-        
-        if (updateError) {
+        if (joinError) {
           toast.error("Failed to join game");
           return;
         }
         
         setGameId(joinGameId);
-        setTargetWord(game.target_word);
         setIsHost(false);
-        setPlayerSlot(slot);
+        setPlayerSlot(joinResult.slot);
         toast.success("Joined game!");
         window.history.replaceState({}, '', '/');
       } else {
@@ -150,7 +129,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         const { data: game, error } = await supabase
           .from("multiplayer_games")
           .insert({
-            target_word: word,
             player1_id: playerId,
             status: "waiting"
           })
@@ -158,6 +136,19 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           .single();
 
         if (error) {
+          toast.error("Failed to create game");
+          return;
+        }
+
+        // Store target word in secrets table
+        const { error: secretError } = await supabase
+          .from("multiplayer_game_secrets")
+          .insert({
+            game_id: game.id,
+            target_word: word
+          });
+
+        if (secretError) {
           toast.error("Failed to create game");
           return;
         }

@@ -79,6 +79,32 @@ export type Database = {
           },
         ]
       }
+      multiplayer_game_secrets: {
+        Row: {
+          created_at: string
+          game_id: string
+          target_word: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          target_word: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          target_word?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multiplayer_game_secrets_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: true
+            referencedRelation: "multiplayer_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       multiplayer_games: {
         Row: {
           created_at: string
@@ -91,7 +117,6 @@ export type Database = {
           player4_id: string | null
           started_at: string | null
           status: string
-          target_word: string
           winner_id: string | null
         }
         Insert: {
@@ -105,7 +130,6 @@ export type Database = {
           player4_id?: string | null
           started_at?: string | null
           status?: string
-          target_word: string
           winner_id?: string | null
         }
         Update: {
@@ -119,7 +143,6 @@ export type Database = {
           player4_id?: string | null
           started_at?: string | null
           status?: string
-          target_word?: string
           winner_id?: string | null
         }
         Relationships: []
@@ -242,7 +265,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      join_multiplayer_game: { Args: { game_id_param: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
