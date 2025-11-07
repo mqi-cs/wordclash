@@ -75,7 +75,7 @@ export const GameGrid = ({
   });
 
   return (
-    <div className="flex flex-col gap-1 sm:gap-1.5 my-4 sm:my-8">
+    <div className="flex flex-col gap-1 sm:gap-1.5 my-2 sm:my-4">
       {rows.map((row, i) => (
         <div
           key={i}

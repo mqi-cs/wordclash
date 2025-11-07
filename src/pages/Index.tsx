@@ -489,7 +489,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       <GameHeader 
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowLeaderboard(true)}
@@ -501,7 +501,7 @@ const Index = () => {
         botDisabled={gameOver}
       />
       
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 border-b gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 border-b gap-2 flex-shrink-0">
         <Button variant="ghost" size="sm" onClick={handleBackToMenu} className="h-8">
           <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
           <span className="text-xs sm:text-sm">Menu</span>
@@ -525,24 +525,28 @@ const Index = () => {
         </div>
       </div>
       
-      <main className="flex-1 flex flex-col items-center justify-start pt-2 sm:pt-4 pb-4 sm:pb-8 px-2 sm:px-4">
-        <GameGrid
-          guesses={guesses}
-          currentGuess={currentGuess}
-          evaluations={evaluations}
-          maxGuesses={maxGuesses}
-          wordLength={WORD_LENGTH}
-          shake={shake}
-          revealedHints={revealedHints}
-          targetWord={targetWord}
-        />
+      <main className="flex-1 flex flex-col items-center justify-between py-2 sm:py-4 px-2 sm:px-4 min-h-0 overflow-hidden">
+        <div className="flex-shrink-0 w-full flex justify-center">
+          <GameGrid
+            guesses={guesses}
+            currentGuess={currentGuess}
+            evaluations={evaluations}
+            maxGuesses={maxGuesses}
+            wordLength={WORD_LENGTH}
+            shake={shake}
+            revealedHints={revealedHints}
+            targetWord={targetWord}
+          />
+        </div>
         
-        <Keyboard
-          onKeyPress={handleKeyPress}
-          onEnter={handleEnter}
-          onDelete={handleDelete}
-          letterStatus={letterStatus}
-        />
+        <div className="flex-shrink-0 w-full flex justify-center pb-2">
+          <Keyboard
+            onKeyPress={handleKeyPress}
+            onEnter={handleEnter}
+            onDelete={handleDelete}
+            letterStatus={letterStatus}
+          />
+        </div>
       </main>
 
       <ResultModal
