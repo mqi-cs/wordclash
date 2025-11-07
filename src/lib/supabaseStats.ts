@@ -32,6 +32,8 @@ export const updateUserStats = async (userId: string, mode: GameMode, won: boole
 
     if (updateError) throw updateError;
   } catch (error) {
-    console.error("Error updating stats:", error);
+    if (import.meta.env.DEV) {
+      console.error("Error updating stats:", error);
+    }
   }
 };
