@@ -8,6 +8,7 @@ import { UserStats } from "./UserStats";
 import { FriendSearch } from "./FriendSearch";
 import { FriendRequests } from "./FriendRequests";
 import { FriendsList } from "./FriendsList";
+import { IncomingChallenges } from "./IncomingChallenges";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -26,11 +27,6 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
   const handleSignOut = async () => {
     await signOut();
     toast.success("Signed out successfully");
-  };
-
-  const handleChallengeFriend = (friendId: string) => {
-    // TODO: Implement challenge friend to multiplayer game
-    toast.info("Challenge system coming soon!");
   };
 
   const refreshFriends = () => {
@@ -87,15 +83,18 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
 
         {/* Friends Section */}
         {user && (
-          <div className="grid gap-6 md:grid-cols-2 animate-fade-in">
-            <div className="space-y-6">
-              <Card className="p-6">
-                <h3 className="text-xl font-bold mb-4">Add Friends</h3>
-                <FriendSearch onRequestSent={refreshFriends} />
-              </Card>
-              <FriendRequests key={friendsKey} onUpdate={refreshFriends} />
+          <div className="space-y-6 animate-fade-in">
+            <IncomingChallenges />
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-6">
+                <Card className="p-6">
+                  <h3 className="text-xl font-bold mb-4">Add Friends</h3>
+                  <FriendSearch onRequestSent={refreshFriends} />
+                </Card>
+                <FriendRequests key={friendsKey} onUpdate={refreshFriends} />
+              </div>
+              <FriendsList key={friendsKey} />
             </div>
-            <FriendsList key={friendsKey} onChallenge={handleChallengeFriend} />
           </div>
         )}
 

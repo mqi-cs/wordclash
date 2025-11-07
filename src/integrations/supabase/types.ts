@@ -41,6 +41,44 @@ export type Database = {
         }
         Relationships: []
       }
+      game_invitations: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          game_id: string
+          id: string
+          status: string
+          to_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          game_id: string
+          id?: string
+          status?: string
+          to_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          game_id?: string
+          id?: string
+          status?: string
+          to_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_invitations_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "multiplayer_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       multiplayer_games: {
         Row: {
           created_at: string

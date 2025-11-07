@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Swords, Trophy } from "lucide-react";
+import { getRandomWord } from "@/lib/wordList";
+import { toast } from "sonner";
 
 interface Friend {
   id: string;
@@ -19,6 +21,7 @@ interface Friend {
 export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) => void }) => {
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [sendingChallenge, setSendingChallenge] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -74,6 +77,50 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
     }
   };
 
+  const handleChallenge = async (friendId: string) => {
+    if (!user) return;
+    
+    setSendingChallenge(friendId);
+    
+    try {
+      // Create a new multiplayer game
+      const word = getRandomWord();
+      const { data: game, error: gameError } = await supabase
+        .from("multiplayer_games")
+        .insert({
+          target_word: word,
+          player1_id: user.id,
+          status: "waiting"
+        })
+        .select()
+        .single();
+
+      if (gameError) throw gameError;
+
+      // Create a game invitation
+      const { error: inviteError } = await supabase
+        .from("game_invitations")
+        .insert({
+          game_id: game.id,
+          from_user_id: user.id,
+          to_user_id: friendId,
+          status: "pending"
+        });
+
+      if (inviteError) throw inviteError;
+
+      toast.success("Challenge sent!");
+      
+      // Call the optional onChallenge callback
+      onChallenge?.(friendId);
+    } catch (error) {
+      console.error("Error sending challenge:", error);
+      toast.error("Failed to send challenge");
+    } finally {
+      setSendingChallenge(null);
+    }
+  };
+
   if (friends.length === 0) {
     return (
       <Card>
@@ -102,10 +149,11 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
               <span className="font-bold text-lg">{friend.username}</span>
               <Button
                 size="sm"
-                onClick={() => onChallenge?.(friend.id)}
+                onClick={() => handleChallenge(friend.id)}
+                disabled={sendingChallenge === friend.id}
               >
                 <Swords className="h-4 w-4 mr-2" />
-                Challenge
+                {sendingChallenge === friend.id ? "Sending..." : "Challenge"}
               </Button>
             </div>
             
