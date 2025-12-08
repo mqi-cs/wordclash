@@ -34,7 +34,8 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col items-center justify-center p-4 relative">
+      <span className="absolute top-4 right-4 text-m font-bold text-muted-foreground/50 select-none">V1.0</span>
       <div className="max-w-5xl w-full space-y-12">
         {/* Header */}
         <div className="text-center space-y-4 animate-fade-in">
@@ -45,8 +46,8 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
             <h1 className="text-7xl font-black tracking-tighter bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
               WORDLE
             </h1>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
               onClick={onShowLeaderboard}
               className="hover:bg-amber-600/10 hover:text-amber-600 hover:border-amber-600 transition-all"
@@ -57,7 +58,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
           <p className="text-lg text-muted-foreground font-medium">
             Test your vocabulary • Challenge yourself • Beat the clock
           </p>
-          
+
           {/* Auth Status */}
           <div className="flex items-center justify-center gap-3 pt-2">
             {user ? (
@@ -101,7 +102,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
         {/* Game Mode Cards */}
         <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
           {/* Classic Mode */}
-          <Card 
+          <Card
             className="group relative overflow-hidden border-2 hover:border-[hsl(var(--menu-classic))] transition-all duration-300 hover:shadow-2xl hover:shadow-[hsl(var(--menu-classic))]/20 cursor-pointer hover:-translate-y-2"
             onClick={() => onSelectMode("classic")}
           >
@@ -113,7 +114,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
                 </div>
                 <Badge variant="secondary" className="text-xs">Popular</Badge>
               </div>
-              
+
               <div className="space-y-2">
                 <h3 className="text-2xl font-bold text-foreground">Classic</h3>
                 <p className="text-sm text-muted-foreground">
@@ -136,7 +137,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
                 </li>
               </ul>
 
-              <Button 
+              <Button
                 className="w-full bg-[hsl(var(--menu-classic))] hover:bg-[hsl(var(--menu-classic))]/90 text-white font-semibold shadow-lg"
                 size="lg"
                 onClick={() => onSelectMode("classic")}
@@ -147,7 +148,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
           </Card>
 
           {/* Hard Mode */}
-          <Card 
+          <Card
             className="group relative overflow-hidden border-2 hover:border-[hsl(var(--menu-hard))] transition-all duration-300 hover:shadow-2xl hover:shadow-[hsl(var(--menu-hard))]/20 cursor-pointer hover:-translate-y-2"
             onClick={() => onSelectMode("hard")}
           >
@@ -159,7 +160,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
                 </div>
                 <Badge className="text-xs bg-[hsl(var(--menu-hard))] text-white">Challenge</Badge>
               </div>
-              
+
               <div className="space-y-2">
                 <h3 className="text-2xl font-bold text-foreground">Hard Mode</h3>
                 <p className="text-sm text-muted-foreground">
@@ -182,7 +183,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
                 </li>
               </ul>
 
-              <Button 
+              <Button
                 className="w-full bg-[hsl(var(--menu-hard))] hover:bg-[hsl(var(--menu-hard))]/90 text-white font-semibold shadow-lg"
                 size="lg"
                 onClick={() => onSelectMode("hard")}
@@ -193,7 +194,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
           </Card>
 
           {/* Timed Mode */}
-          <Card 
+          <Card
             className="group relative overflow-hidden border-2 hover:border-[hsl(var(--menu-timed))] transition-all duration-300 hover:shadow-2xl hover:shadow-[hsl(var(--menu-timed))]/20 cursor-pointer hover:-translate-y-2"
             onClick={() => onSelectMode("timed")}
           >
@@ -205,7 +206,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
                 </div>
                 <Badge className="text-xs bg-[hsl(var(--menu-timed))] text-white">Fast</Badge>
               </div>
-              
+
               <div className="space-y-2">
                 <h3 className="text-2xl font-bold text-foreground">Timed Mode</h3>
                 <p className="text-sm text-muted-foreground">
@@ -228,7 +229,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
                 </li>
               </ul>
 
-              <Button 
+              <Button
                 className="w-full bg-[hsl(var(--menu-timed))] hover:bg-[hsl(var(--menu-timed))]/90 text-white font-semibold shadow-lg"
                 size="lg"
                 onClick={() => onSelectMode("timed")}
@@ -240,7 +241,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
         </div>
 
         {/* Multiplayer Mode - Full Width */}
-        <Card 
+        <Card
           className="group relative overflow-hidden border-2 hover:border-[hsl(var(--menu-multiplayer))] transition-all duration-300 hover:shadow-2xl hover:shadow-[hsl(var(--menu-multiplayer))]/20 cursor-pointer hover:-translate-y-2 animate-scale-in"
           onClick={() => onSelectMode("multiplayer")}
         >
@@ -277,7 +278,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
                 </div>
               </div>
 
-              <Button 
+              <Button
                 className="w-full md:w-auto bg-[hsl(var(--menu-multiplayer))] hover:bg-[hsl(var(--menu-multiplayer))]/90 text-white font-semibold shadow-lg"
                 size="lg"
                 onClick={() => onSelectMode("multiplayer")}
