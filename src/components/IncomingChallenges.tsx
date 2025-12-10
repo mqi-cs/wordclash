@@ -106,9 +106,8 @@ export const IncomingChallenges = () => {
 
       toast.success("Challenge accepted!");
       
-      // Navigate to the game
-      navigate(`/?join=${challenge.game_id}`);
-      window.location.reload();
+      // Navigate to the game (reload to ensure multiplayer mode is triggered)
+      window.location.href = `${window.location.origin}/?join=${challenge.game_id}`;
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error("Error accepting challenge:", error);
