@@ -26,7 +26,14 @@ const TIMED_BONUS_SECONDS = 30;
 const Index = () => {
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
-  const [gameMode, setGameMode] = useState<GameMode | null>(null);
+  
+  // Check for URL params to auto-start multiplayer
+  const urlParams = new URLSearchParams(window.location.search);
+  const joinGameId = urlParams.get('join') || urlParams.get('game');
+  const modeParam = urlParams.get('mode');
+  const initialMode = (joinGameId || modeParam === 'multiplayer') ? 'multiplayer' : null;
+  
+  const [gameMode, setGameMode] = useState<GameMode | null>(initialMode);
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState("");

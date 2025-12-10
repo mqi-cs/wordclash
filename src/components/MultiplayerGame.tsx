@@ -77,21 +77,44 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     }
   }, [user, navigate]);
 
+  // Fetch target word for non-host players
+  const fetchTargetWord = useCallback(async (gId: string) => {
+    if (!supabase) return;
+    
+    const { data, error } = await supabase
+      .from("multiplayer_game_secrets")
+      .select("target_word")
+      .eq("game_id", gId)
+      .single();
+    
+    if (error) {
+      if (import.meta.env.DEV) {
+        console.error("Error fetching target word:", error);
+      }
+      toast.error("Failed to load game");
+      return;
+    }
+    
+    setTargetWord(data.target_word);
+  }, [supabase]);
+
   // Create or join game
   useEffect(() => {
     if (!supabase || !user) return;
     
     const initGame = async () => {
-      // Check if joining existing game
+      // Check if joining existing game (either via ?join= or ?game= for already-joined games)
       const urlParams = new URLSearchParams(window.location.search);
       const joinGameId = urlParams.get('join');
+      const alreadyJoinedGameId = urlParams.get('game');
+      const existingGameId = joinGameId || alreadyJoinedGameId;
       
-      if (joinGameId) {
-        // Join existing game
+      if (existingGameId) {
+        // Check if we're already in the game
         const { data: game, error } = await supabase
           .from("multiplayer_games")
           .select()
-          .eq("id", joinGameId)
+          .eq("id", existingGameId)
           .single();
         
         if (error || !game) {
@@ -100,6 +123,39 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           return;
         }
         
+        // Check if we're already a player in this game
+        const isAlreadyPlayer = [game.player1_id, game.player2_id, game.player3_id, game.player4_id].includes(user.id);
+        
+        if (isAlreadyPlayer) {
+          // We're already in the game - just set up the state
+          const slot = game.player1_id === user.id ? 1 : 
+                       game.player2_id === user.id ? 2 :
+                       game.player3_id === user.id ? 3 : 4;
+          
+          // Initialize joined players list
+          const players: JoinedPlayer[] = [];
+          if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
+          if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
+          if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
+          if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
+          setJoinedPlayers(players);
+          
+          setGameId(existingGameId);
+          setIsHost(game.player1_id === user.id);
+          setPlayerSlot(slot);
+          
+          // If game already started, fetch target word
+          if (game.game_started) {
+            setGameStarted(true);
+            setWaiting(false);
+            fetchTargetWord(existingGameId);
+          }
+          
+          window.history.replaceState({}, '', '/');
+          return;
+        }
+        
+        // Not in the game yet - try to join
         if (game.game_started) {
           toast.error("Game already started");
           window.history.replaceState({}, '', '/');
@@ -115,6 +171,18 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           toast.error("Failed to join game");
           return;
         }
+        
+        // Initialize joined players list with current players
+        const players: JoinedPlayer[] = [];
+        if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
+        if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
+        if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
+        if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
+        // Add ourselves if not already in the list
+        if (!players.find(p => p.id === user.id)) {
+          players.push({ id: user.id, slot: joinResult.slot });
+        }
+        setJoinedPlayers(players);
         
         setGameId(joinGameId);
         setIsHost(false);
@@ -153,6 +221,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           return;
         }
 
+        // Initialize joined players with host
+        setJoinedPlayers([{ id: playerId, slot: 1 }]);
         setGameId(game.id);
         setIsHost(true);
         setPlayerSlot(1);
@@ -204,7 +274,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, supabase, gameStarted]);
+  }, [gameId, supabase, gameStarted, isHost, fetchTargetWord]);
 
   // Listen for opponent guesses and track presence
   useEffect(() => {
@@ -411,26 +481,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setCopied(true);
     toast.success("Game link copied!");
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const fetchTargetWord = async (gId: string) => {
-    if (!supabase) return;
-    
-    const { data, error } = await supabase
-      .from("multiplayer_game_secrets")
-      .select("target_word")
-      .eq("game_id", gId)
-      .single();
-    
-    if (error) {
-      if (import.meta.env.DEV) {
-        console.error("Error fetching target word:", error);
-      }
-      toast.error("Failed to load game");
-      return;
-    }
-    
-    setTargetWord(data.target_word);
   };
 
   const handleStartGame = async () => {
