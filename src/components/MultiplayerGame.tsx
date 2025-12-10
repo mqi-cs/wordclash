@@ -191,6 +191,11 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             setGameStarted(true);
             setWaiting(false);
             toast.success("Game starting!");
+            
+            // Non-host players need to fetch the target word when game starts
+            if (!isHost) {
+              fetchTargetWord(game.id);
+            }
           }
         }
       )
@@ -406,6 +411,26 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setCopied(true);
     toast.success("Game link copied!");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const fetchTargetWord = async (gId: string) => {
+    if (!supabase) return;
+    
+    const { data, error } = await supabase
+      .from("multiplayer_game_secrets")
+      .select("target_word")
+      .eq("game_id", gId)
+      .single();
+    
+    if (error) {
+      if (import.meta.env.DEV) {
+        console.error("Error fetching target word:", error);
+      }
+      toast.error("Failed to load game");
+      return;
+    }
+    
+    setTargetWord(data.target_word);
   };
 
   const handleStartGame = async () => {
