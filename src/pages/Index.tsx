@@ -453,10 +453,20 @@ const Index = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyPress, handleDelete, handleEnter]);
 
+  const handleResumeGame = (gameId: string) => {
+    // Set URL params and switch to multiplayer mode
+    window.history.replaceState({}, '', `/?mode=multiplayer&game=${gameId}`);
+    setGameMode("multiplayer");
+  };
+
   if (!gameMode) {
     return (
       <>
-        <GameMenu onSelectMode={handleSelectMode} onShowLeaderboard={() => setShowLeaderboard(true)} />
+        <GameMenu 
+          onSelectMode={handleSelectMode} 
+          onShowLeaderboard={() => setShowLeaderboard(true)} 
+          onResumeGame={handleResumeGame}
+        />
         <Leaderboard open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       </>
     );
