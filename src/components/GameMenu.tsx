@@ -9,6 +9,7 @@ import { FriendSearch } from "./FriendSearch";
 import { FriendRequests } from "./FriendRequests";
 import { FriendsList } from "./FriendsList";
 import { IncomingChallenges } from "./IncomingChallenges";
+import { OpenGames } from "./OpenGames";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -17,9 +18,10 @@ export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 interface GameMenuProps {
   onSelectMode: (mode: GameMode) => void;
   onShowLeaderboard: () => void;
+  onResumeGame?: (gameId: string) => void;
 }
 
-export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => {
+export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: GameMenuProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [friendsKey, setFriendsKey] = useState(0);
@@ -85,6 +87,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard }: GameMenuProps) => 
         {/* Friends Section */}
         {user && (
           <div className="space-y-6 animate-fade-in">
+            <OpenGames onResumeGame={(gameId) => onResumeGame?.(gameId)} />
             <IncomingChallenges />
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-6">
