@@ -197,7 +197,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         const { data: game, error } = await supabase
           .from("multiplayer_games")
           .insert({
-            player1_id: playerId,
+            player1_id: user.id,
             status: "waiting"
           })
           .select()
@@ -222,7 +222,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         }
 
         // Initialize joined players with host
-        setJoinedPlayers([{ id: playerId, slot: 1 }]);
+        setJoinedPlayers([{ id: user.id, slot: 1 }]);
         setGameId(game.id);
         setIsHost(true);
         setPlayerSlot(1);
