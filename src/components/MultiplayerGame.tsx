@@ -30,7 +30,7 @@ interface JoinedPlayer {
 }
 
 export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   
   // Dynamically import supabase to avoid initialization issues
@@ -71,11 +71,12 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   // Require authentication
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       toast.error("Please sign in to play multiplayer games");
       navigate("/auth");
     }
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   // Fetch target word for non-host players
   const fetchTargetWord = useCallback(async (gId: string) => {
@@ -100,7 +101,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   // Create or join game
   useEffect(() => {
-    if (!supabase || !user) return;
+    if (!supabase || loading || !user) return;
     
     const initGame = async () => {
       // Check if joining existing game (either via ?join= or ?game= for already-joined games)
@@ -166,9 +167,10 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         const { data: joinResult, error: joinError } = await supabase.rpc('join_multiplayer_game', {
           game_id_param: joinGameId
         });
-        
+
         if (joinError) {
-          toast.error("Failed to join game");
+          console.error("Failed to join game:", joinError);
+          toast.error(joinError.message || "Failed to join game");
           return;
         }
         
@@ -204,7 +206,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           .single();
 
         if (error) {
-          toast.error("Failed to create game");
+          console.error("Failed to create game (multiplayer_games insert):", error);
+          toast.error(error.message || "Failed to create game");
           return;
         }
 
@@ -217,7 +220,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           });
 
         if (secretError) {
-          toast.error("Failed to create game");
+          console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
+          toast.error(secretError.message || "Failed to create game");
           return;
         }
 
