@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Crown, Copy, Check } from "lucide-react";
+import { ArrowLeft, Users, Crown, Copy, Check, RefreshCw } from "lucide-react";
 import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -51,6 +51,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [joinedPlayers, setJoinedPlayers] = useState<JoinedPlayer[]>([]);
   const [playerSlot, setPlayerSlot] = useState<number>(1);
   const [gameStarted, setGameStarted] = useState(false);
+  const [createGameError, setCreateGameError] = useState<string | null>(null);
+  const [isCreatingGame, setIsCreatingGame] = useState(false);
   
   // My game state
   const [myGuesses, setMyGuesses] = useState<string[]>([]);
@@ -193,45 +195,74 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         window.history.replaceState({}, '', '/');
       } else {
         // Create new game
-        const word = getRandomWord();
-        setTargetWord(word);
-        
-        const { data: game, error } = await supabase
-          .from("multiplayer_games")
-          .insert({
-            player1_id: user.id,
-            status: "waiting"
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error("Failed to create game (multiplayer_games insert):", error);
-          toast.error(error.message || "Failed to create game");
-          return;
-        }
-
-        // Store target word in secrets table
-        const { error: secretError } = await supabase
-          .from("multiplayer_game_secrets")
-          .insert({
-            game_id: game.id,
-            target_word: word
-          });
-
-        if (secretError) {
-          console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
-          toast.error(secretError.message || "Failed to create game");
-          return;
-        }
-
-        // Initialize joined players with host
-        setJoinedPlayers([{ id: user.id, slot: 1 }]);
-        setGameId(game.id);
-        setIsHost(true);
-        setPlayerSlot(1);
+        await createNewGame();
       }
     };
+
+    const createNewGame = async () => {
+      if (!supabase || !user) return;
+      
+      setIsCreatingGame(true);
+      setCreateGameError(null);
+      
+      const word = getRandomWord();
+      setTargetWord(word);
+      
+      const { data: game, error } = await supabase
+        .from("multiplayer_games")
+        .insert({
+          player1_id: user.id,
+          status: "waiting"
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Failed to create game (multiplayer_games insert):", error);
+        setCreateGameError(error.message || "Failed to create game");
+        toast.error(error.message || "Failed to create game");
+        setIsCreatingGame(false);
+        return;
+      }
+
+      // Store target word in secrets table
+      const { error: secretError } = await supabase
+        .from("multiplayer_game_secrets")
+        .insert({
+          game_id: game.id,
+          target_word: word
+        });
+
+      if (secretError) {
+        console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
+        
+        // Cleanup: delete the half-created game
+        const { error: deleteError } = await supabase
+          .from("multiplayer_games")
+          .delete()
+          .eq("id", game.id);
+        
+        if (deleteError) {
+          console.error("Failed to cleanup game after secret insert failure:", deleteError);
+        }
+        
+        setCreateGameError(secretError.message || "Failed to create game");
+        toast.error(secretError.message || "Failed to create game");
+        setIsCreatingGame(false);
+        return;
+      }
+
+      // Initialize joined players with host
+      setJoinedPlayers([{ id: user.id, slot: 1 }]);
+      setGameId(game.id);
+      setIsHost(true);
+      setPlayerSlot(1);
+      setIsCreatingGame(false);
+      setCreateGameError(null);
+    };
+
+    // Expose createNewGame for retry
+    (window as any).__retryCreateGame = createNewGame;
 
     initGame();
   }, [playerId, supabase, user]);
@@ -503,7 +534,48 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       .eq("id", gameId);
   };
 
+  const handleRetryCreateGame = () => {
+    if ((window as any).__retryCreateGame) {
+      (window as any).__retryCreateGame();
+    }
+  };
+
   if (!supabase || waiting) {
+    // Show error state with retry option
+    if (createGameError && !gameId) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+          <Card className="max-w-md w-full p-8 space-y-6">
+            <div className="text-center space-y-4">
+              <div className="flex items-center justify-center">
+                <Users className="w-16 h-16 text-destructive" />
+              </div>
+              <h2 className="text-2xl font-bold text-destructive">Failed to Create Game</h2>
+              <p className="text-muted-foreground">{createGameError}</p>
+              
+              <Button 
+                onClick={handleRetryCreateGame} 
+                className="w-full"
+                disabled={isCreatingGame}
+              >
+                {isCreatingGame ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Retry Create Game
+              </Button>
+            </div>
+            
+            <Button variant="outline" onClick={onBackToMenu} className="w-full">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Menu
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 space-y-6">
@@ -512,13 +584,17 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               <Users className="w-16 h-16 text-primary animate-pulse" />
             </div>
             <h2 className="text-2xl font-bold">
-              {isHost ? "Waiting Room" : "Waiting for Host"}
+              {isCreatingGame ? "Creating Game..." : isHost ? "Waiting Room" : "Waiting for Host"}
             </h2>
             <p className="text-muted-foreground">
-              {isHost ? "Share this link and start when ready" : "Waiting for host to start the game"}
+              {isCreatingGame 
+                ? "Setting up your game..." 
+                : isHost 
+                  ? "Share this link and start when ready" 
+                  : "Waiting for host to start the game"}
             </p>
             
-            {isHost && (
+            {isHost && gameId && (
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -560,7 +636,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               </div>
             </div>
 
-            {isHost && (
+            {isHost && gameId && (
               <Button 
                 onClick={handleStartGame} 
                 className="w-full"
