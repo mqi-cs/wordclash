@@ -11,7 +11,7 @@ import { z } from "zod";
 const searchSchema = z.object({
   query: z.string()
     .trim()
-    .min(1, "Search query cannot be empty")
+    .min(3, "Search query must be at least 3 characters")
     .max(50, "Search query must be less than 50 characters")
     .regex(/^[a-zA-Z0-9_-\s]+$/, "Search can only contain letters, numbers, underscores, hyphens, and spaces")
 });
@@ -31,7 +31,17 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
   const searchUsers = async () => {
     if (!searchQuery.trim()) return;
     
-    // Validate search query
+    // Validate search query - minimum 3 chars required by server
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length < 3) {
+      toast({
+        title: "Validation Error",
+        description: "Search term must be at least 3 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const validationResult = searchSchema.safeParse({ query: searchQuery });
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors[0].message;
@@ -45,20 +55,19 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
     
     setLoading(true);
     try {
-      const sanitizedQuery = searchQuery.trim();
+      // Use secure server-side search function
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username")
-        .ilike("username", `%${sanitizedQuery}%`)
-        .neq("id", user?.id)
-        .limit(5);
+        .rpc("search_users", { search_term: trimmedQuery });
 
       if (error) throw error;
       setSearchResults(data || []);
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.message?.includes("3 characters") 
+        ? "Search term must be at least 3 characters"
+        : "Failed to search users";
       toast({
         title: "Error",
-        description: "Failed to search users",
+        description: message,
         variant: "destructive",
       });
     } finally {
