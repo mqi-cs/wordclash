@@ -272,6 +272,13 @@ export type Database = {
     }
     Functions: {
       join_multiplayer_game: { Args: { game_id_param: string }; Returns: Json }
+      search_users: {
+        Args: { search_term: string }
+        Returns: {
+          id: string
+          username: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
