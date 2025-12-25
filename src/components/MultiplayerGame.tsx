@@ -81,7 +81,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     }
   }, [user, loading, navigate]);
 
-  // Fetch target word for non-host players
+  // Fetch target word - only used after game ends to reveal the answer
   const fetchTargetWord = useCallback(async (gId: string) => {
     if (!supabase) return;
     
@@ -95,7 +95,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       if (import.meta.env.DEV) {
         console.error("Error fetching target word:", error);
       }
-      toast.error("Failed to load game");
+      // Don't show error - this is expected for non-host players until game ends
       return;
     }
     
@@ -148,11 +148,10 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           setIsHost(game.player1_id === user.id);
           setPlayerSlot(slot);
           
-          // If game already started, fetch target word
+          // If game already started, just set state (no need to fetch target word - server evaluates guesses)
           if (game.game_started) {
             setGameStarted(true);
             setWaiting(false);
-            fetchTargetWord(existingGameId);
           }
           
           window.history.replaceState({}, '', '/');
@@ -299,11 +298,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             setGameStarted(true);
             setWaiting(false);
             toast.success("Game starting!");
-            
-            // Non-host players need to fetch the target word when game starts
-            if (!isHost) {
-              fetchTargetWord(game.id);
-            }
+            // Server-side evaluation - no need to fetch target word during gameplay
           }
         }
       )
@@ -449,7 +444,18 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       return;
     }
 
-    const evaluation = evaluateGuess(myCurrentGuess, targetWord);
+    // Use server-side evaluation to prevent cheating
+    const { data, error } = await supabase.functions.invoke('evaluate-guess', {
+      body: { game_id: gameId, guess: myCurrentGuess }
+    });
+
+    if (error || !data) {
+      if (import.meta.env.DEV) console.error("Error evaluating guess:", error);
+      toast.error("Failed to submit guess. Please try again.");
+      return;
+    }
+
+    const evaluation = data.evaluation as Array<"correct" | "present" | "absent">;
     updateLetterStatus(myCurrentGuess, evaluation);
     
     const newGuesses = [...myGuesses, myCurrentGuess];
@@ -460,41 +466,25 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setMyCurrentGuess("");
     setWaitingForOpponent(false);
 
-    // Save guess to database
-    await supabase.from("multiplayer_guesses").insert({
-      game_id: gameId,
-      player_id: playerId,
-      guess: myCurrentGuess,
-      evaluation: evaluation,
-      guess_number: newGuesses.length
-    });
-
-    // Check win condition
-    if (myCurrentGuess === targetWord) {
+    // Check win condition (server already updated game status if won)
+    if (data.is_correct) {
       setMyWon(true);
       setMyGameOver(true);
       setOpponentGameOver(true);
-      
-      // Update game status
-      await supabase
-        .from("multiplayer_games")
-        .update({ 
-          status: "finished",
-          winner_id: playerId,
-          finished_at: new Date().toISOString()
-        })
-        .eq("id", gameId);
-      
       toast.success("You won! 🎉");
+      // Fetch the word now that game is finished
+      fetchTargetWord(gameId!);
       return;
     }
 
     // Check lose condition
     if (newGuesses.length >= MAX_GUESSES) {
       setMyGameOver(true);
-      toast.error(`The word was ${targetWord}`);
+      // Fetch the word to show what it was
+      fetchTargetWord(gameId!);
+      toast.error("Out of guesses!");
     }
-  }, [myCurrentGuess, myGuesses, myEvaluations, targetWord, myGameOver, gameId, playerId, waiting, supabase]);
+  }, [myCurrentGuess, myGuesses, myEvaluations, myGameOver, gameId, playerId, waiting, supabase, opponentCurrentRow, fetchTargetWord]);
 
   // Handle keyboard events
   useEffect(() => {
