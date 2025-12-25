@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Crown, Copy, Check, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Users, Crown, Copy, Check, RefreshCw, Plus, LogIn } from "lucide-react";
 import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -55,6 +56,11 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [createGameError, setCreateGameError] = useState<string | null>(null);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   
+  // Mode selection state
+  const [mode, setMode] = useState<"select" | "create" | "join" | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
+  
   // My game state
   const [myGuesses, setMyGuesses] = useState<string[]>([]);
   const [myCurrentGuess, setMyCurrentGuess] = useState("");
@@ -102,172 +108,195 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setTargetWord(data.target_word);
   }, [supabase]);
 
-  // Create or join game
+  // Check for URL parameters on mount
   useEffect(() => {
     if (!supabase || loading || !user) return;
     
-    const initGame = async () => {
-      // Check if joining existing game (either via ?join= or ?game= for already-joined games)
-      const urlParams = new URLSearchParams(window.location.search);
-      const joinGameId = urlParams.get('join');
-      const alreadyJoinedGameId = urlParams.get('game');
-      const existingGameId = joinGameId || alreadyJoinedGameId;
-      
-      if (existingGameId) {
-        // Check if we're already in the game
-        const { data: game, error } = await supabase
-          .from("multiplayer_games")
-          .select()
-          .eq("id", existingGameId)
-          .single();
-        
-        if (error || !game) {
-          toast.error("Game not found");
-          window.history.replaceState({}, '', '/');
-          return;
-        }
-        
-        // Check if we're already a player in this game
-        const isAlreadyPlayer = [game.player1_id, game.player2_id, game.player3_id, game.player4_id].includes(user.id);
-        
-        if (isAlreadyPlayer) {
-          // We're already in the game - just set up the state
-          const slot = game.player1_id === user.id ? 1 : 
-                       game.player2_id === user.id ? 2 :
-                       game.player3_id === user.id ? 3 : 4;
-          
-          // Initialize joined players list
-          const players: JoinedPlayer[] = [];
-          if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
-          if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
-          if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
-          if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
-          setJoinedPlayers(players);
-          
-          setGameId(existingGameId);
-          setIsHost(game.player1_id === user.id);
-          setPlayerSlot(slot);
-          
-          // If game already started, just set state (no need to fetch target word - server evaluates guesses)
-          if (game.game_started) {
-            setGameStarted(true);
-            setWaiting(false);
-          }
-          
-          window.history.replaceState({}, '', '/');
-          return;
-        }
-        
-        // Not in the game yet - try to join
-        if (game.game_started) {
-          toast.error("Game already started");
-          window.history.replaceState({}, '', '/');
-          return;
-        }
-        
-        // Use secure function to join game
-        const { data: joinResult, error: joinError } = await supabase.rpc('join_multiplayer_game', {
-          game_id_param: joinGameId
-        });
+    const urlParams = new URLSearchParams(window.location.search);
+    const joinGameId = urlParams.get('join');
+    const alreadyJoinedGameId = urlParams.get('game');
+    const existingGameId = joinGameId || alreadyJoinedGameId;
+    
+    if (existingGameId) {
+      // Auto-join from URL
+      handleJoinGame(existingGameId);
+    } else {
+      // Show mode selection
+      setMode("select");
+      setWaiting(false);
+    }
+  }, [supabase, loading, user]);
 
-        if (joinError) {
-          if (import.meta.env.DEV) console.error("Failed to join game:", joinError);
-          toast.error(getUserFriendlyError(joinError));
-          return;
-        }
-        
-        // Initialize joined players list with current players
-        const players: JoinedPlayer[] = [];
-        if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
-        if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
-        if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
-        if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
-        // Add ourselves if not already in the list
-        if (!players.find(p => p.id === user.id)) {
-          players.push({ id: user.id, slot: joinResult.slot });
-        }
-        setJoinedPlayers(players);
-        
-        setGameId(joinGameId);
-        setIsHost(false);
-        setPlayerSlot(joinResult.slot);
-        toast.success("Joined game!");
-        window.history.replaceState({}, '', '/');
+  const handleJoinGame = async (gameIdToJoin: string) => {
+    if (!supabase || !user) return;
+    
+    setIsJoining(true);
+    
+    // Check if we're already in the game
+    const { data: game, error } = await supabase
+      .from("multiplayer_games")
+      .select()
+      .eq("id", gameIdToJoin)
+      .single();
+    
+    if (error || !game) {
+      toast.error("Game not found");
+      setIsJoining(false);
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+    
+    // Check if we're already a player in this game
+    const isAlreadyPlayer = [game.player1_id, game.player2_id, game.player3_id, game.player4_id].includes(user.id);
+    
+    if (isAlreadyPlayer) {
+      // We're already in the game - just set up the state
+      const slot = game.player1_id === user.id ? 1 : 
+                   game.player2_id === user.id ? 2 :
+                   game.player3_id === user.id ? 3 : 4;
+      
+      // Initialize joined players list
+      const players: JoinedPlayer[] = [];
+      if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
+      if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
+      if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
+      if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
+      setJoinedPlayers(players);
+      
+      setGameId(gameIdToJoin);
+      setIsHost(game.player1_id === user.id);
+      setPlayerSlot(slot);
+      setMode(null);
+      
+      // If game already started, just set state
+      if (game.game_started) {
+        setGameStarted(true);
+        setWaiting(false);
       } else {
-        // Create new game
-        await createNewGame();
+        setWaiting(true);
       }
-    };
-
-    const createNewGame = async () => {
-      if (!supabase || !user) return;
       
-      setIsCreatingGame(true);
-      setCreateGameError(null);
-      
-      const word = getRandomWord();
-      setTargetWord(word);
-      
-      const { data: game, error } = await supabase
-        .from("multiplayer_games")
-        .insert({
-          player1_id: user.id,
-          status: "waiting"
-        })
-        .select()
-        .single();
+      setIsJoining(false);
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+    
+    // Not in the game yet - try to join
+    if (game.game_started) {
+      toast.error("Game already started");
+      setIsJoining(false);
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+    
+    // Use secure function to join game
+    const { data: joinResult, error: joinError } = await supabase.rpc('join_multiplayer_game', {
+      game_id_param: gameIdToJoin
+    });
 
-      if (error) {
-        if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_games insert):", error);
-        const friendlyError = getUserFriendlyError(error);
-        setCreateGameError(friendlyError);
-        toast.error(friendlyError);
-        setIsCreatingGame(false);
-        return;
-      }
+    if (joinError) {
+      if (import.meta.env.DEV) console.error("Failed to join game:", joinError);
+      toast.error(getUserFriendlyError(joinError));
+      setIsJoining(false);
+      return;
+    }
+    
+    // Initialize joined players list with current players
+    const players: JoinedPlayer[] = [];
+    if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
+    if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
+    if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
+    if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
+    // Add ourselves if not already in the list
+    if (!players.find(p => p.id === user.id)) {
+      players.push({ id: user.id, slot: joinResult.slot });
+    }
+    setJoinedPlayers(players);
+    
+    setGameId(gameIdToJoin);
+    setIsHost(false);
+    setPlayerSlot(joinResult.slot);
+    setMode(null);
+    setWaiting(true);
+    setIsJoining(false);
+    toast.success("Joined game!");
+    window.history.replaceState({}, '', '/');
+  };
 
-      // Store target word in secrets table
-      const { error: secretError } = await supabase
-        .from("multiplayer_game_secrets")
-        .insert({
-          game_id: game.id,
-          target_word: word
-        });
+  const createNewGame = async () => {
+    if (!supabase || !user) return;
+    
+    setIsCreatingGame(true);
+    setCreateGameError(null);
+    
+    const word = getRandomWord();
+    setTargetWord(word);
+    
+    const { data: game, error } = await supabase
+      .from("multiplayer_games")
+      .insert({
+        player1_id: user.id,
+        status: "waiting"
+      })
+      .select()
+      .single();
 
-      if (secretError) {
-        if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
-        
-        // Cleanup: delete the half-created game
-        const { error: deleteError } = await supabase
-          .from("multiplayer_games")
-          .delete()
-          .eq("id", game.id);
-        
-        if (deleteError && import.meta.env.DEV) {
-          console.error("Failed to cleanup game after secret insert failure:", deleteError);
-        }
-        
-        const friendlyError = getUserFriendlyError(secretError);
-        setCreateGameError(friendlyError);
-        toast.error(friendlyError);
-        setIsCreatingGame(false);
-        return;
-      }
-
-      // Initialize joined players with host
-      setJoinedPlayers([{ id: user.id, slot: 1 }]);
-      setGameId(game.id);
-      setIsHost(true);
-      setPlayerSlot(1);
+    if (error) {
+      if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_games insert):", error);
+      const friendlyError = getUserFriendlyError(error);
+      setCreateGameError(friendlyError);
+      toast.error(friendlyError);
       setIsCreatingGame(false);
-      setCreateGameError(null);
-    };
+      return;
+    }
 
-    // Expose createNewGame for retry
-    (window as any).__retryCreateGame = createNewGame;
+    // Store target word in secrets table
+    const { error: secretError } = await supabase
+      .from("multiplayer_game_secrets")
+      .insert({
+        game_id: game.id,
+        target_word: word
+      });
 
-    initGame();
-  }, [playerId, supabase, user]);
+    if (secretError) {
+      if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
+      
+      // Cleanup: delete the half-created game
+      const { error: deleteError } = await supabase
+        .from("multiplayer_games")
+        .delete()
+        .eq("id", game.id);
+      
+      if (deleteError && import.meta.env.DEV) {
+        console.error("Failed to cleanup game after secret insert failure:", deleteError);
+      }
+      
+      const friendlyError = getUserFriendlyError(secretError);
+      setCreateGameError(friendlyError);
+      toast.error(friendlyError);
+      setIsCreatingGame(false);
+      return;
+    }
+
+    // Initialize joined players with host
+    setJoinedPlayers([{ id: user.id, slot: 1 }]);
+    setGameId(game.id);
+    setIsHost(true);
+    setPlayerSlot(1);
+    setMode(null);
+    setWaiting(true);
+    setIsCreatingGame(false);
+    setCreateGameError(null);
+  };
+
+  const handleJoinWithCode = () => {
+    const trimmedCode = joinCode.trim();
+    if (!trimmedCode) {
+      toast.error("Please enter a game code");
+      return;
+    }
+    handleJoinGame(trimmedCode);
+  };
 
   // Listen for players joining and game start
   useEffect(() => {
@@ -527,11 +556,100 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       .eq("id", gameId);
   };
 
-  const handleRetryCreateGame = () => {
-    if ((window as any).__retryCreateGame) {
-      (window as any).__retryCreateGame();
-    }
-  };
+
+  // Mode selection screen
+  if (mode === "select") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 space-y-6">
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center">
+              <Users className="w-16 h-16 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold">Multiplayer</h2>
+            <p className="text-muted-foreground">Create a new game or join an existing one</p>
+          </div>
+          
+          <div className="grid gap-4">
+            <Button 
+              onClick={() => {
+                setMode("create");
+                createNewGame();
+              }}
+              className="w-full h-16 text-lg"
+              disabled={isCreatingGame}
+            >
+              {isCreatingGame ? (
+                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-5 h-5 mr-2" />
+              )}
+              Create Game
+            </Button>
+            
+            <Button 
+              onClick={() => setMode("join")}
+              variant="outline"
+              className="w-full h-16 text-lg"
+            >
+              <LogIn className="w-5 h-5 mr-2" />
+              Join Game
+            </Button>
+          </div>
+          
+          <Button variant="ghost" onClick={onBackToMenu} className="w-full">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Menu
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Join with code screen
+  if (mode === "join") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 space-y-6">
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center">
+              <LogIn className="w-16 h-16 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold">Join Game</h2>
+            <p className="text-muted-foreground">Enter the game code shared by the host</p>
+          </div>
+          
+          <div className="space-y-4">
+            <Input
+              placeholder="Enter game code..."
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value)}
+              className="text-center text-lg h-12"
+              disabled={isJoining}
+            />
+            
+            <Button 
+              onClick={handleJoinWithCode}
+              className="w-full h-12"
+              disabled={isJoining || !joinCode.trim()}
+            >
+              {isJoining ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <LogIn className="w-4 h-4 mr-2" />
+              )}
+              Join Game
+            </Button>
+          </div>
+          
+          <Button variant="ghost" onClick={() => setMode("select")} className="w-full">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   if (!supabase || waiting) {
     // Show error state with retry option
@@ -547,16 +665,14 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               <p className="text-muted-foreground">{createGameError}</p>
               
               <Button 
-                onClick={handleRetryCreateGame} 
+                onClick={() => {
+                  setMode("select");
+                  setCreateGameError(null);
+                }} 
                 className="w-full"
-                disabled={isCreatingGame}
               >
-                {isCreatingGame ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                )}
-                Retry Create Game
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Try Again
               </Button>
             </div>
             
@@ -588,16 +704,22 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             </p>
             
             {isHost && gameId && (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={`${window.location.origin}?join=${gameId}`}
-                  className="flex-1 px-4 py-2 rounded-lg border bg-background text-sm"
-                />
-                <Button onClick={copyGameLink} size="icon">
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </Button>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-muted/50 border">
+                  <p className="text-xs text-muted-foreground mb-1">Game Code</p>
+                  <p className="font-mono text-sm font-bold break-all">{gameId}</p>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}?join=${gameId}`}
+                    className="flex-1 px-4 py-2 rounded-lg border bg-background text-sm"
+                  />
+                  <Button onClick={copyGameLink} size="icon">
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
             )}
 
