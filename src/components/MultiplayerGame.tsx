@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { getUserFriendlyError } from "@/lib/errorHandler";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -171,8 +172,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         });
 
         if (joinError) {
-          console.error("Failed to join game:", joinError);
-          toast.error(joinError.message || "Failed to join game");
+          if (import.meta.env.DEV) console.error("Failed to join game:", joinError);
+          toast.error(getUserFriendlyError(joinError));
           return;
         }
         
@@ -218,9 +219,10 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         .single();
 
       if (error) {
-        console.error("Failed to create game (multiplayer_games insert):", error);
-        setCreateGameError(error.message || "Failed to create game");
-        toast.error(error.message || "Failed to create game");
+        if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_games insert):", error);
+        const friendlyError = getUserFriendlyError(error);
+        setCreateGameError(friendlyError);
+        toast.error(friendlyError);
         setIsCreatingGame(false);
         return;
       }
@@ -234,7 +236,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         });
 
       if (secretError) {
-        console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
+        if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
         
         // Cleanup: delete the half-created game
         const { error: deleteError } = await supabase
@@ -242,12 +244,13 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           .delete()
           .eq("id", game.id);
         
-        if (deleteError) {
+        if (deleteError && import.meta.env.DEV) {
           console.error("Failed to cleanup game after secret insert failure:", deleteError);
         }
         
-        setCreateGameError(secretError.message || "Failed to create game");
-        toast.error(secretError.message || "Failed to create game");
+        const friendlyError = getUserFriendlyError(secretError);
+        setCreateGameError(friendlyError);
+        toast.error(friendlyError);
         setIsCreatingGame(false);
         return;
       }
