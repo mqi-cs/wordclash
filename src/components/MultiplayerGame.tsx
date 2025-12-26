@@ -76,7 +76,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [opponentGameOver, setOpponentGameOver] = useState(false);
   const [opponentWon, setOpponentWon] = useState(false);
   const [opponentCurrentRow, setOpponentCurrentRow] = useState(0);
-  const [waitingForOpponent, setWaitingForOpponent] = useState(false);
 
   // Require authentication
   useEffect(() => {
@@ -359,8 +358,9 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             setOpponentEvaluations(prev => [...prev, guess.evaluation]);
             setOpponentCurrentRow(guess.guess_number);
             
-            // Check if opponent won
-            if (guess.guess === targetWord) {
+            // Check if opponent won by checking if all letters are correct
+            const allCorrect = guess.evaluation.every((e: string) => e === "correct");
+            if (allCorrect) {
               setOpponentWon(true);
               setOpponentGameOver(true);
               setMyGameOver(true);
@@ -449,16 +449,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const handleEnter = useCallback(async () => {
     if (myGameOver || waiting || !supabase) return;
 
-    // Check if both players are on the same row
-    if (myGuesses.length !== opponentCurrentRow) {
-      const message = myGuesses.length > opponentCurrentRow 
-        ? "Waiting for opponent to catch up..."
-        : "Opponent is waiting for you!";
-      toast.info(message);
-      setWaitingForOpponent(true);
-      return;
-    }
-
     if (myCurrentGuess.length !== WORD_LENGTH) {
       toast.error("Not enough letters");
       setShake(true);
@@ -493,7 +483,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setMyGuesses(newGuesses);
     setMyEvaluations(newEvaluations);
     setMyCurrentGuess("");
-    setWaitingForOpponent(false);
 
     // Check win condition (server already updated game status if won)
     if (data.is_correct) {
@@ -513,7 +502,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       fetchTargetWord(gameId!);
       toast.error("Out of guesses!");
     }
-  }, [myCurrentGuess, myGuesses, myEvaluations, myGameOver, gameId, playerId, waiting, supabase, opponentCurrentRow, fetchTargetWord]);
+  }, [myCurrentGuess, myGuesses, myEvaluations, myGameOver, gameId, playerId, waiting, supabase, fetchTargetWord]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -796,11 +785,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               {myWon && <Crown className="w-5 h-5 text-yellow-500" />}
               <span className="text-sm md:text-base font-bold">You</span>
             </div>
-            {waitingForOpponent && myGuesses.length !== opponentCurrentRow && (
-              <span className="text-xs text-muted-foreground animate-pulse">
-                {myGuesses.length > opponentCurrentRow ? "Waiting for opponent..." : "Opponent is waiting!"}
-              </span>
-            )}
           </div>
           <GameGrid
             guesses={myGuesses}
