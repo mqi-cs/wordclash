@@ -7,6 +7,7 @@ interface KeyboardProps {
   onEnter: () => void;
   onDelete: () => void;
   letterStatus: Record<string, "correct" | "present" | "absent" | undefined>;
+  disabled?: boolean;
 }
 
 const KEYBOARD_ROWS = [
@@ -15,8 +16,9 @@ const KEYBOARD_ROWS = [
   ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "⌫"],
 ];
 
-export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus }: KeyboardProps) => {
+export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus, disabled = false }: KeyboardProps) => {
   const handleClick = (key: string) => {
+    if (disabled) return;
     if (key === "ENTER") {
       onEnter();
     } else if (key === "⌫") {
@@ -41,13 +43,15 @@ export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus }: Keyboa
               <Button
                 key={key}
                 onClick={() => handleClick(key)}
+                disabled={disabled}
                 className={cn(
                   "h-11 sm:h-14 font-semibold text-xs sm:text-sm transition-colors",
                   key === "ENTER" || key === "⌫" ? "px-2 sm:px-4 text-[10px] sm:text-sm" : "px-2 sm:px-3 min-w-[28px] sm:min-w-[40px]",
                   !status && "bg-game-key-bg hover:bg-muted text-game-text",
                   status === "correct" && "bg-game-correct hover:bg-game-correct text-white",
                   status === "present" && "bg-game-present hover:bg-game-present text-white",
-                  status === "absent" && "bg-game-absent hover:bg-game-absent text-white"
+                  status === "absent" && "bg-game-absent hover:bg-game-absent text-white",
+                  disabled && "opacity-50 cursor-not-allowed"
                 )}
               >
                 {key === "⌫" ? <Delete className="w-4 h-4 sm:w-5 sm:h-5" /> : key}
