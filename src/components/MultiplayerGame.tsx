@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Users, Crown, Copy, Check, RefreshCw, Plus, LogIn } from "lucide-react";
+import { ArrowLeft, Users, Crown, Copy, Check, RefreshCw, Plus, LogIn, Timer } from "lucide-react";
 import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -76,6 +76,12 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [opponentGameOver, setOpponentGameOver] = useState(false);
   const [opponentWon, setOpponentWon] = useState(false);
   const [opponentCurrentRow, setOpponentCurrentRow] = useState(0);
+  
+  // Turn-based state
+  const [isMyTurn, setIsMyTurn] = useState(false);
+  const [turnTimer, setTurnTimer] = useState(20);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const TURN_DURATION = 20;
 
   // Require authentication
   useEffect(() => {
@@ -326,7 +332,13 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             setGameStarted(true);
             setWaiting(false);
             toast.success("Game starting!");
-            // Server-side evaluation - no need to fetch target word during gameplay
+            // Host (player1) goes first
+            if (game.player1_id === user?.id) {
+              setIsMyTurn(true);
+              setTurnTimer(TURN_DURATION);
+            } else {
+              setIsMyTurn(false);
+            }
           }
         }
       )
@@ -364,8 +376,17 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               setOpponentWon(true);
               setOpponentGameOver(true);
               setMyGameOver(true);
-              toast.error("Opponent won! 🎉");
+              toast.error("Opponent won!");
+              // Fetch target word to display
+              fetchTargetWord(gameId!);
+            } else {
+              // Opponent finished their turn, now it's my turn
+              setIsMyTurn(true);
+              setTurnTimer(TURN_DURATION);
             }
+          } else {
+            // My guess was processed, now it's opponent's turn
+            setIsMyTurn(false);
           }
         }
       )
@@ -389,7 +410,49 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId, playerId, targetWord, waiting, supabase, myGuesses.length]);
+  }, [gameId, playerId, targetWord, waiting, supabase, myGuesses.length, fetchTargetWord]);
+
+  // Timer effect for turn-based gameplay
+  useEffect(() => {
+    if (waiting || myGameOver || opponentGameOver) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    if (isMyTurn) {
+      timerRef.current = setInterval(() => {
+        setTurnTimer(prev => {
+          if (prev <= 1) {
+            // Time's up - skip turn
+            clearInterval(timerRef.current!);
+            timerRef.current = null;
+            setIsMyTurn(false);
+            setMyCurrentGuess("");
+            toast.error("Time's up! Turn skipped.");
+            return TURN_DURATION;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      // Reset timer when it becomes opponent's turn
+      setTurnTimer(TURN_DURATION);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isMyTurn, waiting, myGameOver, opponentGameOver]);
 
   const evaluateGuess = (guess: string, target: string) => {
     const result: Array<"correct" | "present" | "absent"> = [];
@@ -435,19 +498,19 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   const handleKeyPress = useCallback(
     (key: string) => {
-      if (myGameOver || myCurrentGuess.length >= WORD_LENGTH || waiting) return;
+      if (myGameOver || myCurrentGuess.length >= WORD_LENGTH || waiting || !isMyTurn) return;
       setMyCurrentGuess((prev) => prev + key);
     },
-    [myGameOver, myCurrentGuess, waiting]
+    [myGameOver, myCurrentGuess, waiting, isMyTurn]
   );
 
   const handleDelete = useCallback(() => {
-    if (myGameOver || waiting) return;
+    if (myGameOver || waiting || !isMyTurn) return;
     setMyCurrentGuess((prev) => prev.slice(0, -1));
-  }, [myGameOver, waiting]);
+  }, [myGameOver, waiting, isMyTurn]);
 
   const handleEnter = useCallback(async () => {
-    if (myGameOver || waiting || !supabase) return;
+    if (myGameOver || waiting || !supabase || !isMyTurn) return;
 
     if (myCurrentGuess.length !== WORD_LENGTH) {
       toast.error("Not enough letters");
@@ -495,14 +558,17 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       return;
     }
 
-    // Check lose condition
-    if (newGuesses.length >= MAX_GUESSES) {
+    // Check lose condition - both players out of guesses
+    if (newGuesses.length >= MAX_GUESSES && opponentGuesses.length >= MAX_GUESSES) {
       setMyGameOver(true);
       // Fetch the word to show what it was
       fetchTargetWord(gameId!);
-      toast.error("Out of guesses!");
+      toast.error("Game over - no one guessed the word!");
+    } else {
+      // End my turn, opponent's turn now
+      setIsMyTurn(false);
     }
-  }, [myCurrentGuess, myGuesses, myEvaluations, myGameOver, gameId, playerId, waiting, supabase, fetchTargetWord]);
+  }, [myCurrentGuess, myGuesses, myEvaluations, myGameOver, gameId, playerId, waiting, supabase, fetchTargetWord, isMyTurn, opponentGuesses.length]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -760,6 +826,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     );
   }
 
+  const gameOver = myGameOver || opponentGameOver;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -767,23 +835,58 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Menu
         </Button>
-        <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-primary" />
-          <span className="font-bold">Multiplayer</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            <span className="font-bold">Multiplayer</span>
+          </div>
+          {!gameOver && (
+            <div className={cn(
+              "flex items-center gap-2 px-3 py-1 rounded-full",
+              isMyTurn ? "bg-green-500/20 text-green-600" : "bg-muted text-muted-foreground"
+            )}>
+              <Timer className="w-4 h-4" />
+              <span className="font-mono font-bold text-lg">{turnTimer}s</span>
+            </div>
+          )}
         </div>
         <div className="w-20" />
       </div>
+
+      {/* Turn indicator */}
+      {!gameOver && (
+        <div className={cn(
+          "text-center py-2 font-semibold text-sm transition-all",
+          isMyTurn ? "bg-green-500/20 text-green-600" : "bg-yellow-500/20 text-yellow-600"
+        )}>
+          {isMyTurn ? "Your turn - make your guess!" : "Opponent's turn - wait..."}
+        </div>
+      )}
+
+      {/* Game Over - Show target word */}
+      {gameOver && targetWord && (
+        <div className="text-center py-4 bg-muted/50 border-b">
+          <p className="text-sm text-muted-foreground mb-1">The word was:</p>
+          <p className="text-2xl font-bold tracking-widest uppercase text-primary">{targetWord}</p>
+        </div>
+      )}
       
       <main className="flex-1 grid md:grid-cols-2 gap-2 p-2 md:p-4">
         {/* My Side */}
         <Card className={cn(
           "flex flex-col items-center justify-between p-2 md:p-4 border-2 transition-all",
-          myWon && "border-green-500 bg-green-500/5"
+          myWon && "border-green-500 bg-green-500/5",
+          isMyTurn && !gameOver && "border-green-500/50"
         )}>
           <div className="flex flex-col items-center gap-2 mb-2">
             <div className="flex items-center gap-2">
               {myWon && <Crown className="w-5 h-5 text-yellow-500" />}
               <span className="text-sm md:text-base font-bold">You</span>
+              {isMyTurn && !gameOver && (
+                <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                  YOUR TURN
+                </span>
+              )}
             </div>
           </div>
           <GameGrid
@@ -801,17 +904,24 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             onEnter={handleEnter}
             onDelete={handleDelete}
             letterStatus={myLetterStatus}
+            disabled={!isMyTurn || gameOver}
           />
         </Card>
 
         {/* Opponent Side */}
         <Card className={cn(
           "flex flex-col items-center justify-start p-2 md:p-4 border-2 transition-all",
-          opponentWon && "border-red-500 bg-red-500/5"
+          opponentWon && "border-red-500 bg-red-500/5",
+          !isMyTurn && !gameOver && "border-yellow-500/50"
         )}>
           <div className="flex items-center gap-2 mb-2">
             {opponentWon && <Crown className="w-5 h-5 text-yellow-500" />}
             <span className="text-sm md:text-base font-bold">Opponent</span>
+            {!isMyTurn && !gameOver && (
+              <span className="text-xs bg-yellow-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                THEIR TURN
+              </span>
+            )}
           </div>
           <div className="flex flex-col gap-1 my-4">
             {Array.from({ length: MAX_GUESSES }).map((_, rowIndex) => {
