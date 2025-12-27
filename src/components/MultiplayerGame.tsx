@@ -80,6 +80,9 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   // Turn-based state
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [turnTimer, setTurnTimer] = useState(20);
+  
+  // Rematch state
+  const [isRematchLoading, setIsRematchLoading] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const TURN_DURATION = 20;
 
@@ -611,6 +614,100 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       .eq("id", gameId);
   };
 
+  const handleRematch = async () => {
+    if (!supabase || !user || !gameId) return;
+    
+    setIsRematchLoading(true);
+    
+    // Get the current game to find opponent
+    const { data: currentGame } = await supabase
+      .from("multiplayer_games")
+      .select()
+      .eq("id", gameId)
+      .single();
+    
+    if (!currentGame) {
+      toast.error("Could not find game data");
+      setIsRematchLoading(false);
+      return;
+    }
+    
+    // Determine opponent ID
+    const opponentId = currentGame.player1_id === user.id 
+      ? currentGame.player2_id 
+      : currentGame.player1_id;
+    
+    if (!opponentId) {
+      toast.error("Could not find opponent");
+      setIsRematchLoading(false);
+      return;
+    }
+    
+    // Create new game with same players (current user as host)
+    const word = getRandomWord();
+    
+    const { data: newGame, error } = await supabase
+      .from("multiplayer_games")
+      .insert({
+        player1_id: user.id,
+        player2_id: opponentId,
+        status: "waiting"
+      })
+      .select()
+      .single();
+
+    if (error || !newGame) {
+      if (import.meta.env.DEV) console.error("Failed to create rematch game:", error);
+      toast.error("Failed to create rematch");
+      setIsRematchLoading(false);
+      return;
+    }
+
+    // Store target word in secrets table
+    const { error: secretError } = await supabase
+      .from("multiplayer_game_secrets")
+      .insert({
+        game_id: newGame.id,
+        target_word: word
+      });
+
+    if (secretError) {
+      if (import.meta.env.DEV) console.error("Failed to create rematch secret:", secretError);
+      await supabase.from("multiplayer_games").delete().eq("id", newGame.id);
+      toast.error("Failed to create rematch");
+      setIsRematchLoading(false);
+      return;
+    }
+
+    // Reset all game state
+    setGameId(newGame.id);
+    setTargetWord(word);
+    setIsHost(true);
+    setPlayerSlot(1);
+    setJoinedPlayers([
+      { id: user.id, slot: 1 },
+      { id: opponentId, slot: 2 }
+    ]);
+    setMyGuesses([]);
+    setMyCurrentGuess("");
+    setMyEvaluations([]);
+    setMyLetterStatus({});
+    setMyGameOver(false);
+    setMyWon(false);
+    setOpponentGuesses([]);
+    setOpponentEvaluations([]);
+    setOpponentGameOver(false);
+    setOpponentWon(false);
+    setOpponentCurrentRow(0);
+    setGameStarted(false);
+    setWaiting(true);
+    setIsMyTurn(false);
+    setTurnTimer(TURN_DURATION);
+    setIsRematchLoading(false);
+    
+    toast.success("Rematch created! Start when ready.");
+  };
+
 
   // Mode selection screen
   if (mode === "select") {
@@ -863,11 +960,27 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         </div>
       )}
 
-      {/* Game Over - Show target word */}
-      {gameOver && targetWord && (
-        <div className="text-center py-4 bg-muted/50 border-b">
-          <p className="text-sm text-muted-foreground mb-1">The word was:</p>
-          <p className="text-2xl font-bold tracking-widest uppercase text-primary">{targetWord}</p>
+      {/* Game Over - Show target word and rematch */}
+      {gameOver && (
+        <div className="text-center py-4 bg-muted/50 border-b space-y-3">
+          {targetWord && (
+            <>
+              <p className="text-sm text-muted-foreground mb-1">The word was:</p>
+              <p className="text-2xl font-bold tracking-widest uppercase text-primary">{targetWord}</p>
+            </>
+          )}
+          <Button 
+            onClick={handleRematch} 
+            disabled={isRematchLoading}
+            className="mt-2"
+          >
+            {isRematchLoading ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            Rematch
+          </Button>
         </div>
       )}
       
