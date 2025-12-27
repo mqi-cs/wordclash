@@ -13,6 +13,7 @@ import { saveGameResult } from "@/lib/gameHistory";
 import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
+import { evaluateGuess } from "@/lib/gameLogic";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -26,13 +27,13 @@ const TIMED_BONUS_SECONDS = 30;
 const Index = () => {
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
-  
+
   // Check for URL params to auto-start multiplayer
   const urlParams = new URLSearchParams(window.location.search);
   const joinGameId = urlParams.get('join') || urlParams.get('game');
   const modeParam = urlParams.get('mode');
   const initialMode = (joinGameId || modeParam === 'multiplayer') ? 'multiplayer' : null;
-  
+
   const [gameMode, setGameMode] = useState<GameMode | null>(initialMode);
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
   const [guesses, setGuesses] = useState<string[]>([]);
@@ -48,11 +49,11 @@ const Index = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [availableHints, setAvailableHints] = useState(0);
-  
+
   // Bot state
   const [botActive, setBotActive] = useState(false);
   const [botState, setBotState] = useState<BotState>(getInitialBotState());
-  
+
   // Timed mode state
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
   const [wordsCompleted, setWordsCompleted] = useState(0);
@@ -61,54 +62,18 @@ const Index = () => {
 
   const maxGuesses = gameMode === "hard" ? HARD_GUESSES : gameMode === "timed" ? 999 : CLASSIC_GUESSES;
 
-  const evaluateGuess = (guess: string, target: string) => {
-    const result: Array<"correct" | "present" | "absent"> = [];
-    const targetLetters = target.split("");
-    const guessLetters = guess.split("");
 
-    // First pass: mark correct letters
-    guessLetters.forEach((letter, i) => {
-      if (letter === targetLetters[i]) {
-        result[i] = "correct";
-        targetLetters[i] = "";
-      }
-    });
-
-    // Second pass: mark present letters (skip for hard mode)
-    if (gameMode !== "hard") {
-      guessLetters.forEach((letter, i) => {
-        if (result[i] !== "correct") {
-          const targetIndex = targetLetters.indexOf(letter);
-          if (targetIndex !== -1) {
-            result[i] = "present";
-            targetLetters[targetIndex] = "";
-          } else {
-            result[i] = "absent";
-          }
-        }
-      });
-    } else {
-      // Hard mode: only correct or absent
-      guessLetters.forEach((letter, i) => {
-        if (result[i] !== "correct") {
-          result[i] = "absent";
-        }
-      });
-    }
-
-    return result;
-  };
 
   const updateLetterStatus = (guess: string, evaluation: Array<"correct" | "present" | "absent">) => {
     const newStatus = { ...letterStatus };
     guess.split("").forEach((letter, i) => {
       const currentStatus = newStatus[letter];
       const newLetterStatus = evaluation[i];
-      
+
       // Only update if new status is better (correct > present > absent)
-      if (!currentStatus || 
-          (currentStatus === "absent" && newLetterStatus !== "absent") ||
-          (currentStatus === "present" && newLetterStatus === "correct")) {
+      if (!currentStatus ||
+        (currentStatus === "absent" && newLetterStatus !== "absent") ||
+        (currentStatus === "present" && newLetterStatus === "correct")) {
         newStatus[letter] = newLetterStatus;
       }
     });
@@ -145,21 +110,21 @@ const Index = () => {
       return;
     }
 
-    const evaluation = evaluateGuess(currentGuess, targetWord);
+    const evaluation = evaluateGuess(currentGuess, targetWord, gameMode);
     updateLetterStatus(currentGuess, evaluation);
-    
+
     const newGuesses = [...guesses, currentGuess];
     const newEvaluations = [...evaluations, evaluation];
-    
+
     setGuesses(newGuesses);
     setEvaluations(newEvaluations);
     setCurrentGuess("");
-    
+
     // Track total guesses in timed mode
     if (gameMode === "timed") {
       setTotalGuesses(prev => prev + 1);
     }
-    
+
     // Grant one hint after each guess (except in hard mode)
     if (gameMode !== "hard") {
       setAvailableHints(prev => prev + 1);
@@ -188,14 +153,14 @@ const Index = () => {
         }, 1000);
         return;
       }
-      
+
       // Handle classic/hard mode win
       setWon(true);
       setGameOver(true);
-      
+
       // Count green letters
       const greenLetters = evaluation.filter(e => e === "correct").length;
-      
+
       // Save game result to localStorage
       saveGameResult({
         mode: gameMode!,
@@ -204,12 +169,12 @@ const Index = () => {
         greenLetters,
         timestamp: Date.now(),
       });
-      
+
       // Update database stats if user is logged in
       if (user) {
         updateStats(gameMode!, true, greenLetters);
       }
-      
+
       setTimeout(() => {
         toast.success("Congratulations! 🎉");
         setShowResult(true);
@@ -220,10 +185,10 @@ const Index = () => {
     // Check lose condition for classic/hard modes
     if (newGuesses.length >= maxGuesses) {
       setGameOver(true);
-      
+
       // Count green letters in last guess
       const greenLetters = evaluation.filter(e => e === "correct").length;
-      
+
       // Save game result to localStorage
       if (gameMode) {
         saveGameResult({
@@ -234,12 +199,12 @@ const Index = () => {
           timestamp: Date.now(),
         });
       }
-      
+
       // Update database stats if user is logged in
       if (user && gameMode) {
         updateStats(gameMode, false, greenLetters);
       }
-      
+
       setTimeout(() => {
         toast.error(`The word was ${targetWord}`);
         setShowResult(true);
@@ -290,7 +255,7 @@ const Index = () => {
 
   const handleHint = () => {
     if (gameOver || gameMode === "hard") return;
-    
+
     // Check if hints are available
     if (availableHints === 0) {
       if (guesses.length === 0) {
@@ -300,7 +265,7 @@ const Index = () => {
       }
       return;
     }
-    
+
     // Find positions that haven't been guessed correctly yet
     const correctPositions = new Set<number>();
     evaluations.forEach(evaluation => {
@@ -327,7 +292,7 @@ const Index = () => {
     // Pick a random position to reveal
     const randomIndex = Math.floor(Math.random() * availablePositions.length);
     const positionToReveal = availablePositions[randomIndex];
-    
+
     setRevealedHints(prev => [...prev, positionToReveal]);
     setAvailableHints(prev => prev - 1);
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
@@ -363,7 +328,7 @@ const Index = () => {
 
     const makeGuess = () => {
       const isHardMode = gameMode === "hard";
-      
+
       // If this is the first guess, make a random guess
       if (guesses.length === 0) {
         const nextGuess = getBotNextGuess(botState, isHardMode);
@@ -404,11 +369,11 @@ const Index = () => {
           if (prev <= 1) {
             setGameOver(true);
             setTimedGameActive(false);
-            
+
             // Count green letters in last evaluation
             const lastEvaluation = evaluations[evaluations.length - 1] || [];
             const greenLetters = lastEvaluation.filter(e => e === "correct").length;
-            
+
             // Save timed mode result to localStorage
             saveGameResult({
               mode: "timed",
@@ -418,12 +383,12 @@ const Index = () => {
               greenLetters,
               timestamp: Date.now(),
             });
-            
+
             // Update database stats if user is logged in
             if (user) {
               updateStats("timed", wordsCompleted > 0, greenLetters);
             }
-            
+
             setTimeout(() => {
               toast.error(`Time's up! You completed ${wordsCompleted} word${wordsCompleted !== 1 ? 's' : ''}!`);
               setShowResult(true);
@@ -462,9 +427,9 @@ const Index = () => {
   if (!gameMode) {
     return (
       <>
-        <GameMenu 
-          onSelectMode={handleSelectMode} 
-          onShowLeaderboard={() => setShowLeaderboard(true)} 
+        <GameMenu
+          onSelectMode={handleSelectMode}
+          onShowLeaderboard={() => setShowLeaderboard(true)}
           onResumeGame={handleResumeGame}
         />
         <Leaderboard open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
@@ -497,9 +462,9 @@ const Index = () => {
           </div>
         </div>
       }>
-        <BotGame 
-          onBackToMenu={handleBackToMenu} 
-          gameMode={gameMode === "hard" ? "hard" : gameMode === "timed" ? "timed" : "classic"} 
+        <BotGame
+          onBackToMenu={handleBackToMenu}
+          gameMode={gameMode === "hard" ? "hard" : gameMode === "timed" ? "timed" : "classic"}
         />
       </Suspense>
     );
@@ -507,7 +472,7 @@ const Index = () => {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <GameHeader 
+      <GameHeader
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowLeaderboard(true)}
         onHint={handleHint}
@@ -517,7 +482,7 @@ const Index = () => {
         botActive={botActive}
         botDisabled={gameOver}
       />
-      
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 border-b gap-2 flex-shrink-0">
         <Button variant="ghost" size="sm" onClick={handleBackToMenu} className="h-8">
           <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
@@ -541,7 +506,7 @@ const Index = () => {
           )}
         </div>
       </div>
-      
+
       <main className="flex-1 flex flex-col items-center justify-between py-2 sm:py-4 px-2 sm:px-4 min-h-0 overflow-hidden">
         <div className="flex-shrink-0 w-full flex justify-center">
           <GameGrid
@@ -555,7 +520,7 @@ const Index = () => {
             targetWord={targetWord}
           />
         </div>
-        
+
         <div className="flex-shrink-0 w-full flex justify-center pb-2">
           <Keyboard
             onKeyPress={handleKeyPress}
@@ -579,7 +544,7 @@ const Index = () => {
         open={showHelp}
         onClose={() => setShowHelp(false)}
       />
-      
+
       <Leaderboard
         open={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}

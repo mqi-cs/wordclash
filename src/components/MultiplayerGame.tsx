@@ -34,16 +34,16 @@ interface JoinedPlayer {
 export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  
+
   // Dynamically import supabase to avoid initialization issues
   const [supabase, setSupabase] = useState<any>(null);
-  
+
   useEffect(() => {
     import("@/integrations/supabase/client").then(module => {
       setSupabase(module.supabase);
     });
   }, []);
-  
+
   const [gameId, setGameId] = useState<string | null>(null);
   const playerId = user?.id || "";
   const [targetWord, setTargetWord] = useState("");
@@ -55,12 +55,12 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [createGameError, setCreateGameError] = useState<string | null>(null);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
-  
+
   // Mode selection state
   const [mode, setMode] = useState<"select" | "create" | "join" | null>(null);
   const [joinCode, setJoinCode] = useState("");
   const [isJoining, setIsJoining] = useState(false);
-  
+
   // My game state
   const [myGuesses, setMyGuesses] = useState<string[]>([]);
   const [myCurrentGuess, setMyCurrentGuess] = useState("");
@@ -69,19 +69,22 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const [myGameOver, setMyGameOver] = useState(false);
   const [myWon, setMyWon] = useState(false);
   const [shake, setShake] = useState(false);
-  
+
   // Opponent game state
   const [opponentGuesses, setOpponentGuesses] = useState<string[]>([]);
   const [opponentEvaluations, setOpponentEvaluations] = useState<Array<Array<"correct" | "present" | "absent">>>([]);
   const [opponentGameOver, setOpponentGameOver] = useState(false);
   const [opponentWon, setOpponentWon] = useState(false);
   const [opponentCurrentRow, setOpponentCurrentRow] = useState(0);
-  
-  // Turn-based state
+
+  // Turn-based state (only used for challenge games)
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [turnTimer, setTurnTimer] = useState(20);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const TURN_DURATION = 20;
+
+  // Game type: 'multiplayer' (real-time) or 'challenge' (turn-based)
+  const [gameType, setGameType] = useState<'multiplayer' | 'challenge'>('multiplayer');
 
   // Require authentication
   useEffect(() => {
@@ -95,13 +98,13 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   // Fetch target word - only used after game ends to reveal the answer
   const fetchTargetWord = useCallback(async (gId: string) => {
     if (!supabase) return;
-    
+
     const { data, error } = await supabase
       .from("multiplayer_game_secrets")
       .select("target_word")
       .eq("game_id", gId)
       .single();
-    
+
     if (error) {
       if (import.meta.env.DEV) {
         console.error("Error fetching target word:", error);
@@ -109,19 +112,19 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       // Don't show error - this is expected for non-host players until game ends
       return;
     }
-    
+
     setTargetWord(data.target_word);
   }, [supabase]);
 
   // Check for URL parameters on mount
   useEffect(() => {
     if (!supabase || loading || !user) return;
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const joinGameId = urlParams.get('join');
     const alreadyJoinedGameId = urlParams.get('game');
     const existingGameId = joinGameId || alreadyJoinedGameId;
-    
+
     if (existingGameId) {
       // Auto-join from URL
       handleJoinGame(existingGameId);
@@ -134,32 +137,32 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   const handleJoinGame = async (gameIdToJoin: string) => {
     if (!supabase || !user) return;
-    
+
     setIsJoining(true);
-    
+
     // Check if we're already in the game
     const { data: game, error } = await supabase
       .from("multiplayer_games")
       .select()
       .eq("id", gameIdToJoin)
       .single();
-    
+
     if (error || !game) {
       toast.error("Game not found");
       setIsJoining(false);
       window.history.replaceState({}, '', '/');
       return;
     }
-    
+
     // Check if we're already a player in this game
     const isAlreadyPlayer = [game.player1_id, game.player2_id, game.player3_id, game.player4_id].includes(user.id);
-    
+
     if (isAlreadyPlayer) {
       // We're already in the game - just set up the state
-      const slot = game.player1_id === user.id ? 1 : 
-                   game.player2_id === user.id ? 2 :
-                   game.player3_id === user.id ? 3 : 4;
-      
+      const slot = game.player1_id === user.id ? 1 :
+        game.player2_id === user.id ? 2 :
+          game.player3_id === user.id ? 3 : 4;
+
       // Initialize joined players list
       const players: JoinedPlayer[] = [];
       if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
@@ -167,25 +170,34 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
       if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
       setJoinedPlayers(players);
-      
+
+      // Set game type (defaults to 'multiplayer' for backwards compatibility)
+      const type = game.game_type === 'challenge' ? 'challenge' : 'multiplayer';
+      setGameType(type);
+
       setGameId(gameIdToJoin);
       setIsHost(game.player1_id === user.id);
       setPlayerSlot(slot);
       setMode(null);
-      
+
       // If game already started, just set state
       if (game.game_started) {
         setGameStarted(true);
         setWaiting(false);
+        // For multiplayer games, always allow input (real-time play)
+        // For challenge games, wait for turn-based logic
+        if (type === 'multiplayer') {
+          setIsMyTurn(true);
+        }
       } else {
         setWaiting(true);
       }
-      
+
       setIsJoining(false);
       window.history.replaceState({}, '', '/');
       return;
     }
-    
+
     // Not in the game yet - try to join
     if (game.game_started) {
       toast.error("Game already started");
@@ -193,7 +205,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       window.history.replaceState({}, '', '/');
       return;
     }
-    
+
     // Use secure function to join game
     const { data: joinResult, error: joinError } = await supabase.rpc('join_multiplayer_game', {
       game_id_param: gameIdToJoin
@@ -205,7 +217,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       setIsJoining(false);
       return;
     }
-    
+
     // Initialize joined players list with current players
     const players: JoinedPlayer[] = [];
     if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
@@ -217,7 +229,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       players.push({ id: user.id, slot: joinResult.slot });
     }
     setJoinedPlayers(players);
-    
+
     setGameId(gameIdToJoin);
     setIsHost(false);
     setPlayerSlot(joinResult.slot);
@@ -230,18 +242,19 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   const createNewGame = async () => {
     if (!supabase || !user) return;
-    
+
     setIsCreatingGame(true);
     setCreateGameError(null);
-    
+
     const word = getRandomWord();
     setTargetWord(word);
-    
+
     const { data: game, error } = await supabase
       .from("multiplayer_games")
       .insert({
         player1_id: user.id,
-        status: "waiting"
+        status: "waiting",
+        game_type: "multiplayer"
       })
       .select()
       .single();
@@ -265,17 +278,17 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
     if (secretError) {
       if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
-      
+
       // Cleanup: delete the half-created game
       const { error: deleteError } = await supabase
         .from("multiplayer_games")
         .delete()
         .eq("id", game.id);
-      
+
       if (deleteError && import.meta.env.DEV) {
         console.error("Failed to cleanup game after secret insert failure:", deleteError);
       }
-      
+
       const friendlyError = getUserFriendlyError(secretError);
       setCreateGameError(friendlyError);
       toast.error(friendlyError);
@@ -320,24 +333,31 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         (payload: any) => {
           const game = payload.new;
           const players: JoinedPlayer[] = [];
-          
+
           if (game.player1_id) players.push({ id: game.player1_id, slot: 1 });
           if (game.player2_id) players.push({ id: game.player2_id, slot: 2 });
           if (game.player3_id) players.push({ id: game.player3_id, slot: 3 });
           if (game.player4_id) players.push({ id: game.player4_id, slot: 4 });
-          
+
           setJoinedPlayers(players);
-          
+
           if (game.game_started && !gameStarted) {
             setGameStarted(true);
             setWaiting(false);
             toast.success("Game starting!");
-            // Host (player1) goes first
-            if (game.player1_id === user?.id) {
+
+            // For multiplayer games, all players can input simultaneously (real-time)
+            // For challenge games, use turn-based logic (host goes first)
+            if (gameType === 'multiplayer') {
               setIsMyTurn(true);
-              setTurnTimer(TURN_DURATION);
             } else {
-              setIsMyTurn(false);
+              // Challenge game: Host (player1) goes first
+              if (game.player1_id === user?.id) {
+                setIsMyTurn(true);
+                setTurnTimer(TURN_DURATION);
+              } else {
+                setIsMyTurn(false);
+              }
             }
           }
         }
@@ -369,7 +389,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             setOpponentGuesses(prev => [...prev, guess.guess]);
             setOpponentEvaluations(prev => [...prev, guess.evaluation]);
             setOpponentCurrentRow(guess.guess_number);
-            
+
             // Check if opponent won by checking if all letters are correct
             const allCorrect = guess.evaluation.every((e: string) => e === "correct");
             if (allCorrect) {
@@ -379,14 +399,18 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               toast.error("Opponent won!");
               // Fetch target word to display
               fetchTargetWord(gameId!);
-            } else {
-              // Opponent finished their turn, now it's my turn
+            } else if (gameType === 'challenge') {
+              // Only switch turns for challenge games (turn-based)
+              // Multiplayer games allow simultaneous play
               setIsMyTurn(true);
               setTurnTimer(TURN_DURATION);
             }
           } else {
-            // My guess was processed, now it's opponent's turn
-            setIsMyTurn(false);
+            // My guess was processed
+            // Only switch turns for challenge games
+            if (gameType === 'challenge') {
+              setIsMyTurn(false);
+            }
           }
         }
       )
@@ -412,8 +436,17 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     };
   }, [gameId, playerId, targetWord, waiting, supabase, myGuesses.length, fetchTargetWord]);
 
-  // Timer effect for turn-based gameplay
+  // Timer effect for turn-based gameplay (only for challenge games)
   useEffect(() => {
+    // Skip timer for multiplayer games (real-time play)
+    if (gameType === 'multiplayer') {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
     if (waiting || myGameOver || opponentGameOver) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -452,7 +485,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         timerRef.current = null;
       }
     };
-  }, [isMyTurn, waiting, myGameOver, opponentGameOver]);
+  }, [isMyTurn, waiting, myGameOver, opponentGameOver, gameType]);
 
   const evaluateGuess = (guess: string, target: string) => {
     const result: Array<"correct" | "present" | "absent"> = [];
@@ -486,10 +519,10 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     guess.split("").forEach((letter, i) => {
       const currentStatus = newStatus[letter];
       const newLetterStatus = evaluation[i];
-      
-      if (!currentStatus || 
-          (currentStatus === "absent" && newLetterStatus !== "absent") ||
-          (currentStatus === "present" && newLetterStatus === "correct")) {
+
+      if (!currentStatus ||
+        (currentStatus === "absent" && newLetterStatus !== "absent") ||
+        (currentStatus === "present" && newLetterStatus === "correct")) {
         newStatus[letter] = newLetterStatus;
       }
     });
@@ -539,10 +572,10 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
     const evaluation = data.evaluation as Array<"correct" | "present" | "absent">;
     updateLetterStatus(myCurrentGuess, evaluation);
-    
+
     const newGuesses = [...myGuesses, myCurrentGuess];
     const newEvaluations = [...myEvaluations, evaluation];
-    
+
     setMyGuesses(newGuesses);
     setMyEvaluations(newEvaluations);
     setMyCurrentGuess("");
@@ -564,11 +597,12 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       // Fetch the word to show what it was
       fetchTargetWord(gameId!);
       toast.error("Game over - no one guessed the word!");
-    } else {
-      // End my turn, opponent's turn now
+    } else if (gameType === 'challenge') {
+      // Only end turn for challenge games (turn-based)
+      // Multiplayer games allow continuous input
       setIsMyTurn(false);
     }
-  }, [myCurrentGuess, myGuesses, myEvaluations, myGameOver, gameId, playerId, waiting, supabase, fetchTargetWord, isMyTurn, opponentGuesses.length]);
+  }, [myCurrentGuess, myGuesses, myEvaluations, myGameOver, gameId, playerId, waiting, supabase, fetchTargetWord, isMyTurn, opponentGuesses.length, gameType]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -624,9 +658,9 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             <h2 className="text-2xl font-bold">Multiplayer</h2>
             <p className="text-muted-foreground">Create a new game or join an existing one</p>
           </div>
-          
+
           <div className="grid gap-4">
-            <Button 
+            <Button
               onClick={() => {
                 setMode("create");
                 createNewGame();
@@ -641,8 +675,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               )}
               Create Game
             </Button>
-            
-            <Button 
+
+            <Button
               onClick={() => setMode("join")}
               variant="outline"
               className="w-full h-16 text-lg"
@@ -651,7 +685,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               Join Game
             </Button>
           </div>
-          
+
           <Button variant="ghost" onClick={onBackToMenu} className="w-full">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Menu
@@ -673,7 +707,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             <h2 className="text-2xl font-bold">Join Game</h2>
             <p className="text-muted-foreground">Enter the game code shared by the host</p>
           </div>
-          
+
           <div className="space-y-4">
             <Input
               placeholder="Enter game code..."
@@ -682,8 +716,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               className="text-center text-lg h-12"
               disabled={isJoining}
             />
-            
-            <Button 
+
+            <Button
               onClick={handleJoinWithCode}
               className="w-full h-12"
               disabled={isJoining || !joinCode.trim()}
@@ -696,7 +730,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               Join Game
             </Button>
           </div>
-          
+
           <Button variant="ghost" onClick={() => setMode("select")} className="w-full">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -718,19 +752,19 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               </div>
               <h2 className="text-2xl font-bold text-destructive">Failed to Create Game</h2>
               <p className="text-muted-foreground">{createGameError}</p>
-              
-              <Button 
+
+              <Button
                 onClick={() => {
                   setMode("select");
                   setCreateGameError(null);
-                }} 
+                }}
                 className="w-full"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Try Again
               </Button>
             </div>
-            
+
             <Button variant="outline" onClick={onBackToMenu} className="w-full">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Menu
@@ -751,13 +785,13 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               {isCreatingGame ? "Creating Game..." : isHost ? "Waiting Room" : "Waiting for Host"}
             </h2>
             <p className="text-muted-foreground">
-              {isCreatingGame 
-                ? "Setting up your game..." 
-                : isHost 
-                  ? "Share this link and start when ready" 
+              {isCreatingGame
+                ? "Setting up your game..."
+                : isHost
+                  ? "Share this link and start when ready"
                   : "Waiting for host to start the game"}
             </p>
-            
+
             {isHost && gameId && (
               <div className="space-y-3">
                 <div className="p-3 rounded-lg bg-muted/50 border">
@@ -807,8 +841,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             </div>
 
             {isHost && gameId && (
-              <Button 
-                onClick={handleStartGame} 
+              <Button
+                onClick={handleStartGame}
                 className="w-full"
                 disabled={joinedPlayers.length < 2}
               >
@@ -816,7 +850,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               </Button>
             )}
           </div>
-          
+
           <Button variant="outline" onClick={onBackToMenu} className="w-full">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Menu
@@ -870,7 +904,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           <p className="text-2xl font-bold tracking-widest uppercase text-primary">{targetWord}</p>
         </div>
       )}
-      
+
       <main className="flex-1 grid md:grid-cols-2 gap-2 p-2 md:p-4">
         {/* My Side */}
         <Card className={cn(
@@ -927,13 +961,13 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
             {Array.from({ length: MAX_GUESSES }).map((_, rowIndex) => {
               const guess = opponentGuesses[rowIndex];
               const evaluation = opponentEvaluations[rowIndex];
-              
+
               return (
                 <div key={rowIndex} className="flex gap-1 justify-center">
                   {Array.from({ length: WORD_LENGTH }).map((_, colIndex) => {
                     const hasGuess = guess && guess[colIndex];
                     const status = evaluation ? evaluation[colIndex] : "empty";
-                    
+
                     return (
                       <div
                         key={colIndex}

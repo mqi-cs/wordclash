@@ -61,10 +61,12 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
 
     try {
       // Fetch games where user is a player and game is not finished
+      // Only show challenge games (multiplayer quick-play games are not resumable)
       const { data: gamesData, error } = await supabase
         .from("multiplayer_games")
         .select("*")
         .or(`player1_id.eq.${user.id},player2_id.eq.${user.id},player3_id.eq.${user.id},player4_id.eq.${user.id}`)
+        .eq("game_type", "challenge")
         .in("status", ["waiting", "in_progress"])
         .order("created_at", { ascending: false });
 
@@ -88,7 +90,7 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
       const openGames: OpenGame[] = gamesData.map(game => {
         const playerCount = [game.player1_id, game.player2_id, game.player3_id, game.player4_id]
           .filter(Boolean).length;
-        
+
         return {
           ...game,
           host_username: profiles?.find(p => p.id === game.player1_id)?.username || "Unknown",
@@ -113,9 +115,9 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
 
   const handleClose = async (game: OpenGame) => {
     if (!user) return;
-    
+
     setClosingGame(game.id);
-    
+
     try {
       if (game.is_host && !game.game_started) {
         // Host can delete the game if it hasn't started
@@ -123,7 +125,7 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
           .from("multiplayer_games")
           .delete()
           .eq("id", game.id);
-        
+
         if (error) throw error;
         toast.success("Game closed");
       } else {
@@ -132,11 +134,11 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
           .from("multiplayer_games")
           .update({ status: "abandoned" })
           .eq("id", game.id);
-        
+
         if (error) throw error;
         toast.success("Left the game");
       }
-      
+
       fetchOpenGames();
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -184,17 +186,16 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                 <span>{game.player_count}/4 players</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 <span>{formatDistanceToNow(new Date(game.created_at), { addSuffix: true })}</span>
               </div>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                game.game_started 
-                  ? "bg-[hsl(var(--menu-classic))]/20 text-[hsl(var(--menu-classic))]" 
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${game.game_started
+                  ? "bg-[hsl(var(--menu-classic))]/20 text-[hsl(var(--menu-classic))]"
                   : "bg-amber-500/20 text-amber-600"
-              }`}>
+                }`}>
                 {game.game_started ? "In Progress" : "Waiting"}
               </span>
             </div>
