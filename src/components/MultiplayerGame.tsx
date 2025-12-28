@@ -256,8 +256,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       .from("multiplayer_games")
       .insert({
         player1_id: user.id,
-        status: "waiting",
-        game_type: "multiplayer"
+        status: "waiting"
       })
       .select();
 
