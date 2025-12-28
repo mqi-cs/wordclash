@@ -252,21 +252,29 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     const word = getRandomWord();
     setTargetWord(word);
 
-    const { data: game, error } = await supabase
+    const { data: games, error } = await supabase
       .from("multiplayer_games")
       .insert({
         player1_id: user.id,
         status: "waiting",
         game_type: "multiplayer"
       })
-      .select()
-      .single();
+      .select();
 
     if (error) {
       if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_games insert):", error);
       const friendlyError = getUserFriendlyError(error);
       setCreateGameError(friendlyError);
       toast.error(friendlyError);
+      setIsCreatingGame(false);
+      return;
+    }
+
+    const game = games?.[0];
+    if (!game) {
+      if (import.meta.env.DEV) console.error("Failed to create game: No data returned after insert");
+      setCreateGameError("Failed to create game. Please try again.");
+      toast.error("Failed to create game. Please try again.");
       setIsCreatingGame(false);
       return;
     }
@@ -680,16 +688,16 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     // Create new game with same players (current user as host)
     const word = getRandomWord();
 
-    const { data: newGame, error } = await supabase
+    const { data: newGames, error } = await supabase
       .from("multiplayer_games")
       .insert({
         player1_id: user.id,
         player2_id: opponentId,
         status: "waiting"
       })
-      .select()
-      .single();
+      .select();
 
+    const newGame = newGames?.[0];
     if (error || !newGame) {
       if (import.meta.env.DEV) console.error("Failed to create rematch game:", error);
       toast.error("Failed to create rematch");

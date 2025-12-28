@@ -123,11 +123,10 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
 
       // Call the optional onChallenge callback
       onChallenge?.(friendId);
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("Error sending challenge:", error);
-      }
-      toast.error("Failed to send challenge");
+    } catch (error: any) {
+      console.error("Error sending challenge:", error);
+      const errorMessage = error?.message || "Failed to send challenge";
+      toast.error(errorMessage);
     } finally {
       setSendingChallenge(null);
     }
