@@ -252,54 +252,13 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     const word = getRandomWord();
     setTargetWord(word);
 
-    const { data: games, error } = await supabase
-      .from("multiplayer_games")
-      .insert({
-        player1_id: user.id,
-        status: "waiting"
-      })
-      .select();
+    const { data: newGameId, error } = await supabase.rpc('create_multiplayer_game', {
+      target_word_param: word
+    });
 
     if (error) {
-      if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_games insert):", error);
+      if (import.meta.env.DEV) console.error("Failed to create game:", error);
       const friendlyError = getUserFriendlyError(error);
-      setCreateGameError(friendlyError);
-      toast.error(friendlyError);
-      setIsCreatingGame(false);
-      return;
-    }
-
-    const game = games?.[0];
-    if (!game) {
-      if (import.meta.env.DEV) console.error("Failed to create game: No data returned after insert");
-      setCreateGameError("Failed to create game. Please try again.");
-      toast.error("Failed to create game. Please try again.");
-      setIsCreatingGame(false);
-      return;
-    }
-
-    // Store target word in secrets table
-    const { error: secretError } = await supabase
-      .from("multiplayer_game_secrets")
-      .insert({
-        game_id: game.id,
-        target_word: word
-      });
-
-    if (secretError) {
-      if (import.meta.env.DEV) console.error("Failed to create game (multiplayer_game_secrets insert):", secretError);
-
-      // Cleanup: delete the half-created game
-      const { error: deleteError } = await supabase
-        .from("multiplayer_games")
-        .delete()
-        .eq("id", game.id);
-
-      if (deleteError && import.meta.env.DEV) {
-        console.error("Failed to cleanup game after secret insert failure:", deleteError);
-      }
-
-      const friendlyError = getUserFriendlyError(secretError);
       setCreateGameError(friendlyError);
       toast.error(friendlyError);
       setIsCreatingGame(false);
@@ -308,7 +267,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
     // Initialize joined players with host
     setJoinedPlayers([{ id: user.id, slot: 1 }]);
-    setGameId(game.id);
+    setGameId(newGameId);
     setIsHost(true);
     setPlayerSlot(1);
     setMode(null);
