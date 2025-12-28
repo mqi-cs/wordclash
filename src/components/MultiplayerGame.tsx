@@ -80,7 +80,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   // Turn-based state (only used for challenge games)
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [turnTimer, setTurnTimer] = useState(20);
-  
+
   // Rematch state
   const [isRematchLoading, setIsRematchLoading] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -650,36 +650,36 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   const handleRematch = async () => {
     if (!supabase || !user || !gameId) return;
-    
+
     setIsRematchLoading(true);
-    
+
     // Get the current game to find opponent
     const { data: currentGame } = await supabase
       .from("multiplayer_games")
       .select()
       .eq("id", gameId)
       .single();
-    
+
     if (!currentGame) {
       toast.error("Could not find game data");
       setIsRematchLoading(false);
       return;
     }
-    
+
     // Determine opponent ID
-    const opponentId = currentGame.player1_id === user.id 
-      ? currentGame.player2_id 
+    const opponentId = currentGame.player1_id === user.id
+      ? currentGame.player2_id
       : currentGame.player1_id;
-    
+
     if (!opponentId) {
       toast.error("Could not find opponent");
       setIsRematchLoading(false);
       return;
     }
-    
+
     // Create new game with same players (current user as host)
     const word = getRandomWord();
-    
+
     const { data: newGame, error } = await supabase
       .from("multiplayer_games")
       .insert({
@@ -738,7 +738,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     setIsMyTurn(false);
     setTurnTimer(TURN_DURATION);
     setIsRematchLoading(false);
-    
+
     toast.success("Rematch created! Start when ready.");
   };
 
@@ -759,11 +759,10 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           <div className="grid gap-4">
             <Button
               onClick={() => {
-                setMode("create");
                 createNewGame();
               }}
               className="w-full h-16 text-lg"
-              disabled={isCreatingGame}
+              disabled={isCreatingGame || !supabase || !user}
             >
               {isCreatingGame ? (
                 <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
@@ -1003,8 +1002,8 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               <p className="text-2xl font-bold tracking-widest uppercase text-primary">{targetWord}</p>
             </>
           )}
-          <Button 
-            onClick={handleRematch} 
+          <Button
+            onClick={handleRematch}
             disabled={isRematchLoading}
             className="mt-2"
           >

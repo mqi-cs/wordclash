@@ -79,9 +79,9 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
 
   const handleChallenge = async (friendId: string) => {
     if (!user) return;
-    
+
     setSendingChallenge(friendId);
-    
+
     try {
       // Create a new multiplayer game
       const word = getRandomWord();
@@ -89,7 +89,8 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
         .from("multiplayer_games")
         .insert({
           player1_id: user.id,
-          status: "waiting"
+          status: "waiting",
+          game_type: "challenge"
         })
         .select()
         .single();
@@ -119,7 +120,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
       if (inviteError) throw inviteError;
 
       toast.success("Challenge sent!");
-      
+
       // Call the optional onChallenge callback
       onChallenge?.(friendId);
     } catch (error) {
@@ -167,7 +168,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
                 {sendingChallenge === friend.id ? "Sending..." : "Challenge"}
               </Button>
             </div>
-            
+
             {friend.stats && (
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-2">
