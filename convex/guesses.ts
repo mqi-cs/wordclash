@@ -3,9 +3,20 @@ import { v } from "convex/values";
 import { auth } from "./auth";
 import { evaluateGuess, isValidGuessFormat } from "./shared/gameLogic";
 
+// Authenticated query — only game participants can see guesses
 export const getGuesses = query({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    // Verify the caller is in this game
+    const game = await ctx.db.get(args.gameId);
+    if (!game) return [];
+    if (game.player1Id !== userId && game.player2Id !== userId) {
+      throw new Error("You are not part of this game");
+    }
+
     const guesses = await ctx.db
       .query("guesses")
       .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId))
@@ -24,7 +35,6 @@ export const submitGuess = mutation({
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new Error("Game not found");
     
-    // Only players in the game can guess
     if (game.player1Id !== userId && game.player2Id !== userId) {
       throw new Error("You are not part of this game");
     }
@@ -35,12 +45,10 @@ export const submitGuess = mutation({
 
     const normalizedGuess = args.guess.toUpperCase();
 
-    // Validate guess format (must be exactly 5 uppercase letters)
     if (!isValidGuessFormat(normalizedGuess)) {
       throw new Error("Invalid guess format — must be exactly 5 letters");
     }
 
-    // Get the target secret word for this game
     const secret = await ctx.db
       .query("gameSecrets")
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
@@ -50,7 +58,6 @@ export const submitGuess = mutation({
       throw new Error("Target word not configured for this game yet");
     }
 
-    // Get my previous guesses to count guessNumber
     const existingGuesses = await ctx.db
       .query("guesses")
       .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", userId))
@@ -62,11 +69,9 @@ export const submitGuess = mutation({
       throw new Error("Maximum guesses reached");
     }
 
-    // Evaluate the guess on the server (No cheating!)
     const evaluation = evaluateGuess(normalizedGuess, secret.targetWord, game.gameType);
     const validEvaluation = evaluation as Array<"correct" | "present" | "absent">;
 
-    // Insert the guess
     await ctx.db.insert("guesses", {
       gameId: args.gameId,
       playerId: userId,
@@ -75,7 +80,6 @@ export const submitGuess = mutation({
       guessNumber,
     });
 
-    // Determine if game is won
     const isWon = validEvaluation.every(e => e === "correct");
     if (isWon) {
       await ctx.db.patch(args.gameId, {
@@ -84,7 +88,6 @@ export const submitGuess = mutation({
         finishedAt: Date.now()
       });
     } else if (guessNumber >= 6) {
-      // Check if both players have exhausted their guesses
       const opponentId = game.player1Id === userId ? game.player2Id : game.player1Id;
       if (opponentId) {
         const oppGuesses = await ctx.db
@@ -96,7 +99,7 @@ export const submitGuess = mutation({
           await ctx.db.patch(args.gameId, {
             status: "finished",
             finishedAt: Date.now()
-          }); // draw — no winnerId
+          });
         }
       }
     }

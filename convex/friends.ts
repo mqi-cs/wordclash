@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { auth } from "./auth";
 
 /**
- * Search for users by their username
+ * Search for users by their username — bounded scan
  */
 export const searchUsers = query({
   args: { searchQuery: v.string() },
@@ -14,16 +14,16 @@ export const searchUsers = query({
 
     const queryLower = args.searchQuery.toLowerCase();
     
-    // Simplistic search: getting all users and filtering.
-    // In production, consider using Convex Search Index for fuzzy matching
-    const allUsers = await ctx.db.query("users").collect();
+    // Bounded scan: take at most 200 users to search through.
+    // For a production app with many users, use a Convex search index instead.
+    const users = await ctx.db.query("users").take(200);
     
-    const matchedUsers = allUsers.filter(u => 
-      u._id !== userId && // Don't return self
+    const matchedUsers = users.filter(u => 
+      u._id !== userId &&
       u.name && u.name.toLowerCase().includes(queryLower)
     );
 
-    // Get existing friendships to tell client if they're already friends or pending
+    // Get existing friendships
     const friendshipsAsUser1 = await ctx.db
       .query("friendships")
       .withIndex("by_user1", (q) => q.eq("user1Id", userId))
@@ -43,10 +43,9 @@ export const searchUsers = query({
         id: user._id,
         username: user.name,
         friendship_status: friendship ? friendship.status : null,
-        // If it's pending, who requested it?
         is_request_sender: friendship?.status === "pending" ? friendship.requesterId === userId : false
       };
-    }).slice(0, 10); // Return top 10 matches
+    }).slice(0, 10);
   },
 });
 
@@ -56,7 +55,6 @@ export const getRequests = query({
     const userId = await auth.getUserId(ctx);
     if (!userId) return [];
 
-    // Pending requests where we are NOT the requester
     const asUser1 = await ctx.db
       .query("friendships")
       .withIndex("by_user1", (q) => q.eq("user1Id", userId))
@@ -71,7 +69,6 @@ export const getRequests = query({
 
     const incomingRequests = [...asUser1, ...asUser2].filter(f => f.requesterId !== userId);
 
-    // Map to user objects
     return await Promise.all(incomingRequests.map(async (f) => {
       const senderId = f.requesterId;
       const sender = await ctx.db.get(senderId);
@@ -129,6 +126,22 @@ export const sendRequest = mutation({
     if (!userId) throw new Error("Unauthorized");
     if (userId === args.friendId) throw new Error("Cannot add yourself");
 
+    // Rate limit: max 10 pending outgoing requests
+    const outgoingAsUser1 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1", (q) => q.eq("user1Id", userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+    const outgoingAsUser2 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user2", (q) => q.eq("user2Id", userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+    const pendingOutgoing = [...outgoingAsUser1, ...outgoingAsUser2].filter(f => f.requesterId === userId);
+    if (pendingOutgoing.length >= 10) {
+      throw new Error("Too many pending friend requests. Wait for responses or cancel some first.");
+    }
+
     // Check if friendship already exists
     const existing1 = await ctx.db
       .query("friendships")
@@ -162,7 +175,6 @@ export const acceptRequest = mutation({
     const friendship = await ctx.db.get(args.friendshipId);
     if (!friendship) throw new Error("Request not found");
     
-    // Ensure we are part of this friendship and NOT the requester
     if ((friendship.user1Id !== userId && friendship.user2Id !== userId) || friendship.requesterId === userId) {
       throw new Error("Unauthorized");
     }

@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { getUserFriendlyError } from "@/lib/errorHandler";
 import { z } from "zod";
 
 const signUpSchema = z.object({
@@ -84,7 +83,7 @@ const Auth = () => {
     } catch (error: unknown) {
       toast({
         title: "Error",
-        description: getUserFriendlyError(error),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {

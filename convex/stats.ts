@@ -2,33 +2,32 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
 
-// Fetch leaderboard for a specific mode
+// Fetch leaderboard — bounded scan with take()
 export const getLeaderboard = query({
   args: { mode: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    // Validate mode
     const validModes = ["classic", "hard", "timed", "multiplayer"];
     if (!validModes.includes(args.mode)) {
       throw new Error("Invalid game mode");
     }
 
     const sortField = `${args.mode}_won` as string;
+    const maxResults = Math.min(args.limit || 10, 50); // Cap at 50
 
-    // Supabase allowed ordering dynamically. In Convex, we can read all and manual sort for small datasets,
-    // or add an index for each if large.
-    const allStats = await ctx.db.query("userStats").collect();
+    // Bounded: take at most 200 entries to sort through
+    const stats = await ctx.db.query("userStats").take(200);
     
-    // Sort descending by mode_won
-    const sorted = allStats.sort((a: any, b: any) => (b[sortField] || 0) - (a[sortField] || 0));
+    const sorted = stats.sort((a: any, b: any) => (b[sortField] || 0) - (a[sortField] || 0));
+    const limited = sorted.slice(0, maxResults);
     
-    const limited = sorted.slice(0, args.limit || 10);
-    
-    // Fetch usernames for the stats
     return await Promise.all(limited.map(async (stat) => {
       const user = await ctx.db.get(stat.userId);
       return {
-        ...stat,
+        userId: stat.userId,
         username: user?.name || "Unknown User",
+        [`${args.mode}_won`]: (stat as any)[sortField] || 0,
+        [`${args.mode}_played`]: (stat as any)[`${args.mode}_played`] || 0,
+        best_streak: stat.best_streak,
       };
     }));
   },
@@ -48,12 +47,13 @@ export const getMyStats = query({
   },
 });
 
-// Update stats after a game
+// Update stats after a game — server-derived for multiplayer
 export const updateStats = mutation({
   args: {
     mode: v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"), v.literal("multiplayer")),
     won: v.boolean(),
     greenLetters: v.number(),
+    gameId: v.optional(v.id("games")),
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
@@ -61,44 +61,70 @@ export const updateStats = mutation({
       throw new Error("Must be logged in to update stats");
     }
 
+    let won = args.won;
+    let greenLetters = args.greenLetters;
+
+    // For multiplayer, verify the result from actual game data
+    if (args.mode === "multiplayer" && args.gameId) {
+      const game = await ctx.db.get(args.gameId);
+      if (!game || game.status !== "finished") {
+        throw new Error("Game is not finished");
+      }
+      if (game.player1Id !== userId && game.player2Id !== userId) {
+        throw new Error("You are not part of this game");
+      }
+      // Derive the actual result from the game, not from client claims
+      won = game.winnerId === userId;
+
+      // Count actual green letters from guesses
+      const myGuesses = await ctx.db
+        .query("guesses")
+        .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId!).eq("playerId", userId))
+        .collect();
+      greenLetters = myGuesses.reduce((total, g) => {
+        return total + g.evaluation.filter(e => e === "correct").length;
+      }, 0);
+    }
+
+    // Clamp greenLetters to reasonable bounds for single-player modes
+    greenLetters = Math.min(Math.max(greenLetters, 0), 30);
+
     const existingStats = await ctx.db
       .query("userStats")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
 
     if (!existingStats) {
-      // Initialize stats
       const newStats = {
         userId,
         classic_played: args.mode === "classic" ? 1 : 0,
-        classic_won: args.mode === "classic" && args.won ? 1 : 0,
+        classic_won: args.mode === "classic" && won ? 1 : 0,
         hard_played: args.mode === "hard" ? 1 : 0,
-        hard_won: args.mode === "hard" && args.won ? 1 : 0,
+        hard_won: args.mode === "hard" && won ? 1 : 0,
         timed_played: args.mode === "timed" ? 1 : 0,
-        timed_won: args.mode === "timed" && args.won ? 1 : 0,
+        timed_won: args.mode === "timed" && won ? 1 : 0,
         multiplayer_played: args.mode === "multiplayer" ? 1 : 0,
-        multiplayer_won: args.mode === "multiplayer" && args.won ? 1 : 0,
-        current_streak: args.won ? 1 : 0,
-        best_streak: args.won ? 1 : 0,
-        total_green_letters: args.greenLetters,
+        multiplayer_won: args.mode === "multiplayer" && won ? 1 : 0,
+        current_streak: won ? 1 : 0,
+        best_streak: won ? 1 : 0,
+        total_green_letters: greenLetters,
       };
       await ctx.db.insert("userStats", newStats);
     } else {
-      // Update existing stats
       const modePlayedField = `${args.mode}_played` as keyof typeof existingStats;
       const modeWonField = `${args.mode}_won` as keyof typeof existingStats;
 
-      const newCurrentStreak = args.won ? (existingStats.current_streak || 0) + 1 : 0;
+      const newCurrentStreak = won ? (existingStats.current_streak || 0) + 1 : 0;
       const newBestStreak = Math.max(newCurrentStreak, existingStats.best_streak || 0);
 
       const updates: any = {
         [modePlayedField]: (existingStats[modePlayedField] as number || 0) + 1,
         current_streak: newCurrentStreak,
         best_streak: newBestStreak,
-        total_green_letters: (existingStats.total_green_letters || 0) + args.greenLetters,
+        total_green_letters: (existingStats.total_green_letters || 0) + greenLetters,
       };
 
-      if (args.won) {
+      if (won) {
         updates[modeWonField] = (existingStats[modeWonField] as number || 0) + 1;
       }
 
