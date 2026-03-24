@@ -13,6 +13,7 @@ import type * as friends from "../friends.js";
 import type * as games from "../games.js";
 import type * as guesses from "../guesses.js";
 import type * as http from "../http.js";
+import type * as shared_gameLogic from "../shared/gameLogic.js";
 import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   games: typeof games;
   guesses: typeof guesses;
   http: typeof http;
+  "shared/gameLogic": typeof shared_gameLogic;
   stats: typeof stats;
   users: typeof users;
 }>;
