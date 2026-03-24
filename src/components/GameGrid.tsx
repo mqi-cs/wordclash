@@ -116,16 +116,16 @@ export const GameGrid = ({
   );
 
   if (needsScroll) {
-    // Scrollable viewport: shows ~5 rows at a time
+    // Scrollable viewport: shows ~6 rows at a time
     return (
-      <div className="w-full max-w-[350px] sm:max-w-[450px] mx-auto">
+      <div className="w-full max-w-[300px] sm:max-w-[400px] mx-auto">
         <div
           ref={scrollRef}
           className="overflow-y-auto scrollbar-hide"
           style={{
-            // Height of exactly 5 rows: each row is (tileHeight + gap).
-            // Using a CSS calc for the 5-row viewport.
-            maxHeight: "calc(5 * (min(16vw, 70px) + 8px))",
+            // Height of exactly 6 rows: each row is (tileHeight + gap).
+            // Using a CSS calc for the 6-row viewport.
+            maxHeight: "calc(6 * (min(16vw, 70px) + 8px))",
           }}
         >
           {gridContent}
@@ -136,7 +136,7 @@ export const GameGrid = ({
 
   // Standard fixed grid (6 rows for classic or multiplayer)
   return (
-    <div className="w-full max-w-[350px] sm:max-w-[450px] mx-auto">
+    <div className="w-full max-w-[300px] sm:max-w-[400px] mx-auto">
       {gridContent}
     </div>
   );

@@ -95,7 +95,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
                   <h3 className="text-xl font-bold mb-4">Add Friends</h3>
                   <FriendSearch onRequestSent={refreshFriends} />
                 </Card>
-                <FriendRequests key={friendsKey} onUpdate={refreshFriends} />
+                <FriendRequests key={friendsKey} onRequestHandled={refreshFriends} />
               </div>
               <FriendsList key={friendsKey} />
             </div>
@@ -246,7 +246,13 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
         {/* Multiplayer Mode - Full Width */}
         <Card
           className="group relative overflow-hidden border-2 hover:border-[hsl(var(--menu-multiplayer))] transition-all duration-300 hover:shadow-2xl hover:shadow-[hsl(var(--menu-multiplayer))]/20 cursor-pointer hover:-translate-y-2 animate-scale-in"
-          onClick={() => onSelectMode("multiplayer")}
+          onClick={() => {
+            if (!user) {
+              toast.error("Please sign in or create an account to play Multiplayer modes!");
+              return;
+            }
+            onSelectMode("multiplayer");
+          }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="relative p-6 md:p-8">
@@ -284,7 +290,14 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               <Button
                 className="w-full md:w-auto bg-[hsl(var(--menu-multiplayer))] hover:bg-[hsl(var(--menu-multiplayer))]/90 text-white font-semibold shadow-lg"
                 size="lg"
-                onClick={() => onSelectMode("multiplayer")}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent the card onClick from firing twice
+                  if (!user) {
+                    toast.error("Please sign in or create an account to play Multiplayer modes!");
+                    return;
+                  }
+                  onSelectMode("multiplayer");
+                }}
               >
                 Start Multiplayer Game
               </Button>
