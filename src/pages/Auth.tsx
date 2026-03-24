@@ -36,12 +36,15 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    console.log(`[AUTH DEBUG] Attempting to ${isSignUp ? 'Sign Up' : 'Sign In'}...`);
 
     try {
-      // Validate inputs
       if (isSignUp) {
+        console.log("[AUTH DEBUG] Validating signup inputs...", { username, email, passwordLength: password.length });
         const validationResult = signUpSchema.safeParse({ username, email, password });
+        
         if (!validationResult.success) {
+          console.error("[AUTH DEBUG] Zod validation failed:", validationResult.error.errors);
           const errorMessage = validationResult.error.errors[0].message;
           toast({
             variant: "destructive",
@@ -52,16 +55,27 @@ const Auth = () => {
           return;
         }
         
-        const { error } = await signUp(email, password, username);
-        if (error) throw error;
+        console.log("[AUTH DEBUG] Validation passed. Calling signUp from AuthContext...");
+        const response = await signUp(email, password, username);
+        console.log("[AUTH DEBUG] signUp returned:", response);
+        
+        if (response?.error) {
+          console.error("[AUTH DEBUG] signUp returned an error object:", response.error);
+          throw response.error;
+        }
+        
+        console.log("[AUTH DEBUG] Signup completely successful.");
         toast({
           title: "Account created!",
           description: "You can now sign in.",
         });
         setIsSignUp(false);
       } else {
+        console.log("[AUTH DEBUG] Validating signin inputs...");
         const validationResult = signInSchema.safeParse({ email, password });
+        
         if (!validationResult.success) {
+          console.error("[AUTH DEBUG] Zod validation failed:", validationResult.error.errors);
           const errorMessage = validationResult.error.errors[0].message;
           toast({
             variant: "destructive",
@@ -72,8 +86,16 @@ const Auth = () => {
           return;
         }
         
-        const { error } = await signIn(email, password);
-        if (error) throw error;
+        console.log("[AUTH DEBUG] Validation passed. Calling signIn from AuthContext...");
+        const response = await signIn(email, password);
+        console.log("[AUTH DEBUG] signIn returned:", response);
+        
+        if (response?.error) {
+          console.error("[AUTH DEBUG] signIn returned an error object:", response.error);
+          throw response.error;
+        }
+        
+        console.log("[AUTH DEBUG] Signin completely successful.");
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",
@@ -81,12 +103,30 @@ const Auth = () => {
         navigate("/");
       }
     } catch (error: unknown) {
+      console.error("[AUTH DEBUG] Caught an exception in handleSubmit:");
+      console.error("[AUTH DEBUG] Error type:", typeof error);
+      console.error("[AUTH DEBUG] Error object/string:", error);
+
+      // Extract detailed error message if it's a ConvexError or an object with a message
+      let errorMsg = "An unexpected error occurred";
+      if (typeof error === "string") {
+        errorMsg = error;
+      } else if (error instanceof Error) {
+        errorMsg = error.message;
+        console.error("[AUTH DEBUG] Stack trace:", error.stack);
+      } else if (error && typeof error === "object" && "message" in error) {
+        errorMsg = String((error as any).message);
+      }
+
+      console.error("[AUTH DEBUG] Final parsed error message for toast:", errorMsg);
+
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
+      console.log("[AUTH DEBUG] Flow finished. Setting loading=false.");
       setLoading(false);
     }
   };
