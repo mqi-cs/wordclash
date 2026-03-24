@@ -122,6 +122,7 @@ const Index = () => {
     setGuesses(newGuesses);
     setEvaluations(newEvaluations);
     setCurrentGuess("");
+    setRevealedHints([]);
 
     // Track total guesses in timed mode
     if (gameMode === "timed") {
