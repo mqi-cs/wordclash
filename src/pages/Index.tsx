@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense, useRef } from "react";
 import { GameHeader } from "@/components/GameHeader";
 import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
@@ -48,11 +48,14 @@ const Index = () => {
   const [showResult, setShowResult] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
-  const [availableHints, setAvailableHints] = useState(0);
+  const [hasUsedHintThisTurn, setHasUsedHintThisTurn] = useState(false);
 
   // Bot state
   const [botActive, setBotActive] = useState(false);
   const [botState, setBotState] = useState<BotState>(getInitialBotState());
+
+  // Ref to always access the latest handleEnter function from timeouts
+  const handleEnterRef = useRef<() => void>(() => {});
 
   // Timed mode state
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
@@ -125,9 +128,9 @@ const Index = () => {
       setTotalGuesses(prev => prev + 1);
     }
 
-    // Grant one hint after each guess (except in hard mode)
+    // Allow one hint per subsequent turn (reset flag)
     if (gameMode !== "hard") {
-      setAvailableHints(prev => prev + 1);
+      setHasUsedHintThisTurn(false);
     }
 
     // Check win condition
@@ -143,9 +146,9 @@ const Index = () => {
           setGuesses([]);
           setCurrentGuess("");
           setEvaluations([]);
-          setLetterStatus({});
+          // Reset hints and flags without showing extra messages
           setRevealedHints([]);
-          setAvailableHints(0);
+          setHasUsedHintThisTurn(false);
           // Reset bot state for new word in timed mode
           if (botActive) {
             setBotState(getInitialBotState());
@@ -212,6 +215,11 @@ const Index = () => {
     }
   }, [currentGuess, guesses, evaluations, targetWord, gameOver, gameMode, maxGuesses]);
 
+  // Keep ref updated with the latest handleEnter
+  useEffect(() => {
+    handleEnterRef.current = handleEnter;
+  }, [handleEnter]);
+
   const handlePlayAgain = () => {
     setTargetWord(getRandomWord());
     setGuesses([]);
@@ -222,7 +230,7 @@ const Index = () => {
     setWon(false);
     setShowResult(false);
     setRevealedHints([]);
-    setAvailableHints(0);
+    setHasUsedHintThisTurn(false);
     setBotActive(false);
     setBotState(getInitialBotState());
     if (gameMode === "timed") {
@@ -248,7 +256,7 @@ const Index = () => {
     setTotalGuesses(0);
     setTimedGameActive(false);
     setRevealedHints([]);
-    setAvailableHints(0);
+    setHasUsedHintThisTurn(false);
     setBotActive(false);
     setBotState(getInitialBotState());
   };
@@ -256,13 +264,14 @@ const Index = () => {
   const handleHint = () => {
     if (gameOver || gameMode === "hard") return;
 
-    // Check if hints are available
-    if (availableHints === 0) {
-      if (guesses.length === 0) {
-        toast.error("Make your first guess to unlock hints!");
-      } else {
-        toast.error("No hints available! Make another guess to earn a hint.");
-      }
+    // Check if hints are available for this turn
+    if (guesses.length === 0) {
+      toast.error("Make your first guess to unlock hints!");
+      return;
+    }
+    
+    if (hasUsedHintThisTurn) {
+      toast.error("You can only use one hint per guess! Make another guess first.");
       return;
     }
 
@@ -294,7 +303,7 @@ const Index = () => {
     const positionToReveal = availablePositions[randomIndex];
 
     setRevealedHints(prev => [...prev, positionToReveal]);
-    setAvailableHints(prev => prev - 1);
+    setHasUsedHintThisTurn(true);
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
   };
 
@@ -334,7 +343,7 @@ const Index = () => {
         const nextGuess = getBotNextGuess(botState, isHardMode);
         if (nextGuess) {
           setCurrentGuess(nextGuess);
-          setTimeout(() => handleEnter(), 500);
+          setTimeout(() => handleEnterRef.current(), 500);
         }
         return;
       }
@@ -349,7 +358,7 @@ const Index = () => {
       const nextGuess = getBotNextGuess(newBotState, isHardMode);
       if (nextGuess) {
         setCurrentGuess(nextGuess);
-        setTimeout(() => handleEnter(), 500);
+        setTimeout(() => handleEnterRef.current(), 500);
       } else {
         toast.error("Bot couldn't find a valid word!");
         setBotActive(false);
@@ -476,7 +485,7 @@ const Index = () => {
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowLeaderboard(true)}
         onHint={handleHint}
-        availableHints={availableHints}
+        availableHints={(!hasUsedHintThisTurn && guesses.length > 0) ? 1 : 0}
         hintsDisabled={gameMode === "hard" || gameOver}
         onToggleBot={handleToggleBot}
         botActive={botActive}

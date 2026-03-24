@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
 import { saveGameResult } from "@/lib/gameHistory";
+import { evaluateGuess } from "@/lib/gameLogic";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -46,40 +47,7 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
   
   const [waitingForBot, setWaitingForBot] = useState(false);
 
-  const evaluateGuess = (guess: string, target: string) => {
-    const result: Array<"correct" | "present" | "absent"> = [];
-    const targetLetters = target.split("");
-    const guessLetters = guess.split("");
-
-    guessLetters.forEach((letter, i) => {
-      if (letter === targetLetters[i]) {
-        result[i] = "correct";
-        targetLetters[i] = "";
-      }
-    });
-
-    if (gameMode !== "hard") {
-      guessLetters.forEach((letter, i) => {
-        if (result[i] !== "correct") {
-          const targetIndex = targetLetters.indexOf(letter);
-          if (targetIndex !== -1) {
-            result[i] = "present";
-            targetLetters[targetIndex] = "";
-          } else {
-            result[i] = "absent";
-          }
-        }
-      });
-    } else {
-      guessLetters.forEach((letter, i) => {
-        if (result[i] !== "correct") {
-          result[i] = "absent";
-        }
-      });
-    }
-
-    return result;
-  };
+  // evaluateGuess is now imported from @/lib/gameLogic
 
   const updateLetterStatus = (guess: string, evaluation: Array<"correct" | "present" | "absent">) => {
     const newStatus = { ...myLetterStatus };
@@ -132,7 +100,7 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
       return;
     }
 
-    const evaluation = evaluateGuess(myCurrentGuess, targetWord);
+    const evaluation = evaluateGuess(myCurrentGuess, targetWord, gameMode);
     updateLetterStatus(myCurrentGuess, evaluation);
     
     const newGuesses = [...myGuesses, myCurrentGuess];
@@ -236,7 +204,7 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
         return;
       }
 
-      const evaluation = evaluateGuess(nextGuess, targetWord);
+      const evaluation = evaluateGuess(nextGuess, targetWord, gameMode);
       const newBotGuesses = [...botGuesses, nextGuess];
       const newBotEvaluations = [...botEvaluations, evaluation];
       
@@ -459,13 +427,13 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
             )}
           </div>
-          <div className="flex flex-col gap-1 my-4">
+          <div className="flex flex-col gap-1.5 sm:gap-2 w-full max-w-[350px] sm:max-w-[450px] mx-auto my-4">
             {Array.from({ length: MAX_GUESSES }).map((_, rowIndex) => {
               const guess = botGuesses[rowIndex];
               const evaluation = botEvaluations[rowIndex];
               
               return (
-                <div key={rowIndex} className="flex gap-1 justify-center">
+                <div key={rowIndex} className="grid grid-cols-5 gap-1.5 sm:gap-2">
                   {Array.from({ length: WORD_LENGTH }).map((_, colIndex) => {
                     const hasGuess = guess && guess[colIndex];
                     const status = evaluation ? evaluation[colIndex] : "empty";
@@ -474,11 +442,11 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
                       <div
                         key={colIndex}
                         className={cn(
-                          "w-11 h-11 sm:w-14 sm:h-14 border-2 flex items-center justify-center text-xl sm:text-2xl font-bold uppercase transition-all",
+                          "aspect-square w-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all",
                           !hasGuess && "border-game-border bg-game-empty",
-                          hasGuess && status === "correct" && "bg-game-correct border-game-correct",
-                          hasGuess && status === "present" && "bg-game-present border-game-present",
-                          hasGuess && status === "absent" && "bg-game-absent border-game-absent"
+                          hasGuess && status === "correct" && "bg-game-correct border-game-correct text-white",
+                          hasGuess && status === "present" && "bg-game-present border-game-present text-white",
+                          hasGuess && status === "absent" && "bg-game-absent border-game-absent text-white"
                         )}
                         style={hasGuess && !myGameOver ? { filter: "blur(8px)" } : undefined}
                       >

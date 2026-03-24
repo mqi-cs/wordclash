@@ -12,7 +12,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint }: TileProps) => {
   return (
     <div
       className={cn(
-        "w-11 h-11 sm:w-14 sm:h-14 border-2 flex items-center justify-center text-xl sm:text-2xl font-bold uppercase transition-all duration-100",
+        "aspect-square w-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all duration-100",
         status === "empty" && "border-game-border bg-game-empty",
         status === "filled" && "border-game-border-active bg-game-empty animate-bounce-in",
         status === "correct" && "bg-game-correct border-game-correct text-white",
@@ -37,6 +37,7 @@ interface GameGridProps {
   shake?: boolean;
   revealedHints: number[];
   targetWord: string;
+  isOpponent?: boolean;
 }
 
 export const GameGrid = ({
@@ -48,18 +49,22 @@ export const GameGrid = ({
   shake,
   revealedHints,
   targetWord,
+  isOpponent = false,
 }: GameGridProps) => {
-  const rows = Array.from({ length: maxGuesses }, (_, i) => {
+  // Prevent rendering 999 empty rows in timed mode by clamping the display rows
+  const displayRows = maxGuesses > 20 ? Math.max(6, guesses.length + 1) : maxGuesses;
+
+  const rows = Array.from({ length: displayRows }, (_, i) => {
     if (i < guesses.length) {
       // Completed guess
       return Array.from({ length: wordLength }, (_, j) => ({
         letter: guesses[i][j] || "",
         status: evaluations[i][j],
-        animate: true,
+        animate: !isOpponent,
         delay: j * 150,
       }));
-    } else if (i === guesses.length) {
-      // Current guess with hints
+    } else if (i === guesses.length && !isOpponent) {
+      // Current guess with hints (only for the actual player)
       return Array.from({ length: wordLength }, (_, j) => ({
         letter: currentGuess[j] || (revealedHints.includes(j) ? targetWord[j] : ""),
         status: currentGuess[j] ? ("filled" as const) : ("empty" as const),
@@ -75,12 +80,12 @@ export const GameGrid = ({
   });
 
   return (
-    <div className="flex flex-col gap-1 sm:gap-1.5 my-2 sm:my-4">
+    <div className="flex flex-col gap-1.5 sm:gap-2 w-full max-w-[350px] sm:max-w-[450px] mx-auto my-2 sm:my-4">
       {rows.map((row, i) => (
         <div
           key={i}
           className={cn(
-            "flex gap-1 sm:gap-1.5 justify-center",
+            "grid grid-cols-5 gap-1.5 sm:gap-2",
             shake && i === guesses.length && "animate-shake"
           )}
         >

@@ -1,12 +1,7 @@
-import { isValidWord } from "./wordList";
-import validWordsRaw from './validWords.txt?raw';
+import { VALID_WORDS } from "./wordList";
 
-// Get all valid words for the bot to choose from
-const ALL_WORDS = validWordsRaw
-  .trim()
-  .split('\n')
-  .map(word => word.trim().toUpperCase())
-  .filter(word => word.length === 5);
+// Use the shared valid words list from wordList.ts
+const ALL_WORDS = VALID_WORDS;
 
 export interface BotState {
   greenLetters: Map<number, string>; // position -> letter

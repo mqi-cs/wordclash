@@ -57,15 +57,18 @@ const TARGET_WORDS = [
 import validWordsRaw from './validWords.txt?raw';
 
 // Parse the valid words list from the imported text file
-const VALID_WORDS = validWordsRaw
+export const VALID_WORDS = validWordsRaw
   .trim()
   .split('\n')
   .map(word => word.trim().toUpperCase())
   .filter(word => word.length === 5);
 
+// Set for O(1) validation lookups
+const VALID_WORDS_SET = new Set(VALID_WORDS);
+
 // Validate if a word is in the comprehensive valid words list
 export const isValidWord = (word: string): boolean => {
-  return VALID_WORDS.includes(word.toUpperCase());
+  return VALID_WORDS_SET.has(word.toUpperCase());
 };
 
 // Get a random word from the common target words list

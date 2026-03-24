@@ -1,156 +1,109 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Search, UserPlus } from "lucide-react";
-import { z } from "zod";
-
-const searchSchema = z.object({
-  query: z.string()
-    .trim()
-    .min(3, "Search query must be at least 3 characters")
-    .max(50, "Search query must be less than 50 characters")
-    .regex(/^[a-zA-Z0-9_-\s]+$/, "Search can only contain letters, numbers, underscores, hyphens, and spaces")
-});
-
-interface SearchResult {
-  id: string;
-  username: string;
-}
 
 export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  const searchUsers = async () => {
-    if (!searchQuery.trim()) return;
-    
-    // Validate search query - minimum 3 chars required by server
-    const trimmedQuery = searchQuery.trim();
-    if (trimmedQuery.length < 3) {
-      toast({
-        title: "Validation Error",
-        description: "Search term must be at least 3 characters",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const validationResult = searchSchema.safeParse({ query: searchQuery });
-    if (!validationResult.success) {
-      const errorMessage = validationResult.error.errors[0].message;
-      toast({
-        title: "Validation Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setLoading(true);
+  // Only query when length is >= 3
+  const searchResults = useQuery(
+    api.friends.searchUsers,
+    searchQuery.trim().length >= 3 ? { searchQuery: searchQuery.trim() } : "skip"
+  );
+
+  const sendRequest = useMutation(api.friends.sendRequest);
+
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const sendFriendRequest = async (friendId: string) => {
+    setSendingId(friendId);
     try {
-      // Use secure server-side search function
-      const { data, error } = await supabase
-        .rpc("search_users", { search_term: trimmedQuery });
-
-      if (error) throw error;
-      setSearchResults(data || []);
+      await sendRequest({ friendId: friendId as any });
+      toast({
+        title: "Request sent",
+        description: "Friend request sent successfully!",
+      });
+      onRequestSent?.();
     } catch (error: any) {
-      const message = error?.message?.includes("3 characters") 
-        ? "Search term must be at least 3 characters"
-        : "Failed to search users";
       toast({
         title: "Error",
-        description: message,
+        description: error.message || "Failed to send request",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendFriendRequest = async (friendId: string) => {
-    try {
-      // Check if request already exists
-      const { data: existing } = await supabase
-        .from("friendships")
-        .select("*")
-        .or(`and(user_id.eq.${user?.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user?.id})`)
-        .single();
-
-      if (existing) {
-        toast({
-          title: "Already friends",
-          description: "You already have a connection with this user",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from("friendships")
-        .insert({
-          user_id: user?.id,
-          friend_id: friendId,
-          status: "pending",
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Friend request sent",
-        description: "Your friend request has been sent successfully",
-      });
-      
-      setSearchResults([]);
-      setSearchQuery("");
-      onRequestSent?.();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send friend request",
-        variant: "destructive",
-      });
+      setSendingId(null);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <Input
-          placeholder="Search users by username..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && searchUsers()}
-        />
-        <Button onClick={searchUsers} disabled={loading}>
-          <Search className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {searchResults.length > 0 && (
-        <div className="space-y-2">
-          {searchResults.map((result) => (
-            <Card key={result.id}>
-              <CardContent className="flex items-center justify-between p-4">
-                <span className="font-medium">{result.username}</span>
-                <Button
-                  size="sm"
-                  onClick={() => sendFriendRequest(result.id)}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Friend
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+    <Card className="mb-6">
+      <CardContent className="pt-6">
+        <div className="flex gap-2 mb-4">
+          <Input
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                // With Convex it searches automatically on typing, but we keep this for UX feel
+                e.preventDefault();
+              }
+            }}
+          />
+          <Button disabled={searchQuery.length < 3} variant="secondary">
+            <Search className="h-4 w-4" />
+          </Button>
         </div>
-      )}
-    </div>
+
+        {searchResults && searchResults.length > 0 && (
+          <div className="space-y-2">
+            {searchResults.map((result) => (
+              <div
+                key={result.id}
+                className="flex items-center justify-between p-3 bg-muted rounded-md"
+              >
+                <span className="font-semibold">{result.username}</span>
+                <Button
+                  onClick={() => sendFriendRequest(result.id)}
+                  disabled={
+                    sendingId === result.id ||
+                    result.friendship_status !== null
+                  }
+                  size="sm"
+                  variant={result.friendship_status ? "outline" : "default"}
+                >
+                  {sendingId === result.id ? (
+                    "Sending..."
+                  ) : result.friendship_status === "accepted" ? (
+                    "Friends"
+                  ) : result.friendship_status === "pending" ? (
+                    result.is_request_sender ? "Request Sent" : "Pending Request"
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {searchQuery.length >= 3 && searchResults && searchResults.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No users found
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 };

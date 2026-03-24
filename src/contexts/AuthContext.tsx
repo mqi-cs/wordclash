@@ -1,11 +1,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+type User = {
+  id: string; // we'll map Convex _id to id so we don't break too many things
+  email?: string;
+  name?: string;
+};
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  session: any | null; // Convex Auth manages session internally
   signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -15,60 +21,49 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
+  const { signIn: convexSignIn, signOut: convexSignOut } = useAuthActions();
+  
+  // Use `skip` when not authenticated to avoid unnecessary queries
+  const viewer = useQuery(api.users.viewer, isAuthenticated ? {} : "skip");
 
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+  // Determine overall loading state. If auth is loading, or if we authenticated but viewer query is pending
+  const loading = isAuthLoading || (isAuthenticated && viewer === undefined);
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  // Map Convex user to abstract User
+  const user: User | null = viewer ? {
+    id: viewer._id,
+    email: viewer.email,
+    name: viewer.name,
+  } : null;
 
   const signUp = async (email: string, password: string, username: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          username
-        }
-      }
-    });
-    return { error };
+    try {
+      await convexSignIn("password", { email, password, username, flow: "signUp" });
+      return { error: null };
+    } catch (err: any) {
+      console.error("SignUp error", err);
+      return { error: err.message || "Failed to sign up" };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      await convexSignIn("password", { email, password, flow: "signIn" });
+      return { error: null };
+    } catch (err: any) {
+      console.error("SignIn error", err);
+      // Convex Auth throws when credentials mismatch
+      return { error: "Invalid email or password" };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await convexSignOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, session: isAuthenticated ? {} : null, signUp, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   );
