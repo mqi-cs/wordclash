@@ -129,10 +129,10 @@ const Index = () => {
       setTotalGuesses(prev => prev + 1);
     }
 
-    // Allow one hint per subsequent turn (reset flag)
-    if (gameMode !== "hard") {
-      setHasUsedHintThisTurn(false);
-    }
+    // The visual hint is already cleared above (revealedHints=[]).
+    // Reset the per-turn flag so the user CAN click the hint button again on the next turn.
+    // The hint does NOT auto-appear — user must explicitly click the lightbulb again.
+    setHasUsedHintThisTurn(false);
 
     // Check win condition
     if (currentGuess === targetWord) {
@@ -517,8 +517,8 @@ const Index = () => {
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col items-center justify-between py-2 sm:py-4 px-2 sm:px-4 min-h-0 overflow-hidden">
-        <div className="flex-shrink-0 w-full flex justify-center">
+      <main className="flex-1 flex flex-col items-center gap-2 py-2 sm:py-4 px-2 sm:px-4 min-h-0 overflow-hidden">
+        <div className="flex-1 w-full flex items-center justify-center min-h-0 overflow-hidden">
           <GameGrid
             guesses={guesses}
             currentGuess={currentGuess}
