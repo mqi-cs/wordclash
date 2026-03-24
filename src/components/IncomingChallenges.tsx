@@ -25,7 +25,7 @@ export const IncomingChallenges = () => {
     try {
       const gameId = await acceptInvitation({ invitationId: invitationId as any });
       toast.success("Challenge accepted!");
-      navigate(`/multiplayer/${gameId}`);
+      navigate(`/?join=${gameId}&mode=multiplayer`);
     } catch (error: any) {
       if (import.meta.env.DEV) console.error("Error accepting challenge:", error);
       toast.error(error.message || "Failed to accept challenge");

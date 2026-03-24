@@ -1,6 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { getRandomTargetWord } from "./shared/gameLogic";
 
 // Get active games for the current user
 export const getMyGames = query({
@@ -52,6 +53,33 @@ export const getIncomingInvitations = query({
   },
 });
 
+// Browse open public games you can join (games from other users in "waiting" status)
+export const getOpenGames = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) return [];
+
+    const waitingGames = await ctx.db
+      .query("games")
+      .withIndex("by_status", (q) => q.eq("status", "waiting"))
+      .take(20);
+
+    // Filter out our own games
+    return await Promise.all(
+      waitingGames
+        .filter(g => g.player1Id !== userId)
+        .map(async (game) => {
+          const host = await ctx.db.get(game.player1Id);
+          return {
+            ...game,
+            hostUsername: host?.name || "Unknown User",
+          };
+        })
+    );
+  },
+});
+
 export const createGame = mutation({
   args: { gameType: v.union(v.literal("multiplayer"), v.literal("challenge")) },
   handler: async (ctx, args) => {
@@ -62,6 +90,13 @@ export const createGame = mutation({
       player1Id: userId,
       status: "waiting",
       gameType: args.gameType,
+    });
+
+    // Pick the target word SERVER-SIDE — never from the client
+    const word = getRandomTargetWord();
+    await ctx.db.insert("gameSecrets", {
+      gameId,
+      targetWord: word,
     });
 
     return gameId;
@@ -133,25 +168,6 @@ export const joinGame = mutation({
     });
 
     return args.gameId;
-  },
-});
-
-export const setTargetWord = mutation({
-  args: { gameId: v.id("games"), word: v.string() },
-  handler: async (ctx, args) => {
-    // Usually only allowed once per game, ideally backend should pick it randomly using an action,
-    // but the original app had the client pass it, or we can just ensure it's set securely.
-    const existingSecret = await ctx.db
-      .query("gameSecrets")
-      .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
-      .unique();
-
-    if (!existingSecret) {
-      await ctx.db.insert("gameSecrets", {
-        gameId: args.gameId,
-        targetWord: args.word.toUpperCase()
-      });
-    }
   },
 });
 

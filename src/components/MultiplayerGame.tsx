@@ -67,7 +67,6 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const createGameMut = useMutation(api.games.createGame);
   const joinGameMut = useMutation(api.games.joinGame);
   const submitGuessMut = useMutation(api.guesses.submitGuess);
-  const setTargetWordMut = useMutation(api.games.setTargetWord);
 
   // Derived state
   const isHost = game?.player1Id === user?.id;
@@ -108,12 +107,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     try {
       const newGameId = await createGameMut({ gameType });
       setGameId(newGameId);
-      
-      // In a real app we'd trigger a server action to pick the word, but we'll do it from client secure enough
-      const words = ["REACT", "BUILD", "DREAM", "WORLD", "CRANE"]; // naive fallback
-      const word = words[Math.floor(Math.random() * words.length)]; 
-      await setTargetWordMut({ gameId: newGameId, word });
-      
+      // Target word is now picked server-side automatically
       setMode(null);
     } catch (error: any) {
       toast.error(error.message || "Failed to create game");
@@ -151,7 +145,11 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
         setTurnTimer(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current!);
-            toast.error("Time's up! Turn skipped (not implemented locally)."); // naive
+            toast.error("Time's up! Submitting a blank guess as penalty.");
+            // Auto-submit a dummy guess as a penalty for running out of time
+            if (gameId) {
+              submitGuessMut({ gameId, guess: "XXXXX" }).catch(() => {});
+            }
             return TURN_DURATION;
           }
           return prev - 1;

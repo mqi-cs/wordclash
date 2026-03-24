@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
-import { evaluateGuess } from "../src/lib/gameLogic";
+import { evaluateGuess, isValidGuessFormat } from "./shared/gameLogic";
 
 export const getGuesses = query({
   args: { gameId: v.id("games") },
@@ -33,6 +33,13 @@ export const submitGuess = mutation({
       throw new Error("Game is not active");
     }
 
+    const normalizedGuess = args.guess.toUpperCase();
+
+    // Validate guess format (must be exactly 5 uppercase letters)
+    if (!isValidGuessFormat(normalizedGuess)) {
+      throw new Error("Invalid guess format — must be exactly 5 letters");
+    }
+
     // Get the target secret word for this game
     const secret = await ctx.db
       .query("gameSecrets")
@@ -51,19 +58,19 @@ export const submitGuess = mutation({
 
     const guessNumber = existingGuesses.length + 1;
 
-    // Evaluate the guess on the server natively! (No cheating)
-    const evaluation = evaluateGuess(args.guess.toUpperCase(), secret.targetWord, game.gameType);
+    if (guessNumber > 6) {
+      throw new Error("Maximum guesses reached");
+    }
 
-    // Ensure evaluation matches the type expected by schema
-    // The evaluateGuess returns ("correct" | "present" | "absent")[]
-    // Schema expects the same.
+    // Evaluate the guess on the server (No cheating!)
+    const evaluation = evaluateGuess(normalizedGuess, secret.targetWord, game.gameType);
     const validEvaluation = evaluation as Array<"correct" | "present" | "absent">;
 
     // Insert the guess
     await ctx.db.insert("guesses", {
       gameId: args.gameId,
       playerId: userId,
-      guess: args.guess.toUpperCase(),
+      guess: normalizedGuess,
       evaluation: validEvaluation,
       guessNumber,
     });
@@ -76,11 +83,8 @@ export const submitGuess = mutation({
         winnerId: userId,
         finishedAt: Date.now()
       });
-    } else if (guessNumber >= 6) { // Max 6 guesses 
-      // Need to check if BOTH players have used 6 guesses, or if one player losing means game over
-      // For standard 'race', one player exhausting guesses doesn't end the game for the other unless rules say so.
-      // But we can check if both haven't won and both reached 6.
-      
+    } else if (guessNumber >= 6) {
+      // Check if both players have exhausted their guesses
       const opponentId = game.player1Id === userId ? game.player2Id : game.player1Id;
       if (opponentId) {
         const oppGuesses = await ctx.db
@@ -92,7 +96,7 @@ export const submitGuess = mutation({
           await ctx.db.patch(args.gameId, {
             status: "finished",
             finishedAt: Date.now()
-          }); // draw
+          }); // draw — no winnerId
         }
       }
     }

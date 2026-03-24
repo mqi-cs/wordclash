@@ -32,11 +32,11 @@ interface GameGridProps {
   guesses: string[];
   currentGuess: string;
   evaluations: Array<Array<"correct" | "present" | "absent">>;
-  maxGuesses: number;
-  wordLength: number;
+  maxGuesses?: number;
+  wordLength?: number;
   shake?: boolean;
-  revealedHints: number[];
-  targetWord: string;
+  revealedHints?: number[];
+  targetWord?: string;
   isOpponent?: boolean;
 }
 
@@ -44,11 +44,11 @@ export const GameGrid = ({
   guesses,
   currentGuess,
   evaluations,
-  maxGuesses,
-  wordLength,
+  maxGuesses = 6,
+  wordLength = 5,
   shake,
-  revealedHints,
-  targetWord,
+  revealedHints = [],
+  targetWord = "",
   isOpponent = false,
 }: GameGridProps) => {
   // Prevent rendering 999 empty rows in timed mode by clamping the display rows

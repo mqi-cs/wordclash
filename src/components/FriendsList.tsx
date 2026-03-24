@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Swords, Trophy } from "lucide-react";
-import { getRandomWord } from "@/lib/wordList";
 import { toast } from "sonner";
 
 export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) => void }) => {
@@ -13,7 +12,6 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
   const friends = useQuery(api.friends.getFriends);
   
   const createGame = useMutation(api.games.createGame);
-  const setTargetWord = useMutation(api.games.setTargetWord);
   const inviteToGame = useMutation(api.games.inviteToGame);
 
   const [sendingChallenge, setSendingChallenge] = useState<string | null>(null);
@@ -49,8 +47,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
 
     try {
       const gameId = await createGame({ gameType: "challenge" });
-      const word = getRandomWord();
-      await setTargetWord({ gameId, word });
+      // Target word is now picked server-side automatically
       
       // We pass the friend's Convex ID. Since we mapped string `id` to `_id` in User type, we just cast it.
       await inviteToGame({ gameId, friendId: friendId as any });
