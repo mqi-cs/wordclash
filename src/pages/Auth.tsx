@@ -34,6 +34,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const googleAuthEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH === "true";
+  const [showPasswordAuth, setShowPasswordAuth] = useState(!googleAuthEnabled);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,69 +171,8 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  minLength={3}
-                  maxLength={20}
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              disabled={loading}
-              onClick={() => setIsSignUp(!isSignUp)}
-            >
-              {isSignUp
-                ? "Already have an account? Sign In"
-                : "Don't have an account? Sign Up"}
-            </Button>
-          </form>
-
           {googleAuthEnabled && (
-            <div className="mt-6 space-y-4">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
-
+            <div className="space-y-4">
               <Button
                 type="button"
                 variant="outline"
@@ -243,6 +183,89 @@ const Auth = () => {
                 <Chrome className="mr-2 h-4 w-4" />
                 Continue with Google
               </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => setShowPasswordAuth((prev) => !prev)}
+                disabled={loading}
+              >
+                {showPasswordAuth ? "Hide email and password" : "Use email and password instead"}
+              </Button>
+
+              {!showPasswordAuth && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Use Google for the fastest sign in, or open the email form if you already signed up with a password.
+                </p>
+              )}
+            </div>
+          )}
+
+          {showPasswordAuth && (
+            <div className={googleAuthEnabled ? "mt-6 space-y-4" : "space-y-4"}>
+              {googleAuthEnabled && (
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Email and password</span>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      minLength={3}
+                      maxLength={20}
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  disabled={loading}
+                  onClick={() => setIsSignUp(!isSignUp)}
+                >
+                  {isSignUp
+                    ? "Already have an account? Sign In"
+                    : "Don't have an account? Sign Up"}
+                </Button>
+              </form>
             </div>
           )}
         </CardContent>
