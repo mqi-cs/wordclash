@@ -9,9 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface UsernameSetupScreenProps {
   email?: string;
+  googleName?: string;
 }
 
-export const UsernameSetupScreen = ({ email }: UsernameSetupScreenProps) => {
+export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenProps) => {
   const [username, setUsername] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const completeProfile = useMutation(api.users.completeProfile);
@@ -45,6 +46,7 @@ export const UsernameSetupScreen = ({ email }: UsernameSetupScreenProps) => {
           <CardTitle>Choose a Username</CardTitle>
           <CardDescription>
             {email ? `Signed in as ${email}. ` : ""}
+            {googleName ? `Google returned "${googleName}", but the app needs a username. ` : ""}
             You must choose a username before continuing.
           </CardDescription>
         </CardHeader>

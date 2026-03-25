@@ -24,7 +24,7 @@ export const getLeaderboard = query({
       const user = await ctx.db.get(stat.userId);
       return {
         userId: stat.userId,
-        username: user?.name || "Unknown User",
+        username: user?.username || user?.name || user?.googleName || "Unknown User",
         [`${args.mode}_won`]: (stat as any)[sortField] || 0,
         [`${args.mode}_played`]: (stat as any)[`${args.mode}_played`] || 0,
         best_streak: stat.best_streak,

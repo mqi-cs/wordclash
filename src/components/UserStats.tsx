@@ -29,7 +29,7 @@ export const UserStats = () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-center">{user.name || "Player"}'s Stats</h2>
+      <h2 className="text-2xl font-bold text-center">{user.username || user.name || "Player"}'s Stats</h2>
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

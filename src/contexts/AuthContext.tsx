@@ -14,6 +14,8 @@ type User = {
   id: string; // we'll map Convex _id to id so we don't break too many things
   email?: string;
   name?: string;
+  username?: string;
+  googleName?: string;
 };
 
 interface AuthContextType {
@@ -43,6 +45,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     id: viewer._id,
     email: viewer.email,
     name: viewer.name,
+    username: viewer.username,
+    googleName: viewer.googleName,
   } : null;
 
   const signUp = async (email: string, password: string, username: string) => {

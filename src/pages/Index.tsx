@@ -443,8 +443,8 @@ const Index = () => {
     setGameMode("multiplayer");
   };
 
-  if (user && !user.name?.trim()) {
-    return <UsernameSetupScreen email={user.email} />;
+  if (user && !user.username?.trim()) {
+    return <UsernameSetupScreen email={user.email} googleName={user.googleName} />;
   }
 
   if (!gameMode) {

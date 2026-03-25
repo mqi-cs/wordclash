@@ -70,7 +70,7 @@ export const getIncomingInvitations = query({
       const sender = await ctx.db.get(inv.fromUserId);
       return {
         ...inv,
-        senderUsername: sender?.name || "Unknown User"
+        senderUsername: sender?.username || sender?.name || sender?.googleName || "Unknown User"
       };
     }));
   },
@@ -97,7 +97,7 @@ export const getOpenGames = query({
             _id: game._id,
             _creationTime: game._creationTime,
             gameType: game.gameType,
-            hostUsername: host?.name || "Unknown User",
+            hostUsername: host?.username || host?.name || host?.googleName || "Unknown User",
           };
         })
     );

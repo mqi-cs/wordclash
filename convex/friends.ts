@@ -20,7 +20,7 @@ export const searchUsers = query({
     
     const matchedUsers = users.filter(u => 
       u._id !== userId &&
-      u.name && u.name.toLowerCase().includes(queryLower)
+      ((u.username ?? u.name ?? u.googleName)?.toLowerCase() ?? "").includes(queryLower)
     );
 
     // Get existing friendships
@@ -41,7 +41,7 @@ export const searchUsers = query({
       
       return {
         id: user._id,
-        username: user.name,
+        username: user.username ?? user.name ?? user.googleName ?? "Unknown User",
         friendship_status: friendship ? friendship.status : null,
         is_request_sender: friendship?.status === "pending" ? friendship.requesterId === userId : false
       };
@@ -75,7 +75,7 @@ export const getRequests = query({
       return {
         friendshipId: f._id,
         senderId: senderId,
-        senderUsername: sender?.name || "Unknown User",
+        senderUsername: sender?.username || sender?.name || sender?.googleName || "Unknown User",
       };
     }));
   },
@@ -112,7 +112,7 @@ export const getFriends = query({
       return {
         friendshipId: f._id,
         friendId: friendId,
-        friendUsername: friend?.name || "Unknown User",
+        friendUsername: friend?.username || friend?.name || friend?.googleName || "Unknown User",
         stats: friendStats
       };
     }));

@@ -24,6 +24,14 @@ const oauthProviders =
         Google({
           clientId: googleClientId,
           clientSecret: googleClientSecret,
+          profile(profile) {
+            const email = assertValidEmail(profile.email as string);
+            return {
+              email,
+              googleName: typeof profile.name === "string" ? profile.name.trim() : undefined,
+              image: typeof profile.picture === "string" ? profile.picture : undefined,
+            };
+          },
         }),
       ]
     : [];
@@ -35,7 +43,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         const email = assertValidEmail(params.email as string);
         return {
           email,
-          name: (params.username as string).trim(),
+          username: (params.username as string).trim(),
         };
       },
     }),
