@@ -3,6 +3,7 @@ import Google from "@auth/core/providers/google";
 import { Password } from "@convex-dev/auth/providers/Password";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const APP_SITE_URL = process.env.SITE_URL ?? "https://wordclash.co";
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -40,4 +41,15 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     }),
     ...oauthProviders,
   ],
+  callbacks: {
+    async redirect({ redirectTo }) {
+      if (redirectTo.startsWith("?") || redirectTo.startsWith("/")) {
+        return `${APP_SITE_URL}${redirectTo}`;
+      }
+      if (redirectTo.startsWith("https://wordclash.co")) {
+        return redirectTo;
+      }
+      return APP_SITE_URL;
+    },
+  },
 });

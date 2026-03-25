@@ -4,6 +4,7 @@ import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const APP_SITE_URL = "https://wordclash.co";
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -82,7 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signInWithGoogle = async () => {
     try {
-      await convexSignIn("google");
+      await convexSignIn("google", { redirectTo: APP_SITE_URL });
       return { error: null };
     } catch (err: any) {
       console.error("Google sign-in error", err);
