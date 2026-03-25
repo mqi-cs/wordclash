@@ -61,6 +61,20 @@ Convex Auth uses secure cryptographic keys to mint user sessions.
   rm .env.tmp
   ```
 
+### Google Sign-In Setup
+
+Google sign-in is wired into Convex Auth, but it only appears when the required env vars are configured.
+
+- Set Convex env vars:
+  - `AUTH_GOOGLE_ID`
+  - `AUTH_GOOGLE_SECRET`
+- Set frontend env var:
+  - `VITE_ENABLE_GOOGLE_AUTH=true`
+- In Google Cloud Console, add the OAuth redirect URI:
+  - `https://<your-convex-site>/api/auth/callback/google`
+
+For local development, use the Convex site URL for your dev deployment. For production, make sure the same Google OAuth credentials and redirect URI setup are applied to the production Convex deployment as well.
+
 ---
 
 ## 5. UI Layout & Game Mechanics Memory Bank

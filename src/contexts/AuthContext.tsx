@@ -20,6 +20,7 @@ interface AuthContextType {
   session: any | null; // Convex Auth manages session internally
   signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -79,12 +80,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      await convexSignIn("google");
+      return { error: null };
+    } catch (err: any) {
+      console.error("Google sign-in error", err);
+      return { error: err.message || "Failed to sign in with Google" };
+    }
+  };
+
   const signOut = async () => {
     await convexSignOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session: isAuthenticated ? {} : null, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session: isAuthenticated ? {} : null,
+        signUp,
+        signIn,
+        signInWithGoogle,
+        signOut,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

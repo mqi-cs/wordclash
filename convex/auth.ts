@@ -1,4 +1,5 @@
 import { convexAuth } from "@convex-dev/auth/server";
+import Google from "@auth/core/providers/google";
 import { Password } from "@convex-dev/auth/providers/Password";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -13,6 +14,19 @@ const assertValidEmail = (email: string) => {
   return normalizedEmail;
 };
 
+const googleClientId = process.env.AUTH_GOOGLE_ID;
+const googleClientSecret = process.env.AUTH_GOOGLE_SECRET;
+
+const oauthProviders =
+  googleClientId && googleClientSecret
+    ? [
+        Google({
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+        }),
+      ]
+    : [];
+
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
@@ -24,5 +38,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         };
       },
     }),
+    ...oauthProviders,
   ],
 });

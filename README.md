@@ -60,6 +60,29 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Authentication
+
+This project uses Convex Auth with:
+
+- Email/password sign up and sign in
+- Optional Google sign in
+
+To enable Google sign in, configure:
+
+- Convex env vars:
+  - `AUTH_GOOGLE_ID`
+  - `AUTH_GOOGLE_SECRET`
+- Frontend env var:
+  - `VITE_ENABLE_GOOGLE_AUTH=true`
+
+Google OAuth redirect URI:
+
+```text
+https://<your-convex-site>/api/auth/callback/google
+```
+
+Replace `<your-convex-site>` with the Convex site URL for the deployment you are configuring.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/d3641d16-800a-4fea-a169-20fcbba9d8bd) and click on Share -> Publish.
