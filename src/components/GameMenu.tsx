@@ -46,7 +46,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
           </div>
           <div className="flex items-center justify-center gap-4">
             <h1 className="text-7xl font-black tracking-tighter bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
-              WORDLE
+              WORDCLASH
             </h1>
             <Button
               variant="outline"
@@ -121,7 +121,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               <div className="space-y-2">
                 <h3 className="text-2xl font-bold text-foreground">Classic</h3>
                 <p className="text-sm text-muted-foreground">
-                  The original Wordle experience with 6 attempts to guess the word
+                  The original WordClash experience with 6 attempts to guess the word
                 </p>
               </div>
 

@@ -32,7 +32,7 @@ npx convex dev
 ### Why Convex?
 We migrated entirely away from Supabase to Convex. Convex provides real-time WebSocket syncing out of the box. All "serverless functions" and database schema definitions live natively inside the `/convex` folder.
 - **No Supabase code remains.** Do not try to import `@supabase/supabase-js`. 
-- **Shared Logic:** The folder `/convex/shared/gameLogic.ts` contains the core Wordle evaluation logic. This file is executed by *both* the React frontend (for immediate UI optimism) and the Convex backend (as the ultimate source of truth).
+- **Shared Logic:** The folder `/convex/shared/gameLogic.ts` contains the core WordClash evaluation logic. This file is executed by *both* the React frontend (for immediate UI optimism) and the Convex backend (as the ultimate source of truth).
 
 ---
 

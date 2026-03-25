@@ -21,7 +21,7 @@ export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hi
         <Button variant="ghost" size="icon" onClick={onShowHelp} className="h-9 w-9 sm:h-10 sm:w-10">
           <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6" />
         </Button>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-wide">WORDLE</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-wide">WORDCLASH</h1>
         <div className="flex gap-0.5 sm:gap-1 items-center">
           <div className="relative">
             <Button 

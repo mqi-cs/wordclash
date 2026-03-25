@@ -9,7 +9,7 @@ export interface GameResult {
   timestamp: number;
 }
 
-const STORAGE_KEY = "wordle_game_history";
+const STORAGE_KEY = "wordclash_game_history";
 const MAX_HISTORY_PER_MODE = 5;
 
 export const saveGameResult = (result: GameResult) => {

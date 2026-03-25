@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { Leaderboard } from "@/components/Leaderboard";
 import { saveGameResult } from "@/lib/gameHistory";
-import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
+import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordClashBot";
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
@@ -141,12 +141,12 @@ const Index = () => {
 
     // Check win condition
     if (currentGuess === targetWord) {
-      // Handle timed mode - continue with unlimited wordles until time runs out
+      // Handle timed mode - continue with unlimited rounds until time runs out
       if (gameMode === "timed") {
         setWordsCompleted(prev => prev + 1);
         setTimeLeft(prev => prev + TIMED_BONUS_SECONDS);
-        toast.success(`+${TIMED_BONUS_SECONDS} seconds! Next word!`);
-        // Start new word immediately without resetting totalGuesses
+        toast.success(`+${TIMED_BONUS_SECONDS} seconds! Next round!`);
+        // Start new round immediately without resetting totalGuesses
         setTimeout(() => {
           setTargetWord(getRandomWord());
           setGuesses([]);

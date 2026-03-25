@@ -64,7 +64,7 @@ export const HelpModal = ({ open, onClose }: HelpModalProps) => {
   return (
     <GameModal open={open} onClose={onClose} title="How to Play">
       <div className="space-y-4 text-sm">
-        <p>Guess the WORDLE in 6 tries.</p>
+        <p>Guess the WORDCLASH in 6 tries.</p>
         <p>Each guess must be a valid 5-letter word. Hit the enter button to submit.</p>
         <p>After each guess, the color of the tiles will change to show how close your guess was to the word.</p>
         

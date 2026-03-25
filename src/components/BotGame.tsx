@@ -7,7 +7,7 @@ import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordleBot";
+import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordClashBot";
 import { saveGameResult } from "@/lib/gameHistory";
 import { evaluateGuess } from "@/lib/gameLogic";
 
