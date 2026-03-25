@@ -24,6 +24,11 @@ const HARD_GUESSES = 10;
 const TIMED_INITIAL_SECONDS = 90;
 const TIMED_BONUS_SECONDS = 30;
 
+type ActiveHint = {
+  turn: number;
+  positions: number[];
+};
+
 const Index = () => {
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
@@ -47,7 +52,7 @@ const Index = () => {
   const [showStats, setShowStats] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [revealedHints, setRevealedHints] = useState<number[]>([]);
+  const [activeHint, setActiveHint] = useState<ActiveHint | null>(null);
   const [hasUsedHintThisTurn, setHasUsedHintThisTurn] = useState(false);
 
   // Bot state
@@ -122,14 +127,14 @@ const Index = () => {
     setGuesses(newGuesses);
     setEvaluations(newEvaluations);
     setCurrentGuess("");
-    setRevealedHints([]);
+    setActiveHint(null);
 
     // Track total guesses in timed mode
     if (gameMode === "timed") {
       setTotalGuesses(prev => prev + 1);
     }
 
-    // The visual hint is already cleared above (revealedHints=[]).
+    // The hint is turn-scoped and has been cleared above.
     // Reset the per-turn flag so the user CAN click the hint button again on the next turn.
     // The hint does NOT auto-appear — user must explicitly click the lightbulb again.
     setHasUsedHintThisTurn(false);
@@ -148,7 +153,7 @@ const Index = () => {
           setCurrentGuess("");
           setEvaluations([]);
           // Reset hints and flags without showing extra messages
-          setRevealedHints([]);
+          setActiveHint(null);
           setHasUsedHintThisTurn(false);
           // Reset bot state for new word in timed mode
           if (botActive) {
@@ -230,7 +235,7 @@ const Index = () => {
     setGameOver(false);
     setWon(false);
     setShowResult(false);
-    setRevealedHints([]);
+    setActiveHint(null);
     setHasUsedHintThisTurn(false);
     setBotActive(false);
     setBotState(getInitialBotState());
@@ -256,7 +261,7 @@ const Index = () => {
     setWordsCompleted(0);
     setTotalGuesses(0);
     setTimedGameActive(false);
-    setRevealedHints([]);
+    setActiveHint(null);
     setHasUsedHintThisTurn(false);
     setBotActive(false);
     setBotState(getInitialBotState());
@@ -289,7 +294,7 @@ const Index = () => {
     // Find available positions to reveal (not correct and not already hinted)
     const availablePositions = [];
     for (let i = 0; i < WORD_LENGTH; i++) {
-      if (!correctPositions.has(i) && !revealedHints.includes(i)) {
+      if (!correctPositions.has(i)) {
         availablePositions.push(i);
       }
     }
@@ -303,7 +308,10 @@ const Index = () => {
     const randomIndex = Math.floor(Math.random() * availablePositions.length);
     const positionToReveal = availablePositions[randomIndex];
 
-    setRevealedHints(prev => [...prev, positionToReveal]);
+    setActiveHint({
+      turn: guesses.length,
+      positions: [positionToReveal],
+    });
     setHasUsedHintThisTurn(true);
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
   };
@@ -526,7 +534,7 @@ const Index = () => {
             maxGuesses={maxGuesses}
             wordLength={WORD_LENGTH}
             shake={shake}
-            revealedHints={revealedHints}
+            revealedHints={activeHint?.turn === guesses.length ? activeHint.positions : []}
             targetWord={targetWord}
           />
         </div>

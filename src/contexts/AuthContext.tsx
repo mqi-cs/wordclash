@@ -3,6 +3,12 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const isValidEmail = (email: string) => EMAIL_REGEX.test(normalizeEmail(email));
+
 type User = {
   id: string; // we'll map Convex _id to id so we don't break too many things
   email?: string;
@@ -38,8 +44,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   } : null;
 
   const signUp = async (email: string, password: string, username: string) => {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!isValidEmail(normalizedEmail)) {
+      return { error: "Please enter a valid email address" };
+    }
+
     try {
-      await convexSignIn("password", { email, password, username, flow: "signUp" });
+      await convexSignIn("password", {
+        email: normalizedEmail,
+        password,
+        username: username.trim(),
+        flow: "signUp",
+      });
       return { error: null };
     } catch (err: any) {
       console.error("SignUp error", err);
@@ -49,7 +66,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      await convexSignIn("password", { email, password, flow: "signIn" });
+      await convexSignIn("password", {
+        email: normalizeEmail(email),
+        password,
+        flow: "signIn",
+      });
       return { error: null };
     } catch (err: any) {
       console.error("SignIn error", err);
