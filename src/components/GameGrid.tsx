@@ -39,6 +39,7 @@ interface GameGridProps {
   revealedHints?: number[];
   targetWord?: string;
   isOpponent?: boolean;
+  hintActivated?: boolean;
 }
 
 export const GameGrid = ({
@@ -51,6 +52,7 @@ export const GameGrid = ({
   revealedHints = [],
   targetWord = "",
   isOpponent = false,
+  hintActivated = false,
 }: GameGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -84,9 +86,9 @@ export const GameGrid = ({
     } else if (i === guesses.length && !isOpponent) {
       // Current guess with hints (only for the actual player)
       return Array.from({ length: wordLength }, (_, j) => ({
-        letter: currentGuess[j] || (revealedHints.includes(j) ? targetWord[j] : ""),
+        letter: currentGuess[j] || (hintActivated && revealedHints.includes(j) ? targetWord[j] : ""),
         status: currentGuess[j] ? ("filled" as const) : ("empty" as const),
-        isHint: !currentGuess[j] && revealedHints.includes(j),
+        isHint: !currentGuess[j] && hintActivated && revealedHints.includes(j),
       }));
     } else {
       // Empty row

@@ -540,6 +540,7 @@ const Index = () => {
             wordLength={WORD_LENGTH}
             shake={shake}
             revealedHints={activeHint?.turn === guesses.length ? activeHint.positions : []}
+            hintActivated={hasUsedHintThisTurn && activeHint?.turn === guesses.length}
             targetWord={targetWord}
           />
         </div>
