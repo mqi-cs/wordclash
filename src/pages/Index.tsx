@@ -227,6 +227,14 @@ const Index = () => {
     handleEnterRef.current = handleEnter;
   }, [handleEnter]);
 
+  // Hard-reset hint state whenever the turn advances.
+  // This prevents a hint from leaking into the next row if submit-time
+  // state updates are applied in an unexpected order.
+  useEffect(() => {
+    setActiveHint(null);
+    setHasUsedHintThisTurn(false);
+  }, [guesses.length]);
+
   const handlePlayAgain = () => {
     setTargetWord(getRandomWord());
     setGuesses([]);
