@@ -6,8 +6,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Chrome } from "lucide-react";
 import { z } from "zod";
+
+const GoogleIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="mr-2 h-4 w-4"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M21.805 10.023H12v3.955h5.617c-.242 1.272-.967 2.35-2.06 3.076v2.557h3.338c1.955-1.8 3.082-4.454 3.082-7.611 0-.664-.06-1.302-.172-1.977Z"
+      fill="#4285F4"
+    />
+    <path
+      d="M12 22c2.79 0 5.13-.925 6.84-2.509l-3.338-2.557c-.926.62-2.11.986-3.502.986-2.692 0-4.972-1.817-5.787-4.26H2.762v2.638A10 10 0 0 0 12 22Z"
+      fill="#34A853"
+    />
+    <path
+      d="M6.213 13.66A5.997 5.997 0 0 1 5.89 12c0-.576.099-1.136.323-1.66V7.702H2.762A10 10 0 0 0 2 12c0 1.61.386 3.134 1.07 4.298Z"
+      fill="#FBBC05"
+    />
+    <path
+      d="M12 6.08c1.517 0 2.88.523 3.952 1.549l2.964-2.964C17.125 2.992 14.785 2 12 2a10 10 0 0 0-9.238 5.702l3.45 2.638C7.028 7.897 9.308 6.08 12 6.08Z"
+      fill="#EA4335"
+    />
+  </svg>
+);
 
 const signUpSchema = z.object({
   username: z.string()
@@ -180,7 +205,7 @@ const Auth = () => {
                 onClick={handleGoogleSignIn}
                 disabled={loading}
               >
-                <Chrome className="mr-2 h-4 w-4" />
+                <GoogleIcon />
                 Continue with Google
               </Button>
 

@@ -78,10 +78,8 @@ To enable Google sign in, configure:
 Google OAuth redirect URI:
 
 ```text
-https://<your-convex-site>/api/auth/callback/google
+https://wordclash.co/api/auth/callback/google
 ```
-
-Replace `<your-convex-site>` with the Convex site URL for the deployment you are configuring.
 
 ## How can I deploy this project?
 
