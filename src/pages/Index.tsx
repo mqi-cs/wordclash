@@ -27,7 +27,7 @@ const TIMED_BONUS_SECONDS = 30;
 
 type ActiveHint = {
   turn: number;
-  positions: number[];
+  position: number;
 };
 
 const Index = () => {
@@ -54,7 +54,6 @@ const Index = () => {
   const [showResult, setShowResult] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [activeHint, setActiveHint] = useState<ActiveHint | null>(null);
-  const [hasUsedHintThisTurn, setHasUsedHintThisTurn] = useState(false);
 
   // Bot state
   const [botActive, setBotActive] = useState(false);
@@ -70,6 +69,8 @@ const Index = () => {
   const [totalGuesses, setTotalGuesses] = useState(0);
 
   const maxGuesses = gameMode === "hard" ? HARD_GUESSES : gameMode === "timed" ? 999 : CLASSIC_GUESSES;
+  const currentTurn = guesses.length;
+  const activeHintPosition = activeHint?.turn === currentTurn ? activeHint.position : null;
 
 
 
@@ -135,11 +136,6 @@ const Index = () => {
       setTotalGuesses(prev => prev + 1);
     }
 
-    // The hint is turn-scoped and has been cleared above.
-    // Reset the per-turn flag so the user CAN click the hint button again on the next turn.
-    // The hint does NOT auto-appear — user must explicitly click the lightbulb again.
-    setHasUsedHintThisTurn(false);
-
     // Check win condition
     if (currentGuess === targetWord) {
       // Handle timed mode - continue with unlimited rounds until time runs out
@@ -153,9 +149,8 @@ const Index = () => {
           setGuesses([]);
           setCurrentGuess("");
           setEvaluations([]);
-          // Reset hints and flags without showing extra messages
+          // Reset hint state without showing extra messages
           setActiveHint(null);
-          setHasUsedHintThisTurn(false);
           // Reset bot state for new word in timed mode
           if (botActive) {
             setBotState(getInitialBotState());
@@ -227,14 +222,6 @@ const Index = () => {
     handleEnterRef.current = handleEnter;
   }, [handleEnter]);
 
-  // Hard-reset hint state whenever the turn advances.
-  // This prevents a hint from leaking into the next row if submit-time
-  // state updates are applied in an unexpected order.
-  useEffect(() => {
-    setActiveHint(null);
-    setHasUsedHintThisTurn(false);
-  }, [guesses.length]);
-
   const handlePlayAgain = () => {
     setTargetWord(getRandomWord());
     setGuesses([]);
@@ -245,7 +232,6 @@ const Index = () => {
     setWon(false);
     setShowResult(false);
     setActiveHint(null);
-    setHasUsedHintThisTurn(false);
     setBotActive(false);
     setBotState(getInitialBotState());
     if (gameMode === "timed") {
@@ -271,7 +257,6 @@ const Index = () => {
     setTotalGuesses(0);
     setTimedGameActive(false);
     setActiveHint(null);
-    setHasUsedHintThisTurn(false);
     setBotActive(false);
     setBotState(getInitialBotState());
   };
@@ -285,7 +270,7 @@ const Index = () => {
       return;
     }
     
-    if (hasUsedHintThisTurn) {
+    if (activeHintPosition !== null) {
       toast.error("You can only use one hint per guess! Make another guess first.");
       return;
     }
@@ -318,10 +303,9 @@ const Index = () => {
     const positionToReveal = availablePositions[randomIndex];
 
     setActiveHint({
-      turn: guesses.length,
-      positions: [positionToReveal],
+      turn: currentTurn,
+      position: positionToReveal,
     });
-    setHasUsedHintThisTurn(true);
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
   };
 
@@ -507,7 +491,7 @@ const Index = () => {
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowLeaderboard(true)}
         onHint={handleHint}
-        availableHints={(!hasUsedHintThisTurn && guesses.length > 0) ? 1 : 0}
+        availableHints={activeHintPosition === null && guesses.length > 0 ? 1 : 0}
         hintsDisabled={gameMode === "hard" || gameOver}
         onToggleBot={handleToggleBot}
         botActive={botActive}
@@ -547,8 +531,8 @@ const Index = () => {
             maxGuesses={maxGuesses}
             wordLength={WORD_LENGTH}
             shake={shake}
-            revealedHints={activeHint?.turn === guesses.length ? activeHint.positions : []}
-            hintActivated={hasUsedHintThisTurn && activeHint?.turn === guesses.length}
+            revealedHints={activeHintPosition !== null ? [activeHintPosition] : []}
+            hintActivated={activeHintPosition !== null}
             targetWord={targetWord}
           />
         </div>
