@@ -14,6 +14,7 @@ import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
+import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -441,6 +442,10 @@ const Index = () => {
     window.history.replaceState({}, '', `/?mode=multiplayer&game=${gameId}`);
     setGameMode("multiplayer");
   };
+
+  if (user && !user.name?.trim()) {
+    return <UsernameSetupScreen email={user.email} />;
+  }
 
   if (!gameMode) {
     return (
