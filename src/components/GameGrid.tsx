@@ -55,9 +55,10 @@ export const GameGrid = ({
   hintActivated = false,
 }: GameGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sixRowViewportHeight = "calc(6 * min(16vw, 70px) + 5 * 8px)";
 
   // For modes with many guesses (hard=10, timed=999), we show a scrollable window.
-  // We always render all rows but only show a viewport of ~5 visible rows.
+  // We always render all rows but keep a 6-row viewport visible.
   const needsScroll = maxGuesses > 6;
 
   // Prevent rendering 999 empty rows in timed mode by clamping the display row count
@@ -118,16 +119,15 @@ export const GameGrid = ({
   );
 
   if (needsScroll) {
-    // Scrollable viewport: shows ~6 rows at a time
+    // Scrollable viewport: always reserve space for 6 visible rows.
     return (
       <div className="w-full max-w-[300px] sm:max-w-[400px] mx-auto">
         <div
           ref={scrollRef}
           className="overflow-y-auto scrollbar-hide"
           style={{
-            // Height of exactly 6 rows: each row is (tileHeight + gap).
-            // Using a CSS calc for the 6-row viewport.
-            maxHeight: "calc(6 * (min(16vw, 70px) + 8px))",
+            height: sixRowViewportHeight,
+            minHeight: sixRowViewportHeight,
           }}
         >
           {gridContent}
