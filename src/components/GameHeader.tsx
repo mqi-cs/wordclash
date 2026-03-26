@@ -16,7 +16,7 @@ interface GameHeaderProps {
 
 export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hintsDisabled, onToggleBot, botActive, botDisabled }: GameHeaderProps) => {
   return (
-    <header className="border-b border-border py-3 sm:py-4 px-2 sm:px-4">
+    <header className="border-b border-border py-2 sm:py-3 px-2 sm:px-4">
       <div className="max-w-lg mx-auto flex items-center justify-between">
         <Button variant="ghost" size="icon" onClick={onShowHelp} className="h-9 w-9 sm:h-10 sm:w-10">
           <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6" />

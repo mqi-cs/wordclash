@@ -10,18 +10,26 @@ interface KeyboardProps {
   disabled?: boolean;
 }
 
+const DELETE_KEY = "\u232b";
+
 const KEYBOARD_ROWS = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-  ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "⌫"],
+  ["ENTER", "Z", "X", "C", "V", "B", "N", "M", DELETE_KEY],
 ];
 
-export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus, disabled = false }: KeyboardProps) => {
+export const Keyboard = ({
+  onKeyPress,
+  onEnter,
+  onDelete,
+  letterStatus,
+  disabled = false,
+}: KeyboardProps) => {
   const handleClick = (key: string) => {
     if (disabled) return;
     if (key === "ENTER") {
       onEnter();
-    } else if (key === "⌫") {
+    } else if (key === DELETE_KEY) {
       onDelete();
     } else {
       onKeyPress(key);
@@ -29,14 +37,14 @@ export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus, disabled
   };
 
   const getKeyStatus = (key: string) => {
-    if (key === "ENTER" || key === "⌫") return undefined;
+    if (key === "ENTER" || key === DELETE_KEY) return undefined;
     return letterStatus[key];
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto px-1 sm:px-2">
+    <div className="w-full max-w-sm mx-auto px-1">
       {KEYBOARD_ROWS.map((row, i) => (
-        <div key={i} className="flex gap-1 sm:gap-1.5 justify-center mb-1 sm:mb-1.5">
+        <div key={i} className="mb-0.5 flex justify-center gap-0.5 sm:gap-1">
           {row.map((key) => {
             const status = getKeyStatus(key);
             return (
@@ -45,16 +53,18 @@ export const Keyboard = ({ onKeyPress, onEnter, onDelete, letterStatus, disabled
                 onClick={() => handleClick(key)}
                 disabled={disabled}
                 className={cn(
-                  "h-11 sm:h-14 font-semibold text-xs sm:text-sm transition-colors",
-                  key === "ENTER" || key === "⌫" ? "px-2 sm:px-4 text-[10px] sm:text-sm" : "px-2 sm:px-3 min-w-[28px] sm:min-w-[40px]",
-                  !status && "bg-game-key-bg hover:bg-muted text-game-text",
-                  status === "correct" && "bg-game-correct hover:bg-game-correct text-white",
-                  status === "present" && "bg-game-present hover:bg-game-present text-white",
-                  status === "absent" && "bg-game-absent hover:bg-game-absent text-white",
-                  disabled && "opacity-50 cursor-not-allowed"
+                  "h-9 sm:h-11 font-semibold text-[11px] sm:text-sm transition-colors",
+                  key === "ENTER" || key === DELETE_KEY
+                    ? "px-2 sm:px-2.5 text-[10px] sm:text-sm"
+                    : "min-w-[27px] px-1.5 sm:min-w-[34px] sm:px-2",
+                  !status && "bg-game-key-bg text-game-text hover:bg-muted",
+                  status === "correct" && "bg-game-correct text-white hover:bg-game-correct",
+                  status === "present" && "bg-game-present text-white hover:bg-game-present",
+                  status === "absent" && "bg-game-absent text-white hover:bg-game-absent",
+                  disabled && "cursor-not-allowed opacity-50"
                 )}
               >
-                {key === "⌫" ? <Delete className="w-4 h-4 sm:w-5 sm:h-5" /> : key}
+                {key === DELETE_KEY ? <Delete className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : key}
               </Button>
             );
           })}

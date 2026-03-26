@@ -13,7 +13,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint }: TileProps) => {
   return (
     <div
       className={cn(
-        "aspect-square w-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all duration-100",
+        "aspect-square w-full border-2 flex items-center justify-center text-[1.65rem] sm:text-[2.1rem] font-bold uppercase transition-all duration-100",
         status === "empty" && "border-game-border bg-game-empty",
         status === "filled" && "border-game-border-active bg-game-empty animate-bounce-in",
         status === "correct" && "bg-game-correct border-game-correct text-white",
@@ -121,7 +121,10 @@ export const GameGrid = ({
   if (needsScroll) {
     // Scrollable viewport: always reserve space for 6 visible rows.
     return (
-      <div className="w-full max-w-[300px] sm:max-w-[400px] mx-auto">
+      <div
+        className="w-full max-w-[290px] sm:max-w-[352px] mx-auto"
+        style={{ minHeight: sixRowViewportHeight }}
+      >
         <div
           ref={scrollRef}
           className="overflow-y-auto scrollbar-hide"
@@ -138,7 +141,10 @@ export const GameGrid = ({
 
   // Standard fixed grid (6 rows for classic or multiplayer)
   return (
-    <div className="w-full max-w-[300px] sm:max-w-[400px] mx-auto">
+    <div
+      className="w-full max-w-[290px] sm:max-w-[352px] mx-auto"
+      style={{ minHeight: sixRowViewportHeight }}
+    >
       {gridContent}
     </div>
   );
