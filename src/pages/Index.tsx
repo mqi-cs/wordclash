@@ -70,7 +70,13 @@ const Index = () => {
 
   const maxGuesses = gameMode === "hard" ? HARD_GUESSES : gameMode === "timed" ? 999 : CLASSIC_GUESSES;
   const currentTurn = guesses.length;
-  const activeHintPosition = activeHint?.turn === currentTurn ? activeHint.position : null;
+  const isHintActiveThisTurn = activeHint?.turn === currentTurn;
+  const activeHintPosition = isHintActiveThisTurn ? activeHint.position : null;
+
+  useEffect(() => {
+    if (!activeHint || activeHint.turn === currentTurn) return;
+    setActiveHint(null);
+  }, [activeHint, currentTurn]);
 
 
 
@@ -270,7 +276,7 @@ const Index = () => {
       return;
     }
     
-    if (activeHintPosition !== null) {
+    if (isHintActiveThisTurn) {
       toast.error("You can only use one hint per guess! Make another guess first.");
       return;
     }
@@ -491,7 +497,7 @@ const Index = () => {
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowLeaderboard(true)}
         onHint={handleHint}
-        availableHints={activeHintPosition === null && guesses.length > 0 ? 1 : 0}
+        availableHints={!isHintActiveThisTurn && guesses.length > 0 ? 1 : 0}
         hintsDisabled={gameMode === "hard" || gameOver}
         onToggleBot={handleToggleBot}
         botActive={botActive}
@@ -532,7 +538,7 @@ const Index = () => {
             wordLength={WORD_LENGTH}
             shake={shake}
             revealedHints={activeHintPosition !== null ? [activeHintPosition] : []}
-            hintActivated={activeHintPosition !== null}
+            hintActivated={isHintActiveThisTurn}
             targetWord={targetWord}
           />
         </div>

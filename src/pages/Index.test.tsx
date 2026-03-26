@@ -7,10 +7,14 @@ import * as authContext from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 // Mock dependencies
-vi.mock("@/lib/wordList", () => ({
-    getRandomWord: vi.fn(),
-    isValidWord: vi.fn(),
-}));
+vi.mock("@/lib/wordList", async () => {
+    const actual = await vi.importActual<typeof import("@/lib/wordList")>("@/lib/wordList");
+    return {
+        ...actual,
+        getRandomWord: vi.fn(),
+        isValidWord: vi.fn(),
+    };
+});
 
 vi.mock("@/contexts/AuthContext", () => ({
     useAuth: vi.fn(),
@@ -52,14 +56,14 @@ const setup = (mode = "classic") => {
 
     // Mock Auth User
     vi.mocked(authContext.useAuth).mockReturnValue({
-        user: { id: "test-user" },
+        user: { id: "test-user", username: "tester" },
         signOut: vi.fn(),
     } as any);
 
     const user = userEvent.setup();
-    render(<Index />);
+    const view = render(<Index />);
 
-    return { user };
+    return { user, ...view };
 };
 
 describe("Classic Mode", () => {
@@ -146,6 +150,42 @@ describe("Classic Mode", () => {
         await waitFor(() => {
             expect(screen.getByText("1")).toBeInTheDocument(); // Badge showing 1 hint available
         }, { timeout: 2000 });
+    });
+
+    it("resets hint state after a guess is submitted", async () => {
+        const { user, container } = setup();
+        await enterGame(user);
+
+        vi.spyOn(Math, "random").mockReturnValue(0);
+
+        for (const char of "GUESS") {
+            fireEvent.keyDown(window, { key: char });
+        }
+        fireEvent.keyDown(window, { key: "Enter" });
+
+        const hintButton = screen.getAllByRole("button").find((button) =>
+            button.querySelector("svg.lucide-lightbulb")
+        );
+        expect(hintButton).toBeDefined();
+
+        await user.click(hintButton!);
+
+        await waitFor(() => {
+            expect(container.querySelector(".bg-purple-600")).toBeInTheDocument();
+        });
+
+        for (const char of "ABCDE") {
+            fireEvent.keyDown(window, { key: char });
+        }
+        fireEvent.keyDown(window, { key: "Enter" });
+
+        await waitFor(() => {
+            expect(container.querySelector(".bg-purple-600")).not.toBeInTheDocument();
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("1")).toBeInTheDocument();
+        });
     });
 
     it("loses the game after 6 incorrect guesses (Negative Test)", async () => {
