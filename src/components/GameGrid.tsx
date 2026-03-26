@@ -7,9 +7,10 @@ interface TileProps {
   animate?: boolean;
   delay?: number;
   isHint?: boolean;
+  blurLetter?: boolean;
 }
 
-const Tile = ({ letter, status, animate, delay = 0, isHint }: TileProps) => {
+const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }: TileProps) => {
   return (
     <div
       className={cn(
@@ -22,7 +23,10 @@ const Tile = ({ letter, status, animate, delay = 0, isHint }: TileProps) => {
         animate && "animate-flip",
         isHint && "bg-purple-600 border-purple-600 text-white"
       )}
-      style={animate ? { animationDelay: `${delay}ms` } : undefined}
+      style={{
+        ...(animate ? { animationDelay: `${delay}ms` } : {}),
+        ...(blurLetter ? { filter: "blur(8px)" } : {}),
+      }}
     >
       {letter}
     </div>
@@ -40,6 +44,7 @@ interface GameGridProps {
   targetWord?: string;
   isOpponent?: boolean;
   hintActivated?: boolean;
+  blurCompletedGuesses?: boolean;
 }
 
 export const GameGrid = ({
@@ -53,6 +58,7 @@ export const GameGrid = ({
   targetWord = "",
   isOpponent = false,
   hintActivated = false,
+  blurCompletedGuesses = false,
 }: GameGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sixRowViewportHeight = "calc(6 * min(16vw, 70px) + 5 * 8px)";
@@ -83,6 +89,7 @@ export const GameGrid = ({
         status: evaluations[i][j],
         animate: !isOpponent,
         delay: j * 150,
+        blurLetter: blurCompletedGuesses,
       }));
     } else if (i === guesses.length && !isOpponent) {
       // Current guess with hints (only for the actual player)

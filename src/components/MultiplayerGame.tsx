@@ -88,6 +88,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   
   // Turn logic
   const isChallenge = game?.gameType === "challenge";
+  const blurOpponentGuesses = isChallenge && game?.status !== "finished" && game?.status !== "abandoned";
   const isMyTurn = isChallenge && game?.status === "in_progress" && !myGameOver && (
     myGuesses.length === oppGuesses.length ? isHost : myGuesses.length < oppGuesses.length
   );
@@ -272,6 +273,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
               evaluations={oppEvaluations}
               shake={false}
               isOpponent={true}
+              blurCompletedGuesses={blurOpponentGuesses}
             />
           </div>
         </div>
