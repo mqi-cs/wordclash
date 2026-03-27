@@ -56,7 +56,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       if (redirectTo.startsWith("?") || redirectTo.startsWith("/")) {
         return `${APP_SITE_URL}${redirectTo}`;
       }
-      if (redirectTo.startsWith("https://wordclash.co")) {
+      if (redirectTo.startsWith(APP_SITE_URL)) {
         return redirectTo;
       }
       return APP_SITE_URL;

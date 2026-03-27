@@ -4,7 +4,7 @@ import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const APP_SITE_URL = "https://wordclash.co";
+const APP_SITE_URL = import.meta.env.VITE_SITE_URL || window.location.origin;
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
