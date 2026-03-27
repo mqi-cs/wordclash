@@ -26,9 +26,12 @@ const oauthProviders =
           clientSecret: googleClientSecret,
           profile(profile) {
             const email = assertValidEmail(profile.email as string);
+            const name = typeof profile.name === "string" ? profile.name.trim() : undefined;
             return {
+              id: String(profile.sub ?? profile.id),
+              name,
               email,
-              googleName: typeof profile.name === "string" ? profile.name.trim() : undefined,
+              googleName: name,
               image: typeof profile.picture === "string" ? profile.picture : undefined,
             };
           },
