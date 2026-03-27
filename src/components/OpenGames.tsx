@@ -74,6 +74,12 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                         ? `Started ${formatDistanceToNow(new Date(game.startedAt), { addSuffix: true })}`
                         : "Waiting for opponent..."}
                     </div>
+                    {game.gameType === "multiplayer" && (
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {game.playerCount}/4 players
+                        {game.lobbyCode ? ` • Code ${game.lobbyCode}` : ""}
+                      </div>
+                    )}
                   </div>
                   <div className="px-2 py-1 bg-secondary rounded text-xs font-medium capitalize">
                     {game.status.replace("_", " ")}

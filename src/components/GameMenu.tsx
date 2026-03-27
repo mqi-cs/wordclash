@@ -265,7 +265,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
                   <div className="space-y-1">
                     <h3 className="text-3xl font-bold text-foreground">Multiplayer Mode</h3>
                     <p className="text-sm text-muted-foreground">
-                      Challenge a friend in split-screen battle
+                      Create or join a lobby and play with up to four people
                     </p>
                   </div>
                 </div>
@@ -275,15 +275,15 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-background/50">
                   <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                  <p className="text-sm text-muted-foreground">Real-time split screen</p>
+                  <p className="text-sm text-muted-foreground">Host a lobby with a shareable code</p>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-background/50">
                   <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                  <p className="text-sm text-muted-foreground">See opponent's colors</p>
+                  <p className="text-sm text-muted-foreground">Start once everyone is ready</p>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-background/50">
                   <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                  <p className="text-sm text-muted-foreground">First to guess wins</p>
+                  <p className="text-sm text-muted-foreground">Up to 4 players, first solver wins</p>
                 </div>
               </div>
 
@@ -299,7 +299,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
                   onSelectMode("multiplayer");
                 }}
               >
-                Start Multiplayer Game
+                Open Multiplayer Lobby
               </Button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -101,6 +102,32 @@ export default {
             transform: "rotateX(0)",
           },
         },
+        "flip-reveal": {
+          "0%": {
+            transform: "rotateX(0)",
+            backgroundColor: "hsl(var(--game-empty))",
+            borderColor: "hsl(var(--game-border))",
+            color: "hsl(var(--game-text))",
+          },
+          "49.999%": {
+            transform: "rotateX(-90deg)",
+            backgroundColor: "hsl(var(--game-empty))",
+            borderColor: "hsl(var(--game-border))",
+            color: "hsl(var(--game-text))",
+          },
+          "50%": {
+            transform: "rotateX(-90deg)",
+            backgroundColor: "var(--flip-bg)",
+            borderColor: "var(--flip-border)",
+            color: "var(--flip-text)",
+          },
+          "100%": {
+            transform: "rotateX(0)",
+            backgroundColor: "var(--flip-bg)",
+            borderColor: "var(--flip-border)",
+            color: "var(--flip-text)",
+          },
+        },
         "bounce-in": {
           "0%": {
             transform: "scale(0.8)",
@@ -130,10 +157,11 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "flip": "flip 0.6s ease-in-out",
+        "flip-reveal": "flip-reveal 0.6s ease-in-out both",
         "bounce-in": "bounce-in 0.3s ease-out",
         "shake": "shake 0.4s ease-in-out",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

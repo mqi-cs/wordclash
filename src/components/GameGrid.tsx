@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { CSSProperties, useEffect, useRef } from "react";
 
 interface TileProps {
   letter: string;
@@ -10,20 +10,42 @@ interface TileProps {
   blurLetter?: boolean;
 }
 
+const revealedTileStyles: Record<"correct" | "present" | "absent", CSSProperties> = {
+  correct: {
+    "--flip-bg": "hsl(var(--game-correct))",
+    "--flip-border": "hsl(var(--game-correct))",
+    "--flip-text": "#ffffff",
+  } as CSSProperties,
+  present: {
+    "--flip-bg": "hsl(var(--game-present))",
+    "--flip-border": "hsl(var(--game-present))",
+    "--flip-text": "#ffffff",
+  } as CSSProperties,
+  absent: {
+    "--flip-bg": "hsl(var(--game-absent))",
+    "--flip-border": "hsl(var(--game-absent))",
+    "--flip-text": "#ffffff",
+  } as CSSProperties,
+};
+
 const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }: TileProps) => {
+  const shouldAnimateReveal =
+    animate && (status === "correct" || status === "present" || status === "absent");
+
   return (
     <div
       className={cn(
         "aspect-square w-full border-2 flex items-center justify-center text-[1.65rem] sm:text-[2.1rem] font-bold uppercase transition-all duration-100",
         status === "empty" && "border-game-border bg-game-empty",
         status === "filled" && "border-game-border-active bg-game-empty animate-bounce-in",
-        status === "correct" && "bg-game-correct border-game-correct text-white",
-        status === "present" && "bg-game-present border-game-present text-white",
-        status === "absent" && "bg-game-absent border-game-absent text-white",
-        animate && "animate-flip",
+        !shouldAnimateReveal && status === "correct" && "bg-game-correct border-game-correct text-white",
+        !shouldAnimateReveal && status === "present" && "bg-game-present border-game-present text-white",
+        !shouldAnimateReveal && status === "absent" && "bg-game-absent border-game-absent text-white",
+        shouldAnimateReveal && "border-game-border bg-game-empty text-game-text animate-flip-reveal",
         isHint && "bg-purple-600 border-purple-600 text-white"
       )}
       style={{
+        ...(shouldAnimateReveal ? revealedTileStyles[status] : {}),
         ...(animate ? { animationDelay: `${delay}ms` } : {}),
         ...(blurLetter ? { filter: "blur(8px)" } : {}),
       }}
@@ -45,6 +67,7 @@ interface GameGridProps {
   isOpponent?: boolean;
   hintActivated?: boolean;
   blurCompletedGuesses?: boolean;
+  blurCurrentGuess?: boolean;
 }
 
 export const GameGrid = ({
@@ -59,6 +82,7 @@ export const GameGrid = ({
   isOpponent = false,
   hintActivated = false,
   blurCompletedGuesses = false,
+  blurCurrentGuess = false,
 }: GameGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sixRowViewportHeight = "calc(6 * min(16vw, 70px) + 5 * 8px)";
@@ -97,6 +121,7 @@ export const GameGrid = ({
         letter: currentGuess[j] || (hintActivated && revealedHints.includes(j) ? targetWord[j] : ""),
         status: currentGuess[j] ? ("filled" as const) : ("empty" as const),
         isHint: !currentGuess[j] && hintActivated && revealedHints.includes(j),
+        blurLetter: blurCurrentGuess && Boolean(currentGuess[j]),
       }));
     } else {
       // Empty row

@@ -54,6 +54,9 @@ export default defineSchema({
   games: defineTable({
     player1Id: v.id("users"),
     player2Id: v.optional(v.id("users")), // Optional until someone joins
+    player3Id: v.optional(v.id("users")),
+    player4Id: v.optional(v.id("users")),
+    lobbyCode: v.optional(v.string()),
     status: v.union(
       v.literal("waiting"),
       v.literal("in_progress"),
@@ -67,6 +70,9 @@ export default defineSchema({
   })
     .index("by_player1", ["player1Id"])
     .index("by_player2", ["player2Id"])
+    .index("by_player3", ["player3Id"])
+    .index("by_player4", ["player4Id"])
+    .index("by_lobby_code", ["lobbyCode"])
     .index("by_status", ["status"]),
 
   // Target words for games (Server-side validation only)

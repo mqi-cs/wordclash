@@ -46,6 +46,7 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
   const [botThinking, setBotThinking] = useState(false);
   
   const [waitingForBot, setWaitingForBot] = useState(false);
+  const blurBotGuesses = gameMode === "classic" && !myGameOver;
 
   // evaluateGuess is now imported from @/lib/gameLogic
 
@@ -427,36 +428,16 @@ export const BotGame = ({ onBackToMenu, gameMode }: BotGameProps) => {
               <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
             )}
           </div>
-          <div className="flex flex-col gap-1.5 sm:gap-2 w-full max-w-[350px] sm:max-w-[450px] mx-auto my-4">
-            {Array.from({ length: MAX_GUESSES }).map((_, rowIndex) => {
-              const guess = botGuesses[rowIndex];
-              const evaluation = botEvaluations[rowIndex];
-              
-              return (
-                <div key={rowIndex} className="grid grid-cols-5 gap-1.5 sm:gap-2">
-                  {Array.from({ length: WORD_LENGTH }).map((_, colIndex) => {
-                    const hasGuess = guess && guess[colIndex];
-                    const status = evaluation ? evaluation[colIndex] : "empty";
-                    
-                    return (
-                      <div
-                        key={colIndex}
-                        className={cn(
-                          "aspect-square w-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all",
-                          !hasGuess && "border-game-border bg-game-empty",
-                          hasGuess && status === "correct" && "bg-game-correct border-game-correct text-white",
-                          hasGuess && status === "present" && "bg-game-present border-game-present text-white",
-                          hasGuess && status === "absent" && "bg-game-absent border-game-absent text-white"
-                        )}
-                        style={hasGuess && !myGameOver ? { filter: "blur(8px)" } : undefined}
-                      >
-                        {hasGuess ? guess[colIndex] : ""}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+          <div className="w-full max-w-[350px] sm:max-w-[450px] mx-auto my-4">
+            <GameGrid
+              guesses={botGuesses}
+              currentGuess=""
+              evaluations={botEvaluations}
+              maxGuesses={MAX_GUESSES}
+              wordLength={WORD_LENGTH}
+              isOpponent={true}
+              blurCompletedGuesses={blurBotGuesses}
+            />
           </div>
         </Card>
       </main>

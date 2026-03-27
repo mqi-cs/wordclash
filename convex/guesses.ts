@@ -1,7 +1,18 @@
 import { mutation, query } from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
 import { evaluateGuess, isValidGuessFormat } from "./shared/gameLogic";
+
+type GameDoc = Doc<"games">;
+
+const getGamePlayerIds = (game: GameDoc): Id<"users">[] =>
+  [game.player1Id, game.player2Id, game.player3Id, game.player4Id].filter(
+    (playerId): playerId is Id<"users"> => playerId !== undefined,
+  );
+
+const isParticipant = (game: GameDoc, userId: Id<"users">) =>
+  getGamePlayerIds(game).includes(userId);
 
 // Authenticated query — only game participants can see guesses
 export const getGuesses = query({
@@ -13,7 +24,7 @@ export const getGuesses = query({
     // Verify the caller is in this game
     const game = await ctx.db.get(args.gameId);
     if (!game) return [];
-    if (game.player1Id !== userId && game.player2Id !== userId) {
+    if (!isParticipant(game, userId)) {
       throw new Error("You are not part of this game");
     }
 
@@ -34,8 +45,8 @@ export const submitGuess = mutation({
 
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new Error("Game not found");
-    
-    if (game.player1Id !== userId && game.player2Id !== userId) {
+
+    if (!isParticipant(game, userId)) {
       throw new Error("You are not part of this game");
     }
 
@@ -88,19 +99,28 @@ export const submitGuess = mutation({
         finishedAt: Date.now()
       });
     } else if (guessNumber >= 6) {
-      const opponentId = game.player1Id === userId ? game.player2Id : game.player1Id;
-      if (opponentId) {
-        const oppGuesses = await ctx.db
+      const otherPlayers = getGamePlayerIds(game).filter((playerId) => playerId !== userId);
+      let everyPlayerFinished = true;
+
+      for (const playerId of otherPlayers) {
+        const playerGuesses = await ctx.db
           .query("guesses")
-          .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", opponentId))
+          .withIndex("by_game_and_player", (q) =>
+            q.eq("gameId", args.gameId).eq("playerId", playerId),
+          )
           .collect();
 
-        if (oppGuesses.length >= 6) {
-          await ctx.db.patch(args.gameId, {
-            status: "finished",
-            finishedAt: Date.now()
-          });
+        if (playerGuesses.length < 6) {
+          everyPlayerFinished = false;
+          break;
         }
+      }
+
+      if (everyPlayerFinished) {
+        await ctx.db.patch(args.gameId, {
+          status: "finished",
+          finishedAt: Date.now()
+        });
       }
     }
 
