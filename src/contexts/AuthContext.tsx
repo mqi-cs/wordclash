@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -20,15 +20,19 @@ type User = {
 
 interface AuthContextType {
   user: User | null;
-  session: any | null; // Convex Auth manages session internally
-  signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signInWithGoogle: () => Promise<{ error: any }>;
+  session: Record<string, never> | null; // Convex Auth manages session internally
+  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const normalizeUsername = (username: string) => username.trim();
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
@@ -60,13 +64,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await convexSignIn("password", {
         email: normalizedEmail,
         password,
-        username: username.trim(),
+        username: normalizeUsername(username),
         flow: "signUp",
       });
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("SignUp error", err);
-      return { error: err.message || "Failed to sign up" };
+      return { error: getErrorMessage(err, "Failed to sign up") };
     }
   };
 
@@ -78,7 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         flow: "signIn",
       });
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("SignIn error", err);
       // Convex Auth throws when credentials mismatch
       return { error: "Invalid email or password" };
@@ -89,9 +93,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await convexSignIn("google", { redirectTo: APP_SITE_URL });
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Google sign-in error", err);
-      return { error: err.message || "Failed to sign in with Google" };
+      return { error: getErrorMessage(err, "Failed to sign in with Google") };
     }
   };
 

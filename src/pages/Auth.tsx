@@ -40,14 +40,16 @@ const signUpSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .max(20, "Username must be less than 20 characters")
     .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens"),
-  email: z.string().trim().email("Invalid email address"),
+  email: z.string().trim().toLowerCase().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters")
 });
 
 const signInSchema = z.object({
-  email: z.string().trim().email("Invalid email address"),
+  email: z.string().trim().toLowerCase().email("Invalid email address"),
   password: z.string().min(1, "Password is required")
 });
+
+const getErrorMessage = (error: { message: unknown }) => String(error.message);
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -84,7 +86,8 @@ const Auth = () => {
         }
         
         console.log("[AUTH DEBUG] Validation passed. Calling signUp from AuthContext...");
-        const response = await signUp(email, password, username);
+        const { email: normalizedEmail, password: validatedPassword, username: normalizedUsername } = validationResult.data;
+        const response = await signUp(normalizedEmail, validatedPassword, normalizedUsername);
         console.log("[AUTH DEBUG] signUp returned:", response);
         
         if (response?.error) {
@@ -115,7 +118,8 @@ const Auth = () => {
         }
         
         console.log("[AUTH DEBUG] Validation passed. Calling signIn from AuthContext...");
-        const response = await signIn(email, password);
+        const { email: normalizedEmail, password: validatedPassword } = validationResult.data;
+        const response = await signIn(normalizedEmail, validatedPassword);
         console.log("[AUTH DEBUG] signIn returned:", response);
         
         if (response?.error) {
@@ -143,7 +147,7 @@ const Auth = () => {
         errorMsg = error.message;
         console.error("[AUTH DEBUG] Stack trace:", error.stack);
       } else if (error && typeof error === "object" && "message" in error) {
-        errorMsg = String((error as any).message);
+        errorMsg = getErrorMessage(error);
       }
 
       console.error("[AUTH DEBUG] Final parsed error message for toast:", errorMsg);

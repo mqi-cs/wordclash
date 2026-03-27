@@ -41,9 +41,11 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     Password({
       profile(params) {
         const email = assertValidEmail(params.email as string);
+        const username =
+          typeof params.username === "string" ? params.username.trim() : undefined;
         return {
           email,
-          username: (params.username as string).trim(),
+          ...(username ? { name: username, username } : {}),
         };
       },
     }),
