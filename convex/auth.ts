@@ -1,19 +1,8 @@
 import { convexAuth } from "@convex-dev/auth/server";
 import Google from "@auth/core/providers/google";
 import { Password } from "@convex-dev/auth/providers/Password";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { assertValidEmail } from "./authShared";
 const APP_SITE_URL = process.env.SITE_URL ?? "https://wordclash.co";
-
-const normalizeEmail = (email: string) => email.trim().toLowerCase();
-
-const assertValidEmail = (email: string) => {
-  const normalizedEmail = normalizeEmail(email);
-  if (!EMAIL_REGEX.test(normalizedEmail)) {
-    throw new Error("Please enter a valid email address");
-  }
-  return normalizedEmail;
-};
 
 const googleClientId = process.env.AUTH_GOOGLE_ID;
 const googleClientSecret = process.env.AUTH_GOOGLE_SECRET;
@@ -43,6 +32,9 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
       profile(params) {
+        if (params.flow === "signUp") {
+          throw new Error("Password sign up must go through the protected signup endpoint");
+        }
         const email = assertValidEmail(params.email as string);
         const username =
           typeof params.username === "string" ? params.username.trim() : undefined;

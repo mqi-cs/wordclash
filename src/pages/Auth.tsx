@@ -92,7 +92,11 @@ const Auth = () => {
         
         if (response?.error) {
           console.error("[AUTH DEBUG] signUp returned an error object:", response.error);
-          throw response.error;
+          if (response.retryAt) {
+            const retryTime = new Date(response.retryAt).toLocaleTimeString();
+            throw new Error(`Too many signups from this IP. Try again at ${retryTime}.`);
+          }
+          throw new Error(response.error);
         }
         
         console.log("[AUTH DEBUG] Signup completely successful.");

@@ -267,8 +267,13 @@ const Index = () => {
     setBotState(getInitialBotState());
   };
 
-  const handleHint = () => {
+  const handleHint = (e?: React.MouseEvent) => {
     if (gameOver || gameMode === "hard") return;
+
+    // Blur the button to prevent Enter key from re-triggering it
+    if (e?.currentTarget instanceof HTMLElement) {
+      e.currentTarget.blur();
+    }
 
     // Check if hints are available for this turn
     if (guesses.length === 0) {

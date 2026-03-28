@@ -18,10 +18,16 @@ type User = {
   googleName?: string;
 };
 
+type SignUpResult = {
+  error: string | null;
+  retryAt?: number | null;
+  retryAfterMs?: number | null;
+};
+
 interface AuthContextType {
   user: User | null;
   session: Record<string, never> | null; // Convex Auth manages session internally
-  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<SignUpResult>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -33,6 +39,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const normalizeUsername = (username: string) => username.trim();
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
+const getSignupEndpoint = () =>
+  new URL("/api/auth/password-signup", import.meta.env.VITE_CONVEX_URL as string).toString();
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
@@ -61,13 +69,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      await convexSignIn("password", {
-        email: normalizedEmail,
-        password,
-        username: normalizeUsername(username),
-        flow: "signUp",
+      const response = await fetch(getSignupEndpoint(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+          username: normalizeUsername(username),
+        }),
       });
-      return { error: null };
+
+      const data = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            retryAt?: number;
+            retryAfterMs?: number;
+          }
+        | null;
+
+      if (response.ok) {
+        return { error: null };
+      }
+
+      return {
+        error: data?.error ?? "Failed to sign up",
+        retryAt: data?.retryAt ?? null,
+        retryAfterMs: data?.retryAfterMs ?? null,
+      };
     } catch (err: unknown) {
       console.error("SignUp error", err);
       return { error: getErrorMessage(err, "Failed to sign up") };

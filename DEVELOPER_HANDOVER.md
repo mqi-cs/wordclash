@@ -49,6 +49,13 @@ During the migration, 13 critical vulnerabilities were patched. **Do not undo th
 
 ## 4. Authentication (Crucial Nuance)
 
+**Custom Google Auth Domain:**
+If you want Google sign-in to show a clean domain instead of the default `*.convex.site` hostname, configure a custom auth subdomain such as `auth.wordclash.co`.
+- Set `CUSTOM_AUTH_SITE_URL=https://auth.wordclash.co` in Convex once the custom domain is active.
+- Keep `SITE_URL=https://wordclash.co` for the frontend redirect target.
+- Update the Google OAuth redirect URI to `https://auth.wordclash.co/api/auth/callback/google`.
+- Do not switch `CUSTOM_AUTH_SITE_URL` in production before DNS and Google OAuth are ready, or sign-in will break.
+
 **The `JWT_PRIVATE_KEY` Dilemma:**
 Convex Auth uses secure cryptographic keys to mint user sessions. 
 - When working locally (`npx convex dev`), these keys are stored inside your *Development* Convex dashboard.
@@ -68,10 +75,15 @@ Google sign-in is wired into Convex Auth, but it only appears when the required 
 - Set Convex env vars:
   - `AUTH_GOOGLE_ID`
   - `AUTH_GOOGLE_SECRET`
+- Set auth/frontend URL env vars:
+  - `SITE_URL=https://wordclash.co`
+  - `CUSTOM_AUTH_SITE_URL=https://auth.wordclash.co` once the custom auth domain is live
 - Set frontend env var:
   - `VITE_ENABLE_GOOGLE_AUTH=true`
+  - `VITE_SITE_URL=https://wordclash.co`
 - In Google Cloud Console, add the OAuth redirect URI:
-  - `https://wordclash.co/api/auth/callback/google`
+  - `https://auth.wordclash.co/api/auth/callback/google` when using a custom auth domain
+  - Otherwise keep the current Convex-hosted callback URL until the custom domain is ready
 
 For production, make sure the same Google OAuth credentials and redirect URI setup are applied to the production Convex deployment as well.
 

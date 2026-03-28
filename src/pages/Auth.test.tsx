@@ -45,6 +45,7 @@ const setup = () => {
 describe("Auth page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("VITE_ENABLE_GOOGLE_AUTH", "false");
     mockSignIn.mockResolvedValue({ error: null });
     mockSignUp.mockResolvedValue({ error: null });
   });
