@@ -46,8 +46,7 @@ export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenPr
           <CardTitle>Choose a Username</CardTitle>
           <CardDescription>
             {email ? `Signed in as ${email}. ` : ""}
-            {googleName ? `Google returned "${googleName}", but the app needs a username. ` : ""}
-            You must choose a username before continuing.
+            Choose a username to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>
