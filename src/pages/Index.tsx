@@ -250,6 +250,7 @@ const Index = () => {
   };
 
   const handleBackToMenu = () => {
+    window.history.replaceState({}, "", "/");
     setGameMode(null);
     setGuesses([]);
     setCurrentGuess("");

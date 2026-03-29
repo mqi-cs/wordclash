@@ -1,11 +1,24 @@
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Users, Clock, Crown } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Play, Users, Clock, Crown, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "../../convex/_generated/dataModel";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface OpenGamesProps {
   onResumeGame: (gameId: string) => void;
@@ -14,6 +27,20 @@ interface OpenGamesProps {
 export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
   const { user } = useAuth();
   const games = useQuery(api.games.getMyGames);
+  const deleteGame = useMutation(api.games.deleteGame);
+  const [deletingGameId, setDeletingGameId] = useState<Id<"games"> | null>(null);
+
+  const handleDeleteGame = async (gameId: Id<"games">) => {
+    setDeletingGameId(gameId);
+    try {
+      await deleteGame({ gameId });
+      toast.success("Game removed");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete game");
+    } finally {
+      setDeletingGameId(null);
+    }
+  };
 
   if (!user || games === undefined) {
     return (
@@ -96,6 +123,41 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                     ? "Waiting Room" 
                     : "Resume Game"}
                 </Button>
+
+                {game.canDelete && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full mt-2 text-destructive hover:text-destructive"
+                        disabled={deletingGameId === game._id}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        {deletingGameId === game._id ? "Deleting..." : "Delete"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this game?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {game.gameType === "challenge"
+                            ? "This will cancel the waiting challenge and remove it from your active games."
+                            : "This will close the waiting lobby and remove it from your active games."}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => void handleDeleteGame(game._id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </CardContent>
             </Card>
           ))}

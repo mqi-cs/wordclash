@@ -126,6 +126,34 @@ const joinGameById = async (
   return game._id;
 };
 
+const deleteGameArtifacts = async (ctx: MutationCtx, gameId: Id<"games">) => {
+  const secret = await ctx.db
+    .query("gameSecrets")
+    .withIndex("by_game", (q) => q.eq("gameId", gameId))
+    .unique();
+
+  if (secret) {
+    await ctx.db.delete(secret._id);
+  }
+
+  for await (const invitation of ctx.db
+    .query("invitations")
+    .withIndex("by_game", (q) => q.eq("gameId", gameId))) {
+    await ctx.db.delete(invitation._id);
+  }
+
+  for await (const guess of ctx.db
+    .query("guesses")
+    .withIndex("by_game_and_player", (q) => q.eq("gameId", gameId))) {
+    await ctx.db.delete(guess._id);
+  }
+};
+
+const canDeleteGame = (game: GameDoc, userId: Id<"users">) =>
+  game.player1Id === userId &&
+  game.status === "waiting" &&
+  (game.gameType === "challenge" || game.gameType === "multiplayer");
+
 // Get active games for the current user
 export const getMyGames = query({
   args: {},
@@ -153,6 +181,7 @@ export const getMyGames = query({
         ...game,
         playerCount: getPlayerCount(game),
         lobbyCode: game.lobbyCode ?? null,
+        canDelete: canDeleteGame(game, userId),
       }));
   },
 });
@@ -362,6 +391,25 @@ export const joinGameByCode = mutation({
     }
 
     return await joinMultiplayerLobby(ctx, game, userId);
+  },
+});
+
+export const deleteGame = mutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const game = await ctx.db.get(args.gameId);
+    if (!game) throw new Error("Game not found");
+    if (!canDeleteGame(game, userId)) {
+      throw new Error("Only the host can delete waiting challenges or waiting lobbies.");
+    }
+
+    await deleteGameArtifacts(ctx, game._id);
+    await ctx.db.delete(game._id);
+
+    return { success: true };
   },
 });
 

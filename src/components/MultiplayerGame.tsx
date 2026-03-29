@@ -38,6 +38,10 @@ const syncMultiplayerUrl = (gameId: string) => {
   window.history.replaceState({}, "", `/?mode=multiplayer&game=${gameId}`);
 };
 
+const resetMultiplayerUrl = () => {
+  window.history.replaceState({}, "", "/");
+};
+
 const isLobbyCode = (value: string) => LOBBY_CODE_REGEX.test(value.trim().toUpperCase());
 
 export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
@@ -55,7 +59,12 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const game = useQuery(api.games.getGame, gameId ? { gameId } : "skip");
-  const guesses = useQuery(api.guesses.getGuesses, gameId ? { gameId } : "skip");
+  const shouldFetchGuesses =
+    !!gameId && !(game?.status === "waiting" && game?.gameType === "multiplayer");
+  const guesses = useQuery(
+    api.guesses.getGuesses,
+    shouldFetchGuesses && gameId ? { gameId } : "skip",
+  );
   const targetWord = useQuery(
     api.games.getTargetWord,
     gameId && (game?.status === "finished" || game?.status === "abandoned")
@@ -118,6 +127,25 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     [joinGameByCodeMut],
   );
 
+  const resolveRequestedGame = useCallback(
+    async (requestedGameId: Id<"games">) => {
+      try {
+        const resolvedGameId = await joinGameMut({ gameId: requestedGameId });
+        setGameId(resolvedGameId);
+        setEntryMode(null);
+        syncMultiplayerUrl(resolvedGameId);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to open multiplayer game";
+        toast.error(errorMessage);
+        setGameId(null);
+        setEntryMode("select");
+        resetMultiplayerUrl();
+      }
+    },
+    [joinGameMut],
+  );
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -130,8 +158,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
     const requestedJoinTarget = urlParams.get("join");
 
     if (requestedGameId) {
-      setGameId(requestedGameId as Id<"games">);
-      setEntryMode(null);
+      void resolveRequestedGame(requestedGameId as Id<"games">);
       return;
     }
 
@@ -139,14 +166,13 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       if (isLobbyCode(requestedJoinTarget)) {
         void handleJoinByCode(requestedJoinTarget);
       } else {
-        setGameId(requestedJoinTarget as Id<"games">);
-        setEntryMode(null);
+        void resolveRequestedGame(requestedJoinTarget as Id<"games">);
       }
       return;
     }
 
     setEntryMode("select");
-  }, [handleJoinByCode, loading, navigate, user]);
+  }, [handleJoinByCode, loading, navigate, resolveRequestedGame, user]);
 
   useEffect(() => {
     if (!myBoard) {
