@@ -39,8 +39,34 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const normalizeUsername = (username: string) => username.trim();
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
+
+export const getConvexHttpActionBaseUrl = (
+  siteUrl: string | undefined,
+  deploymentUrl: string | undefined,
+) => {
+  if (siteUrl) {
+    return new URL(siteUrl).origin;
+  }
+
+  if (!deploymentUrl) {
+    throw new Error("Missing Convex URL configuration");
+  }
+
+  const url = new URL(deploymentUrl);
+  if (url.hostname.endsWith(".convex.cloud")) {
+    url.hostname = url.hostname.replace(/\.convex\.cloud$/, ".convex.site");
+  }
+  return url.origin;
+};
+
 const getSignupEndpoint = () =>
-  new URL("/api/auth/password-signup", import.meta.env.VITE_CONVEX_URL as string).toString();
+  new URL(
+    "/api/auth/password-signup",
+    getConvexHttpActionBaseUrl(
+      import.meta.env.VITE_CONVEX_SITE_URL as string | undefined,
+      import.meta.env.VITE_CONVEX_URL as string | undefined,
+    ),
+  ).toString();
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();

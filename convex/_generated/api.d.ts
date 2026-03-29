@@ -18,6 +18,7 @@ import type * as passwordSignup from "../passwordSignup.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as shared_gameLogic from "../shared/gameLogic.js";
 import type * as stats from "../stats.js";
+import type * as usernames from "../usernames.js";
 import type * as users from "../users.js";
 
 import type {
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   rateLimits: typeof rateLimits;
   "shared/gameLogic": typeof shared_gameLogic;
   stats: typeof stats;
+  usernames: typeof usernames;
   users: typeof users;
 }>;
 

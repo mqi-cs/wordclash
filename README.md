@@ -73,7 +73,10 @@ To enable Google sign in, configure:
   - `AUTH_GOOGLE_ID`
   - `AUTH_GOOGLE_SECRET`
 - Frontend env var:
+  - `VITE_CONVEX_SITE_URL=https://<your-deployment>.convex.site`
   - `VITE_ENABLE_GOOGLE_AUTH=true`
+
+`VITE_CONVEX_URL` is used by the Convex React client, while `VITE_CONVEX_SITE_URL` is used for Convex HTTP actions such as the custom email/password signup route. If `VITE_CONVEX_SITE_URL` is omitted, the app will derive it from `VITE_CONVEX_URL`.
 
 Google OAuth redirect URI:
 

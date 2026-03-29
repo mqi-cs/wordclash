@@ -22,6 +22,13 @@ export default defineSchema({
     .index("phone", ["phone"])
     .index("by_username", ["username"]),
 
+  usernameClaims: defineTable({
+    username: v.string(),
+    userId: v.optional(v.id("users")),
+  })
+    .index("by_username", ["username"])
+    .index("by_user", ["userId"]),
+
   // User Statistics
   userStats: defineTable({
     userId: v.id("users"),

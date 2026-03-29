@@ -81,9 +81,15 @@ Google sign-in is wired into Convex Auth, but it only appears when the required 
 - Set frontend env var:
   - `VITE_ENABLE_GOOGLE_AUTH=true`
   - `VITE_SITE_URL=https://wordclash.co`
+  - `VITE_CONVEX_SITE_URL=https://<your-deployment>.convex.site` or your custom Convex auth/site domain if you configure one
 - In Google Cloud Console, add the OAuth redirect URI:
   - `https://auth.wordclash.co/api/auth/callback/google` when using a custom auth domain
   - Otherwise keep the current Convex-hosted callback URL until the custom domain is ready
+
+`VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` serve different purposes:
+- `VITE_CONVEX_URL` is the Convex client deployment URL used by the React client.
+- `VITE_CONVEX_SITE_URL` is the HTTP-actions base URL used by the custom password signup endpoint.
+- The app currently falls back to deriving the site URL from `VITE_CONVEX_URL` if `VITE_CONVEX_SITE_URL` is missing, so adding `VITE_CONVEX_SITE_URL` is additive and should not change existing Google auth behavior.
 
 For production, make sure the same Google OAuth credentials and redirect URI setup are applied to the production Convex deployment as well.
 

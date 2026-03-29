@@ -1,9 +1,10 @@
 import { createAccount } from "@convex-dev/auth/server";
-import { httpAction, internalQuery } from "./_generated/server";
+import { httpAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { assertValidEmail, assertValidPassword, assertValidUsername } from "./authShared";
 import { rateLimiter } from "./rateLimits";
+import { reserveUsername, USERNAME_TAKEN_ERROR } from "./usernames";
 
 const PASSWORD_PROVIDER = "password";
 const SIGNUP_ROUTE = "/api/auth/password-signup";
@@ -98,30 +99,38 @@ const getClientIp = (request: Request) => {
 const isDuplicateSignupError = (error: unknown) =>
   error instanceof Error && error.message.includes("already exists");
 
-export const findExistingSignupIdentity = internalQuery({
-  args: { email: v.string() },
+export const preparePasswordSignup = internalMutation({
+  args: { email: v.string(), username: v.string() },
   handler: async (ctx, args) => {
+    const normalizedEmail = assertValidEmail(args.email);
+    const normalizedUsername = assertValidUsername(args.username);
+
     const existingPasswordAccount = await ctx.db
       .query("authAccounts")
       .withIndex("providerAndAccountId", (q) =>
-        q.eq("provider", PASSWORD_PROVIDER).eq("providerAccountId", args.email),
+        q.eq("provider", PASSWORD_PROVIDER).eq("providerAccountId", normalizedEmail),
       )
       .unique();
 
     if (existingPasswordAccount) {
-      return { kind: "passwordAccount" as const };
+      throw new Error("An account with this email already exists");
     }
 
     const existingUsers = await ctx.db
       .query("users")
-      .withIndex("email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", normalizedEmail))
       .take(1);
 
     if (existingUsers.length > 0) {
-      return { kind: "userEmail" as const };
+      throw new Error("An account with this email already exists");
     }
 
-    return null;
+    await reserveUsername(ctx.db, normalizedUsername);
+
+    return {
+      email: normalizedEmail,
+      username: normalizedUsername,
+    };
   },
 });
 
@@ -178,16 +187,6 @@ export const passwordSignup = httpAction(async (ctx, request) => {
     );
   }
 
-  const existingIdentity:
-    | { kind: "passwordAccount" | "userEmail" }
-    | null = await ctx.runQuery(internal.passwordSignup.findExistingSignupIdentity, {
-    email: normalizedEmail,
-  });
-
-  if (existingIdentity) {
-    return jsonResponse(409, { error: "An account with this email already exists" }, origin);
-  }
-
   const clientIp = getClientIp(request);
   const rateLimitStatus = await rateLimiter.limit(ctx, "ipSignUps", { key: clientIp });
   if (!rateLimitStatus.ok) {
@@ -205,21 +204,52 @@ export const passwordSignup = httpAction(async (ctx, request) => {
     );
   }
 
+  let reservedUsername: string | null = null;
+  let accountCreated = false;
+
   try {
-    await createAccount(ctx, {
+    const prepared: {
+      email: string;
+      username: string;
+    } = await ctx.runMutation(internal.passwordSignup.preparePasswordSignup, {
+      email: normalizedEmail,
+      username: normalizedUsername,
+    });
+
+    reservedUsername = prepared.username;
+
+    const { user } = await createAccount(ctx, {
       provider: PASSWORD_PROVIDER,
-      account: { id: normalizedEmail, secret: password },
+      account: { id: prepared.email, secret: password },
       profile: {
-        email: normalizedEmail,
-        name: normalizedUsername,
-        username: normalizedUsername,
+        email: prepared.email,
+        name: prepared.username,
+        username: prepared.username,
       },
       shouldLinkViaEmail: false,
       shouldLinkViaPhone: false,
     });
+
+    accountCreated = true;
+    await ctx.runMutation(internal.usernames.attachUsernameToUser, {
+      username: prepared.username,
+      userId: user._id,
+    });
   } catch (error) {
+    if (reservedUsername && !accountCreated) {
+      await ctx.runMutation(internal.usernames.releaseSignupUsernameReservation, {
+        username: reservedUsername,
+      });
+    }
+
+    if (error instanceof Error && error.message === USERNAME_TAKEN_ERROR) {
+      return jsonResponse(409, { error: USERNAME_TAKEN_ERROR }, origin);
+    }
     if (isDuplicateSignupError(error)) {
       return jsonResponse(409, { error: "An account with this email already exists" }, origin);
+    }
+    if (error instanceof Error && error.message === "An account with this email already exists") {
+      return jsonResponse(409, { error: error.message }, origin);
     }
     throw error;
   }
