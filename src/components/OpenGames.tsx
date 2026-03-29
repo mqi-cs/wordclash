@@ -18,7 +18,7 @@ import { Play, Users, Clock, Crown, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface OpenGamesProps {
   onResumeGame: (gameId: string) => void;
@@ -27,8 +27,17 @@ interface OpenGamesProps {
 export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
   const { user } = useAuth();
   const games = useQuery(api.games.getMyGames);
+  const cleanupStaleWaitingGames = useMutation(api.games.cleanupStaleWaitingGames);
   const deleteGame = useMutation(api.games.deleteGame);
   const [deletingGameId, setDeletingGameId] = useState<Id<"games"> | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    void cleanupStaleWaitingGames({}).catch(() => null);
+  }, [cleanupStaleWaitingGames, user]);
 
   const handleDeleteGame = async (gameId: Id<"games">) => {
     setDeletingGameId(gameId);

@@ -9,56 +9,70 @@ export const UserStats = () => {
   // Fetch stats directly from Convex. Null means not loaded, undefined means no stats yet.
   const stats = useQuery(api.stats.getMyStats);
 
-  if (!user || stats === undefined) return <div className="p-4 text-center">Loading stats...</div>;
-  if (stats === null) return <div className="p-4 text-center">Play a game to see your stats!</div>;
+  if (!user || stats === undefined) {
+    return <div className="rounded-[1.5rem] border border-border/70 bg-card/60 p-4 text-center text-muted-foreground">Loading stats...</div>;
+  }
+  if (stats === null) {
+    return <div className="rounded-[1.5rem] border border-border/70 bg-card/60 p-4 text-center text-muted-foreground">Play a game to see your stats!</div>;
+  }
+
+  const modes = [
+    {
+      label: "Classic",
+      accent: "bg-[hsl(var(--menu-classic))]",
+      won: stats.classic_won || 0,
+      played: stats.classic_played || 0,
+    },
+    {
+      label: "Hard",
+      accent: "bg-[hsl(var(--menu-hard))]",
+      won: stats.hard_won || 0,
+      played: stats.hard_played || 0,
+    },
+    {
+      label: "Timed",
+      accent: "bg-[hsl(var(--menu-timed))]",
+      won: stats.timed_won || 0,
+      played: stats.timed_played || 0,
+    },
+    {
+      label: "Multiplayer",
+      accent: "bg-[hsl(var(--menu-multiplayer))]",
+      won: stats.multiplayer_won || 0,
+      played: stats.multiplayer_played || 0,
+    },
+  ];
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Game Mode Stats</CardTitle>
+      <Card className="border-border/70 bg-card/70">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-2xl tracking-tight">Game Mode Stats</CardTitle>
+          <p className="text-sm text-muted-foreground">Your win rates across every WordClash queue.</p>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex justify-between">
-            <span>Classic Mode:</span>
-            <span>
-              {stats.classic_won || 0}/{stats.classic_played || 0} (
-              {stats.classic_played && stats.classic_played > 0
-                ? Math.round(((stats.classic_won || 0) / stats.classic_played) * 100)
-                : 0}
-              %)
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Hard Mode:</span>
-            <span>
-              {stats.hard_won || 0}/{stats.hard_played || 0} (
-              {stats.hard_played && stats.hard_played > 0
-                ? Math.round(((stats.hard_won || 0) / stats.hard_played) * 100)
-                : 0}
-              %)
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Timed Mode:</span>
-            <span>
-              {stats.timed_won || 0}/{stats.timed_played || 0} (
-              {stats.timed_played && stats.timed_played > 0
-                ? Math.round(((stats.timed_won || 0) / stats.timed_played) * 100)
-                : 0}
-              %)
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Multiplayer:</span>
-            <span>
-              {stats.multiplayer_won || 0}/{stats.multiplayer_played || 0} (
-              {stats.multiplayer_played && stats.multiplayer_played > 0
-                ? Math.round(((stats.multiplayer_won || 0) / stats.multiplayer_played) * 100)
-                : 0}
-              %)
-            </span>
-          </div>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          {modes.map((mode) => {
+            const percentage = mode.played > 0 ? Math.round((mode.won / mode.played) * 100) : 0;
+
+            return (
+              <div key={mode.label} className="rounded-[1.35rem] border border-border/70 bg-background/55 p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-3 w-3 rounded-full ${mode.accent}`} />
+                    <span className="font-semibold">{mode.label}</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">{mode.won}/{mode.played}</span>
+                </div>
+                <div className="mb-3 flex items-end justify-between">
+                  <span className="text-3xl font-black tracking-tight">{percentage}%</span>
+                  <span className="text-sm text-muted-foreground">win rate</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className={`h-full rounded-full ${mode.accent}`} style={{ width: `${percentage}%` }} />
+                </div>
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
     </div>

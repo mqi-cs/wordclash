@@ -160,6 +160,116 @@ export const auditUsernameIntegrity = internalQuery({
   },
 });
 
+export const repairUsernameIntegrity = internalMutation({
+  args: {
+    limit: v.optional(v.number()),
+    pruneUnattachedClaims: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const limit = clampAuditLimit(args.limit);
+    const pruneUnattachedClaims = args.pruneUnattachedClaims ?? false;
+    const users = await ctx.db.query("users").take(limit);
+    const claims = await ctx.db.query("usernameClaims").take(limit);
+
+    const usersById = new Map(users.map((user) => [user._id, user]));
+    const claimsByUsername = new Map(claims.map((claim) => [claim.username, claim]));
+    const exactUsernameMap = new Map<string, string[]>();
+
+    for (const user of users) {
+      if (!user.username) {
+        continue;
+      }
+
+      const matches = exactUsernameMap.get(user.username) ?? [];
+      matches.push(user._id);
+      exactUsernameMap.set(user.username, matches);
+    }
+
+    const duplicateUsernames = new Set(
+      Array.from(exactUsernameMap.entries())
+        .filter(([, userIds]) => userIds.length > 1)
+        .map(([username]) => username),
+    );
+
+    let deletedClaimsWithoutUsers = 0;
+    let deletedMismatchedClaims = 0;
+    let deletedUnattachedClaims = 0;
+    let insertedMissingClaims = 0;
+    let patchedClaimsToCorrectUsers = 0;
+    let skippedDuplicateUsernames = 0;
+
+    for (const claim of claims) {
+      if (claim.userId && !usersById.has(claim.userId)) {
+        await ctx.db.delete(claim._id);
+        deletedClaimsWithoutUsers += 1;
+        claimsByUsername.delete(claim.username);
+        continue;
+      }
+
+      if (!claim.userId) {
+        if (pruneUnattachedClaims) {
+          await ctx.db.delete(claim._id);
+          deletedUnattachedClaims += 1;
+          claimsByUsername.delete(claim.username);
+        }
+        continue;
+      }
+
+      const user = usersById.get(claim.userId);
+      if (!user || user.username !== claim.username) {
+        await ctx.db.delete(claim._id);
+        deletedMismatchedClaims += 1;
+        claimsByUsername.delete(claim.username);
+      }
+    }
+
+    for (const user of users) {
+      if (!user.username) {
+        continue;
+      }
+
+      if (duplicateUsernames.has(user.username)) {
+        skippedDuplicateUsernames += 1;
+        continue;
+      }
+
+      const existingClaim = claimsByUsername.get(user.username);
+      if (!existingClaim) {
+        const claimId = await ctx.db.insert("usernameClaims", {
+          username: user.username,
+          userId: user._id,
+        });
+        insertedMissingClaims += 1;
+        claimsByUsername.set(user.username, {
+          _id: claimId,
+          _creationTime: Date.now(),
+          username: user.username,
+          userId: user._id,
+        });
+        continue;
+      }
+
+      if (existingClaim.userId !== user._id) {
+        await ctx.db.patch(existingClaim._id, { userId: user._id });
+        patchedClaimsToCorrectUsers += 1;
+      }
+    }
+
+    return {
+      limitApplied: limit,
+      scannedUsers: users.length,
+      scannedClaims: claims.length,
+      pruneUnattachedClaims,
+      deletedClaimsWithoutUsers,
+      deletedMismatchedClaims,
+      deletedUnattachedClaims,
+      insertedMissingClaims,
+      patchedClaimsToCorrectUsers,
+      skippedDuplicateUsernames,
+    };
+  },
+});
+
 export const migrateLegacyNamesToUsername = internalMutation({
   args: {},
   handler: async (ctx) => {

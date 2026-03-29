@@ -28,11 +28,11 @@ const formatDate = (timestamp: number) => {
 
 const GameResultRow = ({ result, index }: { result: GameResult; index: number }) => {
   return (
-    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+    <div className="flex items-center justify-between rounded-[1.35rem] border border-border/70 bg-background/55 p-4 transition-colors hover:bg-accent/70">
       <div className="flex items-center gap-4">
         <span className="text-sm font-medium text-muted-foreground w-6">#{index + 1}</span>
         {result.won ? (
-          <CheckCircle className="w-5 h-5 text-green-600" />
+          <CheckCircle className="w-5 h-5 text-[hsl(var(--menu-classic))]" />
         ) : (
           <XCircle className="w-5 h-5 text-destructive" />
         )}
@@ -49,7 +49,7 @@ const GameResultRow = ({ result, index }: { result: GameResult; index: number })
       <div className="flex items-center gap-4">
         {result.mode === "timed" ? (
           <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-amber-600" />
+            <Trophy className="w-4 h-4 text-amber-400" />
             <span className="text-sm font-bold">{result.wordsCompleted || 0}</span>
             <span className="text-xs text-muted-foreground">words</span>
           </div>
@@ -62,7 +62,7 @@ const GameResultRow = ({ result, index }: { result: GameResult; index: number })
         )}
         
         <div className="flex items-center gap-2 min-w-[80px] justify-end">
-          <div className="w-4 h-4 bg-green-600 rounded-sm" />
+          <div className="w-4 h-4 rounded-sm bg-[hsl(var(--menu-classic))]" />
           <span className="text-sm font-bold">{result.greenLetters}</span>
         </div>
       </div>
@@ -96,10 +96,10 @@ const ModeLeaderboard = ({ mode }: { mode: GameMode }) => {
 export const Leaderboard = ({ open, onClose }: LeaderboardProps) => {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto border-border/70 bg-card/90">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-600" />
+            <Trophy className="w-5 h-5 text-amber-400" />
             Game History
           </DialogTitle>
         </DialogHeader>
@@ -111,13 +111,13 @@ export const Leaderboard = ({ open, onClose }: LeaderboardProps) => {
               Guesses/Words
             </span>
             <span className="flex items-center gap-1 min-w-[80px] justify-end">
-              <div className="w-3 h-3 bg-green-600 rounded-sm" />
+              <div className="w-3 h-3 rounded-sm bg-[hsl(var(--menu-classic))]" />
               Green Letters
             </span>
           </div>
           
           <Tabs defaultValue="classic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-3 rounded-2xl border border-border/70 bg-background/60 p-1">
               <TabsTrigger value="classic">Classic</TabsTrigger>
               <TabsTrigger value="hard">Hard</TabsTrigger>
               <TabsTrigger value="timed">Timed</TabsTrigger>

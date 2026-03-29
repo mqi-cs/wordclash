@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
@@ -50,12 +51,15 @@ const signInSchema = z.object({
 });
 
 const getErrorMessage = (error: { message: unknown }) => String(error.message);
+const USERNAME_TAKEN_ERROR = "Username is already taken";
+const USERNAME_TAKEN_MESSAGE = "That username is already in use. Please choose another one.";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signUp, signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
@@ -66,6 +70,7 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setUsernameError(null);
     console.log(`[AUTH DEBUG] Attempting to ${isSignUp ? 'Sign Up' : 'Sign In'}...`);
 
     try {
@@ -92,6 +97,10 @@ const Auth = () => {
         
         if (response?.error) {
           console.error("[AUTH DEBUG] signUp returned an error object:", response.error);
+          if (response.error === USERNAME_TAKEN_ERROR) {
+            setUsernameError(USERNAME_TAKEN_MESSAGE);
+            return;
+          }
           if (response.retryAt) {
             const retryTime = new Date(response.retryAt).toLocaleTimeString();
             throw new Error(`Too many signups from this IP. Try again at ${retryTime}.`);
@@ -193,11 +202,18 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_28%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,hsl(var(--menu-classic)/0.12),transparent_18%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--background-alt)))]" />
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+
+      <Card className="w-full max-w-md border-border/70 bg-card/75">
         <CardHeader>
-          <CardTitle>{isSignUp ? "Create Account" : "Sign In"}</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-3xl tracking-tight">{isSignUp ? "Create Account" : "Sign In"}</CardTitle>
+          <CardDescription className="leading-6">
             {isSignUp
               ? "Enter your details to create a new account"
               : "Enter your credentials to access your account"}
@@ -209,7 +225,7 @@ const Auth = () => {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full"
+                className="w-full bg-background/60"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
               >
@@ -256,11 +272,23 @@ const Auth = () => {
                       id="username"
                       type="text"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      onChange={(e) => {
+                        setUsername(e.target.value);
+                        if (usernameError) {
+                          setUsernameError(null);
+                        }
+                      }}
                       required
                       minLength={3}
                       maxLength={20}
+                      aria-invalid={Boolean(usernameError)}
+                      className={usernameError ? "border-destructive focus-visible:ring-destructive" : undefined}
                     />
+                    {usernameError && (
+                      <p className="text-sm text-destructive" role="alert">
+                        {usernameError}
+                      </p>
+                    )}
                   </div>
                 )}
                 <div className="space-y-2">
@@ -292,7 +320,10 @@ const Auth = () => {
                   variant="ghost"
                   className="w-full"
                   disabled={loading}
-                  onClick={() => setIsSignUp(!isSignUp)}
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setUsernameError(null);
+                  }}
                 >
                   {isSignUp
                     ? "Already have an account? Sign In"

@@ -17,35 +17,36 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 15%;
+    color-scheme: light;
+    --background: 210 33% 98%;
+    --foreground: 222 38% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 15%;
+    --card-foreground: 222 38% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 15%;
+    --popover-foreground: 222 38% 12%;
 
-    --primary: 0 0% 15%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 198 93% 48%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 15%;
+    --secondary: 210 28% 94%;
+    --secondary-foreground: 222 28% 16%;
 
-    --muted: 0 0% 88%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 210 28% 92%;
+    --muted-foreground: 220 12% 42%;
 
-    --accent: 0 0% 88%;
-    --accent-foreground: 0 0% 15%;
+    --accent: 197 67% 92%;
+    --accent-foreground: 222 28% 16%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --ring: 0 0% 15%;
+    --border: 214 22% 88%;
+    --input: 214 22% 88%;
+    --ring: 198 93% 48%;
 
-    --radius: 0.375rem;
+    --radius: 1rem;
 
 /* WordClash Game Colors */
     --game-correct: 115 60% 45%;
@@ -58,10 +59,11 @@ All colors MUST be HSL.
     --game-key-bg: 0 0% 88%;
     
     /* Menu Colors */
-    --menu-classic: 142 76% 36%;
-    --menu-hard: 0 84% 60%;
-    --menu-timed: 217 91% 60%;
-    --menu-multiplayer: 160 85% 50%;
+    --menu-classic: 158 72% 40%;
+    --menu-hard: 4 87% 58%;
+    --menu-timed: 198 93% 48%;
+    --menu-multiplayer: 218 86% 60%;
+    --background-alt: 210 45% 95%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -74,49 +76,51 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 0 0% 10%;
-    --foreground: 0 0% 95%;
+    color-scheme: dark;
+    --background: 222 31% 7%;
+    --foreground: 210 40% 96%;
 
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 223 28% 11%;
+    --card-foreground: 210 40% 96%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 223 28% 10%;
+    --popover-foreground: 210 40% 96%;
 
-    --primary: 0 0% 95%;
-    --primary-foreground: 0 0% 10%;
+    --primary: 192 100% 63%;
+    --primary-foreground: 222 44% 8%;
 
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 223 18% 15%;
+    --secondary-foreground: 210 40% 96%;
 
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 223 16% 14%;
+    --muted-foreground: 215 15% 69%;
 
-    --accent: 0 0% 18%;
-    --accent-foreground: 0 0% 95%;
+    --accent: 223 18% 16%;
+    --accent-foreground: 210 40% 96%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 0 0% 95%;
+    --destructive: 0 78% 64%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 0 0% 85%;
+    --border: 223 15% 20%;
+    --input: 223 15% 20%;
+    --ring: 192 100% 63%;
 
 /* WordClash Game Colors - Dark Mode */
-    --game-correct: 115 60% 45%;
-    --game-present: 45 100% 51%;
-    --game-absent: 0 0% 40%;
-    --game-empty: 0 0% 18%;
-    --game-border: 0 0% 30%;
-    --game-border-active: 0 0% 50%;
-    --game-text: 0 0% 95%;
-    --game-key-bg: 0 0% 30%;
+    --game-correct: 149 62% 43%;
+    --game-present: 45 96% 58%;
+    --game-absent: 222 8% 37%;
+    --game-empty: 223 16% 14%;
+    --game-border: 223 13% 24%;
+    --game-border-active: 192 100% 63%;
+    --game-text: 210 40% 96%;
+    --game-key-bg: 223 16% 18%;
     
     /* Menu Colors - Dark Mode */
-    --menu-classic: 142 76% 36%;
-    --menu-hard: 0 84% 60%;
-    --menu-timed: 217 91% 60%;
-    --menu-multiplayer: 160 85% 50%;
+    --menu-classic: 158 72% 44%;
+    --menu-hard: 4 87% 62%;
+    --menu-timed: 192 100% 63%;
+    --menu-multiplayer: 218 86% 66%;
+    --background-alt: 223 26% 9%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -136,5 +140,17 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at top, hsl(var(--primary) / 0.12), transparent 30%),
+      radial-gradient(circle at 80% 20%, hsl(var(--menu-classic) / 0.09), transparent 20%),
+      linear-gradient(135deg, hsl(var(--background)), hsl(var(--background-alt)));
+    background-attachment: fixed;
+    font-feature-settings: "liga" 1, "kern" 1;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
   }
 }

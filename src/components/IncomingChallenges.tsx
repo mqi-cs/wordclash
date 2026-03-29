@@ -14,6 +14,7 @@ export const IncomingChallenges = () => {
   
   const challenges = useQuery(api.games.getIncomingInvitations);
   const acceptInvitation = useMutation(api.games.acceptInvitation);
+  const declineInvitation = useMutation(api.games.declineInvitation);
 
   const [processingChallenge, setProcessingChallenge] = useState<string | null>(null);
 
@@ -29,6 +30,19 @@ export const IncomingChallenges = () => {
     } catch (error: any) {
       if (import.meta.env.DEV) console.error("Error accepting challenge:", error);
       toast.error(error.message || "Failed to accept challenge");
+    } finally {
+      setProcessingChallenge(null);
+    }
+  };
+
+  const handleDecline = async (invitationId: string) => {
+    setProcessingChallenge(invitationId);
+    try {
+      await declineInvitation({ invitationId: invitationId as any });
+      toast.success("Challenge declined");
+    } catch (error: any) {
+      if (import.meta.env.DEV) console.error("Error declining challenge:", error);
+      toast.error(error.message || "Failed to decline challenge");
     } finally {
       setProcessingChallenge(null);
     }
@@ -66,7 +80,15 @@ export const IncomingChallenges = () => {
                   <Check className="h-4 w-4 mr-1" />
                   {processingChallenge === challenge._id ? "Processing..." : "Accept & Play"}
                 </Button>
-                {/* Convex doesn't have a decline invite function yet, so we could add one if needed. Or just leave it open. */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDecline(challenge._id)}
+                  disabled={processingChallenge === challenge._id}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  {processingChallenge === challenge._id ? "Processing..." : "Decline"}
+                </Button>
               </div>
             </div>
           ))}

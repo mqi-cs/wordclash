@@ -7,6 +7,7 @@ import { getRandomTargetWord } from "./shared/gameLogic";
 const MAX_MULTIPLAYER_PLAYERS = 4;
 const LOBBY_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const LOBBY_CODE_LENGTH = 6;
+const STALE_WAITING_GAME_MS = 1000 * 60 * 60 * 24;
 
 type GameDoc = Doc<"games">;
 type UserSummary = {
@@ -34,6 +35,9 @@ const getNextOpenSlot = (game: GameDoc) => {
 
 const getDisplayName = (user: Doc<"users"> | null) =>
   user?.username ?? user?.name ?? user?.googleName ?? "Unknown User";
+
+const isWaitingGameStale = (game: GameDoc, now = Date.now()) =>
+  game.status === "waiting" && now - game._creationTime >= STALE_WAITING_GAME_MS;
 
 const buildPlayerSummaries = async (
   ctx: QueryCtx,
@@ -97,35 +101,6 @@ const joinMultiplayerLobby = async (
   return game._id;
 };
 
-const joinGameById = async (
-  ctx: MutationCtx,
-  gameId: Id<"games">,
-  userId: Id<"users">,
-) => {
-  const game = await ctx.db.get(gameId);
-  if (!game) throw new Error("Game not found");
-
-  if (game.gameType === "multiplayer") {
-    return await joinMultiplayerLobby(ctx, game, userId);
-  }
-
-  if (game.player1Id === userId || game.player2Id === userId) {
-    return game._id;
-  }
-
-  if (game.player2Id) {
-    throw new Error("Game is full");
-  }
-
-  await ctx.db.patch(game._id, {
-    player2Id: userId,
-    status: "in_progress",
-    startedAt: Date.now(),
-  });
-
-  return game._id;
-};
-
 const deleteGameArtifacts = async (ctx: MutationCtx, gameId: Id<"games">) => {
   const secret = await ctx.db
     .query("gameSecrets")
@@ -149,6 +124,69 @@ const deleteGameArtifacts = async (ctx: MutationCtx, gameId: Id<"games">) => {
   }
 };
 
+const deleteGameWithArtifacts = async (ctx: MutationCtx, gameId: Id<"games">) => {
+  await deleteGameArtifacts(ctx, gameId);
+  await ctx.db.delete(gameId);
+};
+
+const ensureGameIsNotStale = async (ctx: MutationCtx, game: GameDoc) => {
+  if (!isWaitingGameStale(game)) {
+    return;
+  }
+
+  await deleteGameWithArtifacts(ctx, game._id);
+  throw new Error("This waiting game expired.");
+};
+
+const cleanupStaleWaitingGamesImpl = async (ctx: MutationCtx) => {
+  const now = Date.now();
+  const waitingGames = await ctx.db
+    .query("games")
+    .withIndex("by_status", (q) => q.eq("status", "waiting"))
+    .take(100);
+
+  let deletedCount = 0;
+  for (const game of waitingGames) {
+    if (!isWaitingGameStale(game, now)) {
+      continue;
+    }
+    await deleteGameWithArtifacts(ctx, game._id);
+    deletedCount += 1;
+  }
+
+  return { deletedCount };
+};
+
+const joinGameById = async (
+  ctx: MutationCtx,
+  gameId: Id<"games">,
+  userId: Id<"users">,
+) => {
+  const game = await ctx.db.get(gameId);
+  if (!game) throw new Error("Game not found");
+  await ensureGameIsNotStale(ctx, game);
+
+  if (game.gameType === "multiplayer") {
+    return await joinMultiplayerLobby(ctx, game, userId);
+  }
+
+  if (game.player1Id === userId || game.player2Id === userId) {
+    return game._id;
+  }
+
+  if (game.player2Id) {
+    throw new Error("Game is full");
+  }
+
+  await ctx.db.patch(game._id, {
+    player2Id: userId,
+    status: "in_progress",
+    startedAt: Date.now(),
+  });
+
+  return game._id;
+};
+
 const canDeleteGame = (game: GameDoc, userId: Id<"users">) =>
   game.player1Id === userId &&
   game.status === "waiting" &&
@@ -160,6 +198,7 @@ export const getMyGames = query({
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) return [];
+    const now = Date.now();
 
     const [asPlayer1, asPlayer2, asPlayer3, asPlayer4] = await Promise.all([
       ctx.db.query("games").withIndex("by_player1", (q) => q.eq("player1Id", userId)).take(20),
@@ -170,7 +209,10 @@ export const getMyGames = query({
 
     const uniqueGames = new Map<Id<"games">, GameDoc>();
     for (const game of [...asPlayer1, ...asPlayer2, ...asPlayer3, ...asPlayer4]) {
-      if (game.status === "waiting" || game.status === "in_progress") {
+      if (
+        (game.status === "waiting" && !isWaitingGameStale(game, now)) ||
+        game.status === "in_progress"
+      ) {
         uniqueGames.set(game._id, game);
       }
     }
@@ -195,6 +237,7 @@ export const getGame = query({
 
     const game = await ctx.db.get(args.gameId);
     if (!game) return null;
+    if (isWaitingGameStale(game)) return null;
 
     const canPreviewWaitingLobby =
       game.gameType === "multiplayer" && game.status === "waiting";
@@ -225,8 +268,12 @@ export const getIncomingInvitations = query({
 
     const pendingInvites = invites.filter((invite) => invite.status === "pending");
 
-    return await Promise.all(
+    const inviteDetails = await Promise.all(
       pendingInvites.map(async (invitation) => {
+        const game = await ctx.db.get(invitation.gameId);
+        if (!game || isWaitingGameStale(game)) {
+          return null;
+        }
         const sender = await ctx.db.get(invitation.fromUserId);
         return {
           ...invitation,
@@ -234,6 +281,8 @@ export const getIncomingInvitations = query({
         };
       }),
     );
+
+    return inviteDetails.filter((invitation) => invitation !== null);
   },
 });
 
@@ -243,6 +292,7 @@ export const getOpenGames = query({
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) return [];
+    const now = Date.now();
 
     const waitingGames = await ctx.db
       .query("games")
@@ -251,7 +301,12 @@ export const getOpenGames = query({
 
     return await Promise.all(
       waitingGames
-        .filter((game) => game.gameType === "multiplayer" && !isParticipant(game, userId))
+        .filter(
+          (game) =>
+            game.gameType === "multiplayer" &&
+            !isWaitingGameStale(game, now) &&
+            !isParticipant(game, userId),
+        )
         .map(async (game) => {
           const host = await ctx.db.get(game.player1Id);
           return {
@@ -272,6 +327,7 @@ export const createGame = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
+    await cleanupStaleWaitingGamesImpl(ctx);
 
     const hostedGames = await ctx.db
       .query("games")
@@ -310,6 +366,7 @@ export const startGame = mutation({
 
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new Error("Game not found");
+    await ensureGameIsNotStale(ctx, game);
     if (game.gameType !== "multiplayer") throw new Error("Only multiplayer lobbies can be started.");
     if (game.player1Id !== userId) throw new Error("Only the host can start this game.");
     if (game.status !== "waiting") throw new Error("This game has already started.");
@@ -331,6 +388,9 @@ export const inviteToGame = mutation({
     if (!userId) throw new Error("Unauthorized");
 
     const game = await ctx.db.get(args.gameId);
+    if (game) {
+      await ensureGameIsNotStale(ctx, game);
+    }
     if (!game || game.player1Id !== userId) {
       throw new Error("You can only invite to your own games");
     }
@@ -354,9 +414,49 @@ export const acceptInvitation = mutation({
     if (!invitation || invitation.toUserId !== userId) {
       throw new Error("Invitation not found");
     }
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation is no longer available");
+    }
+
+    const game = await ctx.db.get(invitation.gameId);
+    if (!game) {
+      await ctx.db.delete(invitation._id);
+      throw new Error("Challenge is no longer available");
+    }
+    await ensureGameIsNotStale(ctx, game);
 
     await ctx.db.patch(invitation._id, { status: "accepted" });
     return await joinGameById(ctx, invitation.gameId, userId);
+  },
+});
+
+export const declineInvitation = mutation({
+  args: { invitationId: v.id("invitations") },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation || invitation.toUserId !== userId) {
+      throw new Error("Invitation not found");
+    }
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation is no longer available");
+    }
+
+    const game = await ctx.db.get(invitation.gameId);
+    if (
+      game &&
+      game.gameType === "challenge" &&
+      game.status === "waiting" &&
+      game.player2Id === undefined
+    ) {
+      await deleteGameWithArtifacts(ctx, game._id);
+      return { success: true };
+    }
+
+    await ctx.db.patch(invitation._id, { status: "declined" });
+    return { success: true };
   },
 });
 
@@ -375,6 +475,7 @@ export const joinGameByCode = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
+    await cleanupStaleWaitingGamesImpl(ctx);
 
     const normalizedCode = normalizeLobbyCode(args.lobbyCode);
     if (normalizedCode.length !== LOBBY_CODE_LENGTH) {
@@ -389,8 +490,18 @@ export const joinGameByCode = mutation({
     if (!game || game.gameType !== "multiplayer") {
       throw new Error("Lobby not found.");
     }
+    await ensureGameIsNotStale(ctx, game);
 
     return await joinMultiplayerLobby(ctx, game, userId);
+  },
+});
+
+export const cleanupStaleWaitingGames = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new Error("Unauthorized");
+    return await cleanupStaleWaitingGamesImpl(ctx);
   },
 });
 
@@ -402,12 +513,14 @@ export const deleteGame = mutation({
 
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new Error("Game not found");
+    if (isWaitingGameStale(game)) {
+      throw new Error("Game expired");
+    }
     if (!canDeleteGame(game, userId)) {
       throw new Error("Only the host can delete waiting challenges or waiting lobbies.");
     }
 
-    await deleteGameArtifacts(ctx, game._id);
-    await ctx.db.delete(game._id);
+    await deleteGameWithArtifacts(ctx, game._id);
 
     return { success: true };
   },

@@ -16,6 +16,7 @@ import { Id } from "../../convex/_generated/dataModel";
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
 const TURN_DURATION = 20;
+const MAX_MULTIPLAYER_PLAYERS = 4;
 const LOBBY_CODE_REGEX = /^[A-Z0-9]{6}$/;
 
 interface MultiplayerGameProps {
@@ -60,7 +61,10 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
 
   const game = useQuery(api.games.getGame, gameId ? { gameId } : "skip");
   const shouldFetchGuesses =
-    !!gameId && !(game?.status === "waiting" && game?.gameType === "multiplayer");
+    !!gameId &&
+    game !== undefined &&
+    game !== null &&
+    !(game.status === "waiting" && game.gameType === "multiplayer");
   const guesses = useQuery(
     api.guesses.getGuesses,
     shouldFetchGuesses && gameId ? { gameId } : "skip",

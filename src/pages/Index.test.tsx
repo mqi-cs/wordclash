@@ -171,7 +171,7 @@ describe("Classic Mode", () => {
         await user.click(hintButton!);
 
         await waitFor(() => {
-            expect(container.querySelector(".border-purple-600")).toBeInTheDocument();
+            expect(container.querySelector(".hint-tile")).toBeInTheDocument();
         });
 
         for (const char of "ABCDE") {
@@ -180,7 +180,7 @@ describe("Classic Mode", () => {
         fireEvent.keyDown(window, { key: "Enter" });
 
         await waitFor(() => {
-            expect(container.querySelector(".border-purple-600")).not.toBeInTheDocument();
+            expect(container.querySelector(".hint-tile")).not.toBeInTheDocument();
         });
 
         await waitFor(() => {

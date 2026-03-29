@@ -33,7 +33,7 @@ const setup = () => {
   mockUseAuth.mockReturnValue({
     signIn: mockSignIn,
     signUp: mockSignUp,
-  } as ReturnType<typeof authContext.useAuth>);
+  } as unknown as ReturnType<typeof authContext.useAuth>);
 
   render(
     <MemoryRouter>
@@ -77,5 +77,21 @@ describe("Auth page", () => {
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith("test@example.com", "password123", "New_User");
     });
+  });
+
+  it("shows a username-specific error when the selected username is already taken", async () => {
+    const user = userEvent.setup();
+    mockSignUp.mockResolvedValue({ error: "Username is already taken" });
+    setup();
+
+    await user.click(screen.getByRole("button", { name: "Don't have an account? Sign Up" }));
+    await user.type(screen.getByLabelText("Username"), "TakenName");
+    await user.type(screen.getByLabelText("Email"), "taken@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
+    await user.click(screen.getByRole("button", { name: "Sign Up" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "That username is already in use. Please choose another one.",
+    );
   });
 });

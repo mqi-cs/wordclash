@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "./ThemeToggle";
 import { useToast } from "@/hooks/use-toast";
 
 interface UsernameSetupScreenProps {
@@ -14,6 +15,7 @@ interface UsernameSetupScreenProps {
 
 export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenProps) => {
   const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const completeProfile = useMutation(api.users.completeProfile);
   const { toast } = useToast();
@@ -21,6 +23,7 @@ export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setUsernameError(null);
 
     try {
       await completeProfile({ username });
@@ -29,9 +32,15 @@ export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenPr
         description: "Your profile is ready.",
       });
     } catch (error: any) {
+      const errorMessage = error?.message || "Failed to save username";
+      if (errorMessage === "Username is already taken") {
+        setUsernameError("That username is already in use. Please choose another one.");
+        return;
+      }
+
       toast({
         title: "Error",
-        description: error.message || "Failed to save username",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -40,11 +49,19 @@ export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenPr
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_28%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,hsl(var(--menu-classic)/0.12),transparent_18%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--background-alt)))]" />
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+
+      <Card className="w-full max-w-md border-border/70 bg-card/75">
         <CardHeader>
-          <CardTitle>Choose a Username</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-3xl tracking-tight">Choose a Username</CardTitle>
+          <CardDescription className="leading-6">
+            {googleName ? `${googleName}, finish setting up your profile. ` : ""}
             {email ? `Signed in as ${email}. ` : ""}
             Choose a username to continue.
           </CardDescription>
@@ -57,12 +74,24 @@ export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenPr
                 id="complete-username"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (usernameError) {
+                    setUsernameError(null);
+                  }
+                }}
                 required
                 minLength={3}
                 maxLength={20}
                 placeholder="Enter your username"
+                aria-invalid={Boolean(usernameError)}
+                className={usernameError ? "border-destructive focus-visible:ring-destructive" : undefined}
               />
+              {usernameError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {usernameError}
+                </p>
+              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={submitting}>
