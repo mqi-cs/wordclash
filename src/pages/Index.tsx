@@ -7,14 +7,23 @@ import { GameMenu, GameMode } from "@/components/GameMenu";
 import { getRandomWord, isValidWord } from "@/lib/wordList";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trophy } from "lucide-react";
+import { ArrowLeft, Trophy, Brain, Zap, Target } from "lucide-react";
 import { Leaderboard } from "@/components/Leaderboard";
 import { saveGameResult } from "@/lib/gameHistory";
-import { getInitialBotState, updateBotState, getBotNextGuess, BotState } from "@/lib/wordClashBot";
+import { getInitialBotState, updateBotState, getBotNextGuess, BotState, BotDifficulty } from "@/lib/wordClashBot";
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
 import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -58,6 +67,8 @@ const Index = () => {
   // Bot state
   const [botActive, setBotActive] = useState(false);
   const [botState, setBotState] = useState<BotState>(getInitialBotState());
+  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>("easy");
+  const [showBotDifficultyModal, setShowBotDifficultyModal] = useState(false);
 
   // Ref to always access the latest handleEnter function from timeouts
   const handleEnterRef = useRef<() => void>(() => {});
@@ -337,12 +348,20 @@ const Index = () => {
     }
 
     if (!botActive) {
-      setBotActive(true);
-      toast.success("Bot activated! It will make guesses automatically.");
+      // Show difficulty picker instead of immediately activating
+      setShowBotDifficultyModal(true);
     } else {
       setBotActive(false);
       toast.info("Bot deactivated.");
     }
+  };
+
+  const handleSelectBotDifficulty = (difficulty: BotDifficulty) => {
+    setBotDifficulty(difficulty);
+    setBotActive(true);
+    setShowBotDifficultyModal(false);
+    const labels = { easy: "Easy", medium: "Medium", hard: "Hard" };
+    toast.success(`Bot activated on ${labels[difficulty]} difficulty!`);
   };
 
   // Bot auto-play effect
@@ -492,6 +511,7 @@ const Index = () => {
         <BotGame
           onBackToMenu={handleBackToMenu}
           gameMode={gameMode === "hard" ? "hard" : gameMode === "timed" ? "timed" : "classic"}
+          botDifficulty={botDifficulty}
         />
       </Suspense>
     );
@@ -577,6 +597,76 @@ const Index = () => {
         open={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}
       />
+
+      {/* Bot Difficulty Selection Modal */}
+      <Dialog open={showBotDifficultyModal} onOpenChange={setShowBotDifficultyModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl font-bold">Choose Bot Difficulty</DialogTitle>
+            <DialogDescription className="text-center">
+              How tough do you want your opponent?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            {/* Easy */}
+            <Card
+              className={cn(
+                "p-4 cursor-pointer border-2 transition-all duration-200",
+                "hover:border-green-500 hover:bg-green-500/5 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/10"
+              )}
+              onClick={() => handleSelectBotDifficulty("easy")}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+                  <Target className="w-6 h-6 text-green-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-green-400">Easy</h3>
+                  <p className="text-sm text-muted-foreground">Picks common letters with some randomness</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Medium */}
+            <Card
+              className={cn(
+                "p-4 cursor-pointer border-2 transition-all duration-200",
+                "hover:border-amber-500 hover:bg-amber-500/5 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/10"
+              )}
+              onClick={() => handleSelectBotDifficulty("medium")}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-amber-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-amber-400">Medium</h3>
+                  <p className="text-sm text-muted-foreground">Maximises word elimination — plays smart</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Hard */}
+            <Card
+              className={cn(
+                "p-4 cursor-pointer border-2 transition-all duration-200",
+                "hover:border-red-500 hover:bg-red-500/5 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/10"
+              )}
+              onClick={() => handleSelectBotDifficulty("hard")}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <Brain className="w-6 h-6 text-red-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-red-400">Hard</h3>
+                  <p className="text-sm text-muted-foreground">Entropy-optimal solver — sacrifices guesses for information</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
