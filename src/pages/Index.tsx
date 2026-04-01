@@ -611,18 +611,17 @@ const Index = () => {
             {/* Easy */}
             <Card
               className={cn(
-                "p-4 cursor-pointer border-2 transition-all duration-200",
+                "p-3 cursor-pointer border-2 transition-all duration-200",
                 "hover:border-green-500 hover:bg-green-500/5 hover:-translate-y-0.5"
               )}
               onClick={() => handleSelectBotDifficulty("easy")}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
                   <Target className="w-6 h-6 text-green-500" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-lg text-green-400">Easy</h3>
-                  <p className="text-sm text-muted-foreground">Picks common letters with some randomness</p>
                 </div>
               </div>
             </Card>
@@ -630,18 +629,17 @@ const Index = () => {
             {/* Medium */}
             <Card
               className={cn(
-                "p-4 cursor-pointer border-2 transition-all duration-200",
+                "p-3 cursor-pointer border-2 transition-all duration-200",
                 "hover:border-amber-500 hover:bg-amber-500/5 hover:-translate-y-0.5"
               )}
               onClick={() => handleSelectBotDifficulty("medium")}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
                   <Zap className="w-6 h-6 text-amber-500" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-lg text-amber-400">Medium</h3>
-                  <p className="text-sm text-muted-foreground">Maximises word elimination — plays smart</p>
                 </div>
               </div>
             </Card>
@@ -649,18 +647,17 @@ const Index = () => {
             {/* Hard */}
             <Card
               className={cn(
-                "p-4 cursor-pointer border-2 transition-all duration-200",
+                "p-3 cursor-pointer border-2 transition-all duration-200",
                 "hover:border-red-500 hover:bg-red-500/5 hover:-translate-y-0.5"
               )}
               onClick={() => handleSelectBotDifficulty("hard")}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
                   <Brain className="w-6 h-6 text-red-500" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-lg text-red-400">Hard</h3>
-                  <p className="text-sm text-muted-foreground">Entropy-optimal solver — sacrifices guesses for information</p>
                 </div>
               </div>
             </Card>
@@ -672,3 +669,4 @@ const Index = () => {
 };
 
 export default Index;
+
