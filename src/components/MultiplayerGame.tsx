@@ -602,7 +602,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
       {isChallenge ? renderChallengeBoard() : renderMultiplayerBoards()}
 
       {game.status === "finished" && (
-        <Card className="w-full max-w-md p-6 text-center shadow-lg border-primary/20 bg-background/95 backdrop-blur z-10 animate-in slide-in-from-bottom-8">
+        <Card className="w-full max-w-md p-6 text-center border-primary/20 bg-background/95 backdrop-blur z-10 animate-in slide-in-from-bottom-8">
           <h2 className="text-2xl font-bold mb-4">
             {winningBoard
               ? winningBoard.id === user?.id

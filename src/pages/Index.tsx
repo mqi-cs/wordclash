@@ -612,7 +612,7 @@ const Index = () => {
             <Card
               className={cn(
                 "p-4 cursor-pointer border-2 transition-all duration-200",
-                "hover:border-green-500 hover:bg-green-500/5 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/10"
+                "hover:border-green-500 hover:bg-green-500/5 hover:-translate-y-0.5"
               )}
               onClick={() => handleSelectBotDifficulty("easy")}
             >
@@ -631,7 +631,7 @@ const Index = () => {
             <Card
               className={cn(
                 "p-4 cursor-pointer border-2 transition-all duration-200",
-                "hover:border-amber-500 hover:bg-amber-500/5 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/10"
+                "hover:border-amber-500 hover:bg-amber-500/5 hover:-translate-y-0.5"
               )}
               onClick={() => handleSelectBotDifficulty("medium")}
             >
@@ -650,7 +650,7 @@ const Index = () => {
             <Card
               className={cn(
                 "p-4 cursor-pointer border-2 transition-all duration-200",
-                "hover:border-red-500 hover:bg-red-500/5 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/10"
+                "hover:border-red-500 hover:bg-red-500/5 hover:-translate-y-0.5"
               )}
               onClick={() => handleSelectBotDifficulty("hard")}
             >

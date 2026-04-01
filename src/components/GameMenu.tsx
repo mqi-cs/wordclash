@@ -54,7 +54,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
         {/* Header */}
         <div className="space-y-5 text-center animate-fade-in">
           <div className="mb-2 flex items-center justify-center gap-3">
-            <div className="rounded-full border border-border/80 bg-card/50 p-4 shadow-[0_0_40px_hsl(var(--primary)/0.18)] backdrop-blur">
+            <div className="rounded-full border border-border/80 bg-card/50 p-4 backdrop-blur">
               <Trophy className="h-10 w-10 text-primary animate-pulse" />
             </div>
           </div>
@@ -120,7 +120,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
         <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
           {/* Classic Mode */}
           <Card
-            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))] hover:shadow-[0_30px_80px_-34px_hsl(var(--menu-classic)/0.5)]"
+            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]"
             onClick={() => onSelectMode("classic")}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-classic))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -155,7 +155,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               </ul>
 
               <Button
-                className="w-full bg-[hsl(var(--menu-classic))] font-semibold uppercase tracking-[0.18em] text-white shadow-lg hover:bg-[hsl(var(--menu-classic))]/90"
+                className="w-full bg-[hsl(var(--menu-classic))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-classic))]/90"
                 size="lg"
                 onClick={() => onSelectMode("classic")}
               >
@@ -166,7 +166,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
 
           {/* Hard Mode */}
           <Card
-            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))] hover:shadow-[0_30px_80px_-34px_hsl(var(--menu-hard)/0.5)]"
+            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]"
             onClick={() => onSelectMode("hard")}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-hard))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -201,7 +201,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               </ul>
 
               <Button
-                className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white shadow-lg hover:bg-[hsl(var(--menu-hard))]/90"
+                className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90"
                 size="lg"
                 onClick={() => onSelectMode("hard")}
               >
@@ -212,7 +212,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
 
           {/* Timed Mode */}
           <Card
-            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))] hover:shadow-[0_30px_80px_-34px_hsl(var(--menu-timed)/0.5)]"
+            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]"
             onClick={() => onSelectMode("timed")}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-timed))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -247,7 +247,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               </ul>
 
               <Button
-                className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] shadow-lg hover:bg-[hsl(var(--menu-timed))]/90"
+                className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90"
                 size="lg"
                 onClick={() => onSelectMode("timed")}
               >
@@ -259,7 +259,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
 
         {/* Multiplayer Mode - Full Width */}
         <Card
-          className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] hover:shadow-[0_30px_80px_-34px_hsl(var(--menu-multiplayer)/0.5)] animate-scale-in"
+          className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] animate-scale-in"
           onClick={() => {
             if (!user) {
               toast.error("Please sign in or create an account to play Multiplayer modes!");
@@ -302,7 +302,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               </div>
 
               <Button
-                className="w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] shadow-lg hover:bg-[hsl(var(--menu-multiplayer))]/90 md:w-auto"
+                className="w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:w-auto"
                 size="lg"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent the card onClick from firing twice

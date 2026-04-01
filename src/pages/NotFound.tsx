@@ -21,7 +21,7 @@ const NotFound = () => {
         <ThemeToggle />
       </div>
 
-      <div className="rounded-[1.75rem] border border-border/80 bg-card/75 px-8 py-10 text-center shadow-[0_18px_50px_-24px_hsl(223_70%_2%_/_0.85)] backdrop-blur-xl">
+      <div className="rounded-[1.75rem] border border-border/80 bg-card/75 px-8 py-10 text-center backdrop-blur-xl">
         <h1 className="mb-3 bg-gradient-to-r from-foreground to-primary/75 bg-clip-text text-5xl font-black tracking-[-0.08em] text-transparent">
           404
         </h1>

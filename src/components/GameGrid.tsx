@@ -42,7 +42,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }
         !shouldAnimateReveal && status === "present" && "bg-game-present border-game-present text-white",
         !shouldAnimateReveal && status === "absent" && "bg-game-absent border-game-absent text-white",
         shouldAnimateReveal && "border-game-border bg-game-empty text-game-text animate-flip-reveal",
-        isHint && "hint-tile border-primary bg-primary text-primary-foreground shadow-[0_0_26px_hsl(var(--primary)/0.4)]"
+        isHint && "hint-tile border-primary bg-primary text-primary-foreground"
       )}
       style={{
         ...(shouldAnimateReveal ? revealedTileStyles[status] : {}),
