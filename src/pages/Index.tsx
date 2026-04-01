@@ -97,6 +97,10 @@ const Index = () => {
       const currentStatus = newStatus[letter];
       const newLetterStatus = evaluation[i];
 
+      if (gameMode === "hard" && newLetterStatus !== "correct") {
+        return;
+      }
+
       // Only update if new status is better (correct > present > absent)
       if (!currentStatus ||
         (currentStatus === "absent" && newLetterStatus !== "absent") ||
@@ -166,6 +170,7 @@ const Index = () => {
           setGuesses([]);
           setCurrentGuess("");
           setEvaluations([]);
+          setLetterStatus({});
           // Reset hint state without showing extra messages
           setActiveHint(null);
           // Reset bot state for new word in timed mode

@@ -98,6 +98,10 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty }: BotGameProps)
       const currentStatus = newStatus[letter];
       const newLetterStatus = evaluation[i];
 
+      if (gameMode === "hard" && newLetterStatus !== "correct") {
+        return;
+      }
+
       if (
         !currentStatus ||
         (currentStatus === "absent" && newLetterStatus !== "absent") ||
