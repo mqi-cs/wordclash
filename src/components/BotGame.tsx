@@ -512,27 +512,30 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty }: BotGameProps)
             isDraw && "border-amber-400 bg-amber-400/5"
           )}
         >
-          <div className="flex items-center gap-2 mb-2">
-            {botWon && !isDraw && <Crown className="w-5 h-5 text-yellow-500" />}
-            {isDraw && <Handshake className="w-5 h-5 text-amber-400" />}
-            <Bot className="w-4 h-4" />
-            <span className="text-sm md:text-base font-bold">Bot</span>
-            <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded", diffCfg.bg, diffCfg.color)}>
-              {diffCfg.label}
-            </span>
-            {botThinking && <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />}
+          <div className="flex flex-col items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              {botWon && !isDraw && <Crown className="w-5 h-5 text-yellow-500" />}
+              {isDraw && <Handshake className="w-5 h-5 text-amber-400" />}
+              <Bot className="w-4 h-4" />
+              <span className="text-sm md:text-base font-bold">Bot</span>
+              <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded", diffCfg.bg, diffCfg.color)}>
+                {diffCfg.label}
+              </span>
+              {botThinking && <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />}
+            </div>
+            {/* Keeping the empty spacer to match player side height where waiting text might be */}
+            <span className="text-xs text-transparent">spacer</span>
           </div>
-          <div className="w-full max-w-[350px] sm:max-w-[450px] mx-auto my-4">
-            <GameGrid
-              guesses={botGuesses}
-              currentGuess=""
-              evaluations={botEvaluations}
-              maxGuesses={MAX_GUESSES}
-              wordLength={WORD_LENGTH}
-              isOpponent={true}
-              blurCompletedGuesses={blurBotGuesses}
-            />
-          </div>
+          
+          <GameGrid
+            guesses={botGuesses}
+            currentGuess=""
+            evaluations={botEvaluations}
+            maxGuesses={MAX_GUESSES}
+            wordLength={WORD_LENGTH}
+            isOpponent={true}
+            blurCompletedGuesses={blurBotGuesses}
+          />
         </Card>
       </main>
     </div>

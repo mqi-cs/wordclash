@@ -13,9 +13,9 @@ interface KeyboardProps {
 const DELETE_KEY = "\u232b";
 
 const KEYBOARD_ROWS = [
-  ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+  [DELETE_KEY, "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-  ["ENTER", "Z", "X", "C", "V", "B", "N", "M", DELETE_KEY],
+  ["Z", "X", "C", "V", "B", "N", "M", "ENTER"],
 ];
 
 export const Keyboard = ({

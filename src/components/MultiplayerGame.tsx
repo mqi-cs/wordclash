@@ -569,19 +569,19 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   }
 
   return (
-    <div className="flex flex-col items-center max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <div className="w-full flex justify-between items-center mb-4">
-        <Button variant="ghost" onClick={onBackToMenu}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Exit
+    <div className="flex flex-col h-[100dvh] bg-background w-full max-w-6xl mx-auto animate-in fade-in duration-500 overflow-hidden">
+      <div className="w-full flex justify-between items-center p-2 sm:p-4 flex-shrink-0">
+        <Button variant="ghost" onClick={onBackToMenu} size="sm">
+          <ArrowLeft className="mr-1 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exit</span>
         </Button>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full text-sm font-medium">
-            <Users className="h-4 w-4 text-primary" /> {game.playerCount}/{isChallenge ? 2 : MAX_MULTIPLAYER_PLAYERS} Players
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-2 bg-secondary/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium">
+            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-primary" /> {game.playerCount}/{isChallenge ? 2 : MAX_MULTIPLAYER_PLAYERS}
           </div>
           {isChallenge && gameStarted && (
             <div
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold transition-colors",
+                "flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors",
                 isMyTurn ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
               )}
             >
@@ -590,51 +590,57 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
           )}
         </div>
         {game.lobbyCode ? (
-          <Button variant="outline" onClick={() => void handleCopyLobbyCode()}>
-            {copiedLobbyCode ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-            Copy Code
+          <Button variant="outline" onClick={() => void handleCopyLobbyCode()} size="sm">
+            {copiedLobbyCode ? <Check className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
+            <span className="hidden sm:inline">Copy</span>
           </Button>
         ) : (
-          <div className="w-[108px]" />
+          <div className="w-[60px] sm:w-[108px]" />
         )}
       </div>
 
-      {isChallenge ? renderChallengeBoard() : renderMultiplayerBoards()}
+      <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto px-2 sm:px-4 pb-4">
+        <div className="flex flex-col items-center w-full max-w-4xl mx-auto space-y-6 my-auto">
+          {isChallenge ? renderChallengeBoard() : renderMultiplayerBoards()}
 
-      {game.status === "finished" && (
-        <Card className="w-full max-w-md p-6 text-center border-primary/20 bg-background/95 backdrop-blur z-10 animate-in slide-in-from-bottom-8">
-          <h2 className="text-2xl font-bold mb-4">
-            {winningBoard
-              ? winningBoard.id === user?.id
-                ? "You Won!"
-                : `${winningBoard.username} won!`
-              : "Game Over"}
-          </h2>
-          <p className="text-xl mb-6">
-            The word was: <span className="font-bold text-primary">{targetWord}</span>
-          </p>
-          <Button onClick={onBackToMenu} className="w-full">Return to Menu</Button>
-        </Card>
-      )}
+          {game.status === "finished" && (
+            <Card className="w-full max-w-md p-6 text-center shadow-lg border-primary/20 bg-background/95 backdrop-blur z-10 animate-in slide-in-from-bottom-8">
+              <h2 className="text-2xl font-bold mb-4">
+                {winningBoard
+                  ? winningBoard.id === user?.id
+                    ? "You Won!"
+                    : `${winningBoard.username} won!`
+                  : "Game Over"}
+              </h2>
+              <p className="text-xl mb-6">
+                The word was: <span className="font-bold text-primary">{targetWord}</span>
+              </p>
+              <Button onClick={onBackToMenu} className="w-full">Return to Menu</Button>
+            </Card>
+          )}
 
-      {!gameStarted && game.gameType === "challenge" && (
-        <Card className="w-full max-w-md p-6 text-center border-primary/20 bg-background/95 backdrop-blur">
-          <div className="animate-pulse space-y-4">
-            <h3 className="text-lg font-semibold text-primary">Waiting for opponent...</h3>
-            <p className="text-sm text-muted-foreground">Challenge will start as soon as the other player joins.</p>
-          </div>
-        </Card>
-      )}
+          {!gameStarted && game.gameType === "challenge" && (
+            <Card className="w-full max-w-md p-6 text-center border-primary/20 bg-background/95 backdrop-blur">
+              <div className="animate-pulse space-y-4">
+                <h3 className="text-lg font-semibold text-primary">Waiting for opponent...</h3>
+                <p className="text-sm text-muted-foreground">Challenge will start as soon as the other player joins.</p>
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {gameStarted && !myGameOver && (
-        <div className="w-[100vw] sm:w-[500px] mt-8">
-          <Keyboard
-            onKeyPress={handleKeyPress}
-            onDelete={handleDelete}
-            onEnter={() => void handleEnter()}
-            letterStatus={myLetterStatus}
-            disabled={isChallenge && !isMyTurn}
-          />
+        <div className="w-full flex-shrink-0 flex justify-center pb-2 sm:pb-4 px-2">
+          <div className="w-full sm:w-[500px]">
+            <Keyboard
+              onKeyPress={handleKeyPress}
+              onDelete={handleDelete}
+              onEnter={() => void handleEnter()}
+              letterStatus={myLetterStatus}
+              disabled={isChallenge && !isMyTurn}
+            />
+          </div>
         </div>
       )}
     </div>
