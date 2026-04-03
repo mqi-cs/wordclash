@@ -15,6 +15,7 @@ import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
 import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
+import { OnboardingGuide, hasSeenOnboarding } from "@/components/OnboardingGuide";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ const Index = () => {
   const initialMode = (joinGameId || modeParam === 'multiplayer') ? 'multiplayer' : null;
 
   const [gameMode, setGameMode] = useState<GameMode | null>(initialMode);
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding());
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState("");
@@ -506,6 +508,9 @@ const Index = () => {
   if (!gameMode) {
     return (
       <>
+        {showOnboarding && (
+          <OnboardingGuide onComplete={() => setShowOnboarding(false)} />
+        )}
         <GameMenu
           onSelectMode={handleSelectMode}
           onShowLeaderboard={() => setShowLeaderboard(true)}
