@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Zap, Target, Trophy, Flame, Timer, Award, LogIn, LogOut } from "lucide-react";
+import { Zap, Target, Trophy, Flame, Timer, Award, LogIn, LogOut, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -20,9 +20,10 @@ interface GameMenuProps {
   onSelectMode: (mode: GameMode) => void;
   onShowLeaderboard: () => void;
   onResumeGame?: (gameId: string) => void;
+  onShowHelp?: () => void;
 }
 
-export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: GameMenuProps) => {
+export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShowHelp }: GameMenuProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [friendsKey, setFriendsKey] = useState(0);
@@ -44,6 +45,17 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
       <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(hsl(var(--border)/0.45)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border)/0.45)_1px,transparent_1px)] [background-size:72px_72px]" />
 
       <div className="absolute right-4 top-4 flex items-center gap-2">
+        {onShowHelp && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onShowHelp}
+            className="h-10 w-10 rounded-full border border-border/60 bg-background/70 text-muted-foreground backdrop-blur hover:text-foreground"
+            id="tour-help-btn"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </Button>
+        )}
         <ThemeToggle />
         <span className="rounded-full border border-border/80 bg-background/70 px-3 py-1 text-sm font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 backdrop-blur">
           V1.0
@@ -52,7 +64,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
 
       <div className="relative mx-auto max-w-6xl space-y-10">
         {/* Header */}
-        <div className="space-y-5 text-center animate-fade-in">
+        <div id="tour-header" className="space-y-5 text-center animate-fade-in">
           <div className="mb-2 flex items-center justify-center gap-3">
             <div className="rounded-full border border-border/80 bg-card/50 p-4 backdrop-blur">
               <Trophy className="h-10 w-10 text-primary animate-pulse" />
@@ -63,6 +75,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
               WORDCLASH
             </h1>
             <Button
+              id="tour-leaderboard"
               variant="outline"
               size="icon"
               onClick={onShowLeaderboard}
@@ -76,7 +89,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
           </p>
 
           {/* Auth Status */}
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div id="tour-auth" className="flex items-center justify-center gap-3 pt-2">
             {user ? (
               <Button variant="outline" onClick={handleSignOut} size="sm" className="bg-background/50">
                 <LogOut className="w-4 h-4 mr-2" />
@@ -120,6 +133,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
         <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
           {/* Classic Mode */}
           <Card
+            id="tour-classic"
             className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]"
             onClick={() => onSelectMode("classic")}
           >
@@ -166,6 +180,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
 
           {/* Hard Mode */}
           <Card
+            id="tour-hard"
             className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]"
             onClick={() => onSelectMode("hard")}
           >
@@ -212,6 +227,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
 
           {/* Timed Mode */}
           <Card
+            id="tour-timed"
             className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]"
             onClick={() => onSelectMode("timed")}
           >
@@ -259,6 +275,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame }: Game
 
         {/* Multiplayer Mode - Full Width */}
         <Card
+          id="tour-multiplayer"
           className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] animate-scale-in"
           onClick={() => {
             if (!user) {

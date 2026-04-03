@@ -15,7 +15,8 @@ import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
 import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
-import { OnboardingGuide, hasSeenOnboarding } from "@/components/OnboardingGuide";
+import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { GuidedTour, hasSeenTour } from "@/components/GuidedTour";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +52,8 @@ const Index = () => {
   const initialMode = (joinGameId || modeParam === 'multiplayer') ? 'multiplayer' : null;
 
   const [gameMode, setGameMode] = useState<GameMode | null>(initialMode);
-  const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding());
+  const [showGuidedTour, setShowGuidedTour] = useState(() => !hasSeenTour());
+  const [showHelpSlides, setShowHelpSlides] = useState(false);
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
   const [guesses, setGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState("");
@@ -508,13 +510,17 @@ const Index = () => {
   if (!gameMode) {
     return (
       <>
-        {showOnboarding && (
-          <OnboardingGuide onComplete={() => setShowOnboarding(false)} />
+        {showGuidedTour && (
+          <GuidedTour onComplete={() => setShowGuidedTour(false)} />
+        )}
+        {showHelpSlides && (
+          <OnboardingGuide onComplete={() => setShowHelpSlides(false)} />
         )}
         <GameMenu
           onSelectMode={handleSelectMode}
           onShowLeaderboard={() => setShowLeaderboard(true)}
           onResumeGame={handleResumeGame}
+          onShowHelp={() => setShowHelpSlides(true)}
         />
         <Leaderboard open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       </>
