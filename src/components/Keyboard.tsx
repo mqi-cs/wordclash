@@ -69,8 +69,8 @@ export const Keyboard = ({
               >
                 {key === DELETE_KEY ? <Delete className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : key}
                 {isEliminated && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <X className="w-full h-full text-red-500/80 p-0.5 sm:p-1 drop-shadow-md" strokeWidth={3} />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 p-0.5 sm:p-1">
+                    <X className="!w-full !h-full text-red-500 drop-shadow-[0_0_2px_rgba(0,0,0,0.8)] opacity-95" strokeWidth={3} />
                   </div>
                 )}
               </Button>
