@@ -47,7 +47,7 @@ export const UserStats = () => {
     <div className="space-y-4">
       <Card className="border-border/70 bg-card/70">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl tracking-tight">Game Mode Stats</CardTitle>
+          <CardTitle className="text-2xl tracking-tight">{user.username || user.name || user.googleName || "Player"}'s Stats</CardTitle>
           <p className="text-sm text-muted-foreground">Your win rates across every WordClash queue.</p>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
