@@ -63,6 +63,7 @@ const Index = () => {
   const [showResult, setShowResult] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [activeHint, setActiveHint] = useState<ActiveHint | null>(null);
+  const [eliminatedLetters, setEliminatedLetters] = useState<string[]>([]);
 
   // Bot state
   const [botActive, setBotActive] = useState(false);
@@ -173,6 +174,7 @@ const Index = () => {
           setLetterStatus({});
           // Reset hint state without showing extra messages
           setActiveHint(null);
+          setEliminatedLetters([]);
           // Reset bot state for new word in timed mode
           if (botActive) {
             setBotState(getInitialBotState());
@@ -254,6 +256,7 @@ const Index = () => {
     setWon(false);
     setShowResult(false);
     setActiveHint(null);
+    setEliminatedLetters([]);
     setBotActive(false);
     setBotState(getInitialBotState());
     if (gameMode === "timed") {
@@ -280,12 +283,13 @@ const Index = () => {
     setTotalGuesses(0);
     setTimedGameActive(false);
     setActiveHint(null);
+    setEliminatedLetters([]);
     setBotActive(false);
     setBotState(getInitialBotState());
   };
 
   const handleHint = (e?: React.MouseEvent) => {
-    if (gameOver || gameMode === "hard") return;
+    if (gameOver) return;
 
     // Blur the button to prevent Enter key from re-triggering it
     if (e?.currentTarget instanceof HTMLElement) {
@@ -300,6 +304,25 @@ const Index = () => {
     
     if (isHintActiveThisTurn) {
       toast.error("You can only use one hint per guess! Make another guess first.");
+      return;
+    }
+
+    if (gameMode === "hard") {
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      const targetLetters = new Set(targetWord.toUpperCase().split(""));
+      const availableToEliminate = alphabet.filter(l => !targetLetters.has(l) && !eliminatedLetters.includes(l));
+      
+      if (availableToEliminate.length === 0) {
+        toast.info("No more letters to eliminate!");
+        return;
+      }
+
+      const shuffled = availableToEliminate.sort(() => 0.5 - Math.random());
+      const toEliminate = shuffled.slice(0, 3);
+      
+      setEliminatedLetters(prev => [...prev, ...toEliminate]);
+      setActiveHint({ turn: currentTurn, position: -1 });
+      toast.success(`Eliminated 3 letters!`);
       return;
     }
 
@@ -347,6 +370,11 @@ const Index = () => {
   };
 
   const handleToggleBot = () => {
+    if (gameMode === "hard" || gameMode === "timed") {
+      toast.error(`Bot cannot be used in ${gameMode} mode!`);
+      return;
+    }
+
     if (gameOver) {
       toast.error("Game is over! Start a new game to use the bot.");
       return;
@@ -529,10 +557,10 @@ const Index = () => {
         onShowStats={() => setShowLeaderboard(true)}
         onHint={handleHint}
         availableHints={!isHintActiveThisTurn && guesses.length > 0 ? 1 : 0}
-        hintsDisabled={gameMode === "hard" || gameOver}
+        hintsDisabled={gameOver}
         onToggleBot={handleToggleBot}
         botActive={botActive}
-        botDisabled={gameOver}
+        botDisabled={gameOver || gameMode === "hard" || gameMode === "timed"}
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 border-b gap-2 flex-shrink-0">
@@ -580,6 +608,7 @@ const Index = () => {
             onEnter={handleEnter}
             onDelete={handleDelete}
             letterStatus={letterStatus}
+            eliminatedLetters={eliminatedLetters}
           />
         </div>
       </main>

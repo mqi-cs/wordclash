@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { Delete } from "lucide-react";
+import { Delete, X } from "lucide-react";
 
 interface KeyboardProps {
   onKeyPress: (key: string) => void;
@@ -8,6 +8,7 @@ interface KeyboardProps {
   onDelete: () => void;
   letterStatus: Record<string, "correct" | "present" | "absent" | undefined>;
   disabled?: boolean;
+  eliminatedLetters?: string[];
 }
 
 const DELETE_KEY = "\u232b";
@@ -24,6 +25,7 @@ export const Keyboard = ({
   onDelete,
   letterStatus,
   disabled = false,
+  eliminatedLetters = [],
 }: KeyboardProps) => {
   const handleClick = (key: string) => {
     if (disabled) return;
@@ -47,13 +49,14 @@ export const Keyboard = ({
         <div key={i} className="mb-0.5 flex justify-center gap-0.5 sm:gap-1">
           {row.map((key) => {
             const status = getKeyStatus(key);
+            const isEliminated = eliminatedLetters.includes(key);
             return (
               <Button
                 key={key}
                 onClick={() => handleClick(key)}
                 disabled={disabled}
                 className={cn(
-                  "h-9 sm:h-11 font-semibold text-[11px] sm:text-sm transition-colors",
+                  "relative h-9 sm:h-11 font-semibold text-[11px] sm:text-sm transition-colors overflow-hidden",
                   key === "ENTER" || key === DELETE_KEY
                     ? "px-2 sm:px-2.5 text-[10px] sm:text-sm"
                     : "min-w-[27px] px-1.5 sm:min-w-[34px] sm:px-2",
@@ -65,6 +68,11 @@ export const Keyboard = ({
                 )}
               >
                 {key === DELETE_KEY ? <Delete className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : key}
+                {isEliminated && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <X className="w-full h-full text-red-500/80 p-0.5 sm:p-1 drop-shadow-md" strokeWidth={3} />
+                  </div>
+                )}
               </Button>
             );
           })}
