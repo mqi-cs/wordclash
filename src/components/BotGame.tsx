@@ -507,7 +507,7 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty }: BotGameProps)
         {/* Bot Side */}
         <Card
           className={cn(
-            "flex flex-col items-center justify-start p-2 md:p-4 border-2 transition-all",
+            "flex flex-col items-center justify-between p-2 md:p-4 border-2 transition-all",
             botWon && !isDraw && "border-red-500 bg-red-500/5",
             isDraw && "border-amber-400 bg-amber-400/5"
           )}
@@ -536,6 +536,16 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty }: BotGameProps)
             isOpponent={true}
             blurCompletedGuesses={blurBotGuesses}
           />
+
+          {/* Invisible keyboard to perfectly match player side layout */}
+          <div className="opacity-0 pointer-events-none select-none w-full" aria-hidden="true">
+            <Keyboard
+              onKeyPress={() => {}}
+              onEnter={() => {}}
+              onDelete={() => {}}
+              letterStatus={{}}
+            />
+          </div>
         </Card>
       </main>
     </div>
