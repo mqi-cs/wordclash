@@ -16,6 +16,7 @@ import type * as games from "../games.js";
 import type * as guesses from "../guesses.js";
 import type * as http from "../http.js";
 import type * as passwordSignup from "../passwordSignup.js";
+import type * as posthog from "../posthog.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as shared_gameLogic from "../shared/gameLogic.js";
 import type * as stats from "../stats.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   guesses: typeof guesses;
   http: typeof http;
   passwordSignup: typeof passwordSignup;
+  posthog: typeof posthog;
   rateLimits: typeof rateLimits;
   "shared/gameLogic": typeof shared_gameLogic;
   stats: typeof stats;

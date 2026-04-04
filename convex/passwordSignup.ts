@@ -206,6 +206,7 @@ export const passwordSignup = httpAction(async (ctx, request) => {
 
   let reservedUsername: string | null = null;
   let accountCreated = false;
+  let newUserId: string | null = null;
 
   try {
     const prepared: {
@@ -231,6 +232,7 @@ export const passwordSignup = httpAction(async (ctx, request) => {
     });
 
     accountCreated = true;
+    newUserId = user._id;
     await ctx.runMutation(internal.usernames.attachUsernameToUser, {
       username: prepared.username,
       userId: user._id,
@@ -252,6 +254,25 @@ export const passwordSignup = httpAction(async (ctx, request) => {
       return jsonResponse(409, { error: error.message }, origin);
     }
     throw error;
+  }
+
+  if (newUserId) {
+    await ctx.runAction(internal.posthog.identifyUser, {
+      distinctId: newUserId,
+      properties: {
+        username: normalizedUsername,
+        email: normalizedEmail,
+      },
+      setOnce: { signup_method: "password" },
+    });
+    await ctx.runAction(internal.posthog.captureEvent, {
+      distinctId: newUserId,
+      event: "user signed up",
+      properties: {
+        signup_method: "password",
+        username: normalizedUsername,
+      },
+    });
   }
 
   return jsonResponse(

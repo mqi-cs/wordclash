@@ -3,6 +3,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
 import { evaluateGuess, isValidGuessFormat } from "./shared/gameLogic";
+import { internal } from "./_generated/api";
 
 type GameDoc = Doc<"games">;
 
@@ -32,7 +33,7 @@ export const getGuesses = query({
       .query("guesses")
       .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId))
       .collect();
-      
+
     return guesses.sort((a, b) => a.guessNumber - b.guessNumber);
   },
 });
@@ -98,6 +99,16 @@ export const submitGuess = mutation({
         winnerId: userId,
         finishedAt: Date.now()
       });
+
+      await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+        distinctId: userId,
+        event: "game won",
+        properties: {
+          game_id: args.gameId,
+          game_type: game.gameType,
+          guess_number: guessNumber,
+        },
+      });
     } else if (guessNumber >= 6) {
       const otherPlayers = getGamePlayerIds(game).filter((playerId) => playerId !== userId);
       let everyPlayerFinished = true;
@@ -123,6 +134,17 @@ export const submitGuess = mutation({
         });
       }
     }
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "guess submitted",
+      properties: {
+        game_id: args.gameId,
+        game_type: game.gameType,
+        guess_number: guessNumber,
+        is_correct: isWon,
+      },
+    });
 
     return { evaluation: validEvaluation, isWon };
   },

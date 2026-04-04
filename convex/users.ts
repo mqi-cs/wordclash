@@ -3,6 +3,7 @@ import { assertValidUsername } from "./authShared";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { assignUsernameToUser, USERNAME_TAKEN_ERROR } from "./usernames";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 const clampAuditLimit = (requestedLimit: number | undefined) => {
   const limit = Math.floor(requestedLimit ?? 500);
@@ -51,6 +52,22 @@ export const completeProfile = mutation({
     const username = assertValidUsername(args.username);
     await assignUsernameToUser(ctx.db, userId, username, user.username);
     await ctx.db.patch(userId, { username });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.identifyUser, {
+      distinctId: userId,
+      properties: {
+        username,
+      },
+      setOnce: { signup_method: "google" },
+    });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "profile completed",
+      properties: {
+        username,
+      },
+    });
 
     return { success: true };
   },

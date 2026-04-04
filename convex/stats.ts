@@ -54,10 +54,10 @@ export const getLeaderboard = query({
 
     // Bounded: take at most 200 entries to sort through
     const stats = await ctx.db.query("userStats").take(200);
-    
+
     const sorted = stats.sort((a, b) => getWonCount(b, mode) - getWonCount(a, mode));
     const limited = sorted.slice(0, maxResults);
-    
+
     return await Promise.all(limited.map(async (stat) => {
       const user = await ctx.db.get(stat.userId);
       return {
@@ -195,6 +195,17 @@ export const updateStats = mutation({
       mode: args.mode,
       won,
       greenLetters,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "stats updated",
+      properties: {
+        mode: args.mode,
+        won,
+        green_letters: greenLetters,
+        game_id: args.gameId,
+      },
     });
   },
 });

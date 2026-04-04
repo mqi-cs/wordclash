@@ -3,6 +3,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
 import { getRandomTargetWord } from "./shared/gameLogic";
+import { internal } from "./_generated/api";
 
 const MAX_MULTIPLAYER_PLAYERS = 4;
 const LOBBY_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -354,6 +355,16 @@ export const createGame = mutation({
       targetWord: word,
     });
 
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "game created",
+      properties: {
+        game_type: args.gameType,
+        game_id: gameId,
+        has_lobby_code: !!lobbyCode,
+      },
+    });
+
     return gameId;
   },
 });
@@ -375,6 +386,15 @@ export const startGame = mutation({
     await ctx.db.patch(game._id, {
       status: "in_progress",
       startedAt: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "game started",
+      properties: {
+        game_id: args.gameId,
+        player_count: getPlayerCount(game),
+      },
     });
 
     return game._id;
@@ -401,6 +421,15 @@ export const inviteToGame = mutation({
       toUserId: args.friendId,
       status: "pending",
     });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "invitation sent",
+      properties: {
+        game_id: args.gameId,
+        game_type: game.gameType,
+      },
+    });
   },
 });
 
@@ -426,7 +455,19 @@ export const acceptInvitation = mutation({
     await ensureGameIsNotStale(ctx, game);
 
     await ctx.db.patch(invitation._id, { status: "accepted" });
-    return await joinGameById(ctx, invitation.gameId, userId);
+    const gameId = await joinGameById(ctx, invitation.gameId, userId);
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "game joined",
+      properties: {
+        game_id: gameId,
+        game_type: game.gameType,
+        join_method: "invitation",
+      },
+    });
+
+    return gameId;
   },
 });
 
@@ -452,10 +493,28 @@ export const declineInvitation = mutation({
       game.player2Id === undefined
     ) {
       await deleteGameWithArtifacts(ctx, game._id);
+      await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+        distinctId: userId,
+        event: "invitation declined",
+        properties: {
+          game_id: invitation.gameId,
+          game_type: game.gameType,
+        },
+      });
       return { success: true };
     }
 
     await ctx.db.patch(invitation._id, { status: "declined" });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "invitation declined",
+      properties: {
+        game_id: invitation.gameId,
+        game_type: game?.gameType ?? "unknown",
+      },
+    });
+
     return { success: true };
   },
 });
@@ -466,7 +525,20 @@ export const joinGame = mutation({
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
 
-    return await joinGameById(ctx, args.gameId, userId);
+    const gameId = await joinGameById(ctx, args.gameId, userId);
+    const game = await ctx.db.get(args.gameId);
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "game joined",
+      properties: {
+        game_id: gameId,
+        game_type: game?.gameType ?? "unknown",
+        join_method: "direct",
+      },
+    });
+
+    return gameId;
   },
 });
 
@@ -492,7 +564,19 @@ export const joinGameByCode = mutation({
     }
     await ensureGameIsNotStale(ctx, game);
 
-    return await joinMultiplayerLobby(ctx, game, userId);
+    const gameId = await joinMultiplayerLobby(ctx, game, userId);
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "game joined",
+      properties: {
+        game_id: gameId,
+        game_type: "multiplayer",
+        join_method: "lobby_code",
+      },
+    });
+
+    return gameId;
   },
 });
 

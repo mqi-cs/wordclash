@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { internal } from "./_generated/api";
 
 /**
  * Search for users by their username — bounded scan
@@ -163,6 +164,14 @@ export const sendRequest = mutation({
       status: "pending",
       requesterId: userId,
     });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "friend request sent",
+      properties: {
+        to_user_id: args.friendId,
+      },
+    });
   },
 });
 
@@ -180,6 +189,14 @@ export const acceptRequest = mutation({
     }
 
     await ctx.db.patch(args.friendshipId, { status: "accepted" });
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "friend request accepted",
+      properties: {
+        from_user_id: friendship.requesterId,
+      },
+    });
   },
 });
 

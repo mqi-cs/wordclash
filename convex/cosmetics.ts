@@ -2,6 +2,7 @@ import { query, mutation, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { internal } from "./_generated/api";
 
 // ── Quest Template Pool ──────────────────────────────────────────────
 
@@ -329,6 +330,15 @@ export const claimQuestReward = mutation({
         equippedCosmetics: {},
       });
     }
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "quest reward claimed",
+      properties: {
+        quest_id: args.questId,
+        shards_earned: slot.reward,
+      },
+    });
   },
 });
 
@@ -366,6 +376,17 @@ export const purchaseCosmetic = mutation({
         equippedCosmetics: {},
       });
     }
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "cosmetic purchased",
+      properties: {
+        cosmetic_id: item.id,
+        cosmetic_name: item.name,
+        cosmetic_category: item.category,
+        shards_spent: item.cost,
+      },
+    });
   },
 });
 
@@ -403,5 +424,17 @@ export const equipCosmetic = mutation({
     }
 
     await ctx.db.patch(wallet._id, { equippedCosmetics: equipped });
+
+    const isNowEquipped = equipped[slotKey] === item.id;
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "cosmetic equipped",
+      properties: {
+        cosmetic_id: item.id,
+        cosmetic_name: item.name,
+        cosmetic_category: item.category,
+        equipped: isNowEquipped,
+      },
+    });
   },
 });
