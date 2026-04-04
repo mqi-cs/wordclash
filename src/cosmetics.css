@@ -1,0 +1,103 @@
+/* ====== COSMETICS ====== */
+
+/* --- Letter Skins --- */
+/* Neon Glow Letters */
+.theme-letters-neon .tile {
+  text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+}
+.theme-letters-neon .tile-empty, 
+.theme-letters-neon .tile-filled {
+  box-shadow: inset 0 0 8px currentColor;
+}
+
+/* Gold Foil Letters */
+.theme-letters-gold .tile-filled {
+  background: linear-gradient(135deg, #FFD700, #FDB931, #996A12) !important;
+  color: #fff !important;
+  border-color: #DAA520 !important;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+}
+
+/* Pixel Art Letters */
+.theme-letters-pixel .tile {
+  font-family: monospace, "Courier New";
+  font-weight: 900;
+  border-radius: 0 !important;
+  border-width: 4px;
+}
+
+/* --- Grid Styles --- */
+/* Glass Tiles */
+.theme-grid-glass .tile {
+  backdrop-filter: blur(8px);
+}
+.theme-grid-glass .tile-empty,
+.theme-grid-glass .tile-filled {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+.dark .theme-grid-glass .tile-empty,
+.dark .theme-grid-glass .tile-filled {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Neon Grid */
+.theme-grid-neon .tile-empty, 
+.theme-grid-neon .tile-filled {
+  border: 2px solid hsl(var(--primary)) !important;
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.5), inset 0 0 10px hsl(var(--primary) / 0.5);
+  border-radius: 12px;
+}
+
+/* Retro Grid */
+.theme-grid-retro .tile-empty,
+.theme-grid-retro .tile-filled {
+  border: 3px solid #ff00ff !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 #00ffff;
+  transform: translate(-2px, -2px);
+  background-color: transparent !important;
+}
+
+/* --- Backgrounds --- */
+/* Starfield */
+body.theme-bg-starfield {
+  background-image: 
+    radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 50px 160px, #fff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 90px 40px, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 130px 80px, #fff, rgba(0,0,0,0)),
+    linear-gradient(to bottom, #020111 0%, #20124d 100%) !important;
+  background-size: 200px 200px, 200px 200px, 200px 200px, 200px 200px, 200px 200px, 100% 100% !important;
+  background-attachment: fixed !important;
+}
+
+/* Cyber City */
+body.theme-bg-cybercity {
+  background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e) !important;
+  position: relative;
+  background-attachment: fixed !important;
+}
+body.theme-bg-cybercity::before {
+  content: "";
+  position: fixed;
+  bottom: 0; left: 0; right: 0; height: 30vh;
+  background: repeating-linear-gradient(transparent, transparent 2px, rgba(255,0,255,0.2) 2px, rgba(255,0,255,0.2) 4px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Aurora */
+body.theme-bg-aurora {
+  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab) !important;
+  background-size: 400% 400% !important;
+  animation: bg-gradient-aurora 15s ease infinite !important;
+  background-attachment: fixed !important;
+}
+@keyframes bg-gradient-aurora {
+	0% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+	100% { background-position: 0% 50%; }
+}
