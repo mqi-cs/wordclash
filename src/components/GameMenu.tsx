@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { CosmeticsStore } from "./CosmeticsStore";
 import { Card } from "@/components/ui/card";
 import { Zap, Target, Trophy, Flame, Timer, Award, LogIn, LogOut, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -335,6 +336,9 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
             </div>
           </div>
         </Card>
+
+        {/* Cosmetics Store */}
+        <CosmeticsStore />
       </div>
     </div>
   );

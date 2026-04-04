@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as authShared from "../authShared.js";
+import type * as cosmetics from "../cosmetics.js";
 import type * as friends from "../friends.js";
 import type * as games from "../games.js";
 import type * as guesses from "../guesses.js";
@@ -30,6 +31,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authShared: typeof authShared;
+  cosmetics: typeof cosmetics;
   friends: typeof friends;
   games: typeof games;
   guesses: typeof guesses;

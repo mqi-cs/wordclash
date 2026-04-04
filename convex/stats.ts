@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { internal } from "./_generated/api";
 
 type GameDoc = Doc<"games">;
 type GameMode = "classic" | "hard" | "timed" | "multiplayer";
@@ -187,5 +188,13 @@ export const updateStats = mutation({
           break;
       }
     }
+
+    // Also progress daily quests
+    await ctx.runMutation(internal.cosmetics.internalRecordQuestProgress, {
+      userId,
+      mode: args.mode,
+      won,
+      greenLetters,
+    });
   },
 });

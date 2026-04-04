@@ -107,4 +107,37 @@ export default defineSchema({
     .index("by_toUser", ["toUserId"])
     .index("by_fromUser", ["fromUserId"])
     .index("by_game", ["gameId"]),
+
+  // Daily Quests
+  quests: defineTable({
+    userId: v.id("users"),
+    dayKey: v.string(), // "YYYY-MM-DD" in UTC
+    questSlots: v.array(
+      v.object({
+        questId: v.string(), // references a quest template key
+        title: v.string(),
+        description: v.string(),
+        target: v.number(),
+        progress: v.number(),
+        completed: v.boolean(),
+        claimed: v.boolean(),
+        reward: v.number(), // shards
+      })
+    ),
+  })
+    .index("by_user_and_day", ["userId", "dayKey"])
+    .index("by_user", ["userId"]),
+
+  // User Cosmetics / Shard Wallet
+  userCosmetics: defineTable({
+    userId: v.id("users"),
+    shards: v.number(),
+    ownedCosmetics: v.array(v.string()), // cosmetic template IDs
+    equippedCosmetics: v.object({
+      letters: v.optional(v.string()),
+      grid: v.optional(v.string()),
+      background: v.optional(v.string()),
+      animation: v.optional(v.string()),
+    }),
+  }).index("by_user", ["userId"]),
 });
