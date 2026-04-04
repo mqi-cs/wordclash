@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -79,13 +79,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loading = isAuthLoading || (isAuthenticated && viewer === undefined);
 
   // Map Convex user to abstract User
-  const user: User | null = viewer ? {
+  const user: User | null = useMemo(() => viewer ? {
     id: viewer._id,
     email: viewer.email,
     name: viewer.name,
     username: viewer.username,
     googleName: viewer.googleName,
-  } : null;
+  } : null, [viewer]);
 
   const signUp = async (email: string, password: string, username: string) => {
     const normalizedEmail = normalizeEmail(email);
@@ -159,18 +159,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await convexSignOut();
   };
 
+  const contextValue = useMemo(() => ({
+    user,
+    session: isAuthenticated ? {} : null,
+    signUp,
+    signIn,
+    signInWithGoogle,
+    signOut,
+    loading,
+  }), [user, isAuthenticated, loading /* functions are stable */]);
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session: isAuthenticated ? {} : null,
-        signUp,
-        signIn,
-        signInWithGoogle,
-        signOut,
-        loading,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

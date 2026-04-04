@@ -82,7 +82,7 @@ export const CosmeticsStore = () => {
     if (user) {
       seedQuests().catch(() => {});
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Update the countdown timer every minute
   useEffect(() => {
