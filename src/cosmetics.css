@@ -2,20 +2,17 @@
 
 /* --- Letter Skins --- */
 /* Neon Glow Letters */
-.theme-letters-neon .tile {
+.theme-letters-neon :is(.tile-filled, .tile-revealed, .tile-revealing, .hint-tile) {
   text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
-}
-.theme-letters-neon .tile-empty, 
-.theme-letters-neon .tile-filled {
-  box-shadow: inset 0 0 8px currentColor;
+  box-shadow: inset 0 0 8px hsl(var(--primary) / 0.55);
 }
 
 /* Gold Foil Letters */
-.theme-letters-gold .tile-filled {
-  background: linear-gradient(135deg, #FFD700, #FDB931, #996A12) !important;
-  color: #fff !important;
-  border-color: #DAA520 !important;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+.theme-letters-gold :is(.tile-filled, .tile-revealed, .tile-revealing, .hint-tile) {
+  color: #fff6cc !important;
+  border-color: #daa520 !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.4), inset 0 0 12px rgba(255, 215, 0, 0.18);
+  text-shadow: 0 1px 0 rgba(92, 55, 0, 0.55), 0 0 10px rgba(255, 215, 0, 0.35);
 }
 
 /* Pixel Art Letters */
@@ -31,28 +28,24 @@
 .theme-grid-glass .tile {
   backdrop-filter: blur(8px);
 }
-.theme-grid-glass .tile-empty,
-.theme-grid-glass .tile-filled {
+.theme-grid-glass :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
   background: rgba(255, 255, 255, 0.1) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
-.dark .theme-grid-glass .tile-empty,
-.dark .theme-grid-glass .tile-filled {
+.dark .theme-grid-glass :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
   background: rgba(0, 0, 0, 0.2) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 /* Neon Grid */
-.theme-grid-neon .tile-empty, 
-.theme-grid-neon .tile-filled {
+.theme-grid-neon :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
   border: 2px solid hsl(var(--primary)) !important;
   box-shadow: 0 0 10px hsl(var(--primary) / 0.5), inset 0 0 10px hsl(var(--primary) / 0.5);
   border-radius: 12px;
 }
 
 /* Retro Grid */
-.theme-grid-retro .tile-empty,
-.theme-grid-retro .tile-filled {
+.theme-grid-retro :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
   border: 3px solid #ff00ff !important;
   border-radius: 0 !important;
   box-shadow: 4px 4px 0 #00ffff;
@@ -62,7 +55,10 @@
 
 /* --- Backgrounds --- */
 /* Starfield */
-body.theme-bg-starfield {
+body.theme-bg-starfield,
+.theme-bg-starfield {
+  position: relative;
+  isolation: isolate;
   background-image: 
     radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
     radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
@@ -75,12 +71,15 @@ body.theme-bg-starfield {
 }
 
 /* Cyber City */
-body.theme-bg-cybercity {
+body.theme-bg-cybercity,
+.theme-bg-cybercity {
   background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e) !important;
   position: relative;
+  isolation: isolate;
   background-attachment: fixed !important;
 }
-body.theme-bg-cybercity::before {
+body.theme-bg-cybercity::before,
+.theme-bg-cybercity::before {
   content: "";
   position: fixed;
   bottom: 0; left: 0; right: 0; height: 30vh;
@@ -90,14 +89,96 @@ body.theme-bg-cybercity::before {
 }
 
 /* Aurora */
-body.theme-bg-aurora {
+body.theme-bg-aurora,
+.theme-bg-aurora {
+  position: relative;
+  isolation: isolate;
   background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab) !important;
   background-size: 400% 400% !important;
   animation: bg-gradient-aurora 15s ease infinite !important;
   background-attachment: fixed !important;
 }
+
+/* --- Guess Animations --- */
+.theme-anim-confetti :is(.tile-revealed, .tile-revealing)::after,
+.theme-anim-shockwave :is(.tile-revealed, .tile-revealing)::after,
+.theme-anim-flame :is(.tile-revealed, .tile-revealing)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.theme-anim-confetti :is(.tile-revealed, .tile-revealing)::after {
+  background:
+    radial-gradient(circle at 18% 22%, #ffd54f 0 7%, transparent 8%),
+    radial-gradient(circle at 76% 18%, #60a5fa 0 7%, transparent 8%),
+    radial-gradient(circle at 24% 78%, #f472b6 0 7%, transparent 8%),
+    radial-gradient(circle at 78% 72%, #4ade80 0 7%, transparent 8%),
+    radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.9) 0 6%, transparent 7%);
+  animation: cosmetic-confetti-pop 650ms ease-out both;
+}
+
+.theme-anim-shockwave :is(.tile-revealed, .tile-revealing)::after {
+  border: 2px solid currentColor;
+  border-radius: inherit;
+  animation: cosmetic-shockwave-ring 500ms ease-out both;
+}
+
+.theme-anim-flame :is(.tile-revealed, .tile-revealing) {
+  box-shadow: 0 0 18px rgba(255, 128, 0, 0.35), inset 0 -10px 14px rgba(255, 187, 0, 0.22);
+}
+
+.theme-anim-flame :is(.tile-revealed, .tile-revealing)::before {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 8%, rgba(255, 189, 89, 0.28) 40%, rgba(255, 88, 28, 0.45) 100%);
+  mix-blend-mode: screen;
+  animation: cosmetic-flame-flicker 450ms ease-out both;
+}
+
 @keyframes bg-gradient-aurora {
 	0% { background-position: 0% 50%; }
 	50% { background-position: 100% 50%; }
 	100% { background-position: 0% 50%; }
+}
+
+@keyframes cosmetic-confetti-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes cosmetic-shockwave-ring {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes cosmetic-flame-flicker {
+  0% {
+    opacity: 0;
+    transform: translateY(18%);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12%);
+  }
 }

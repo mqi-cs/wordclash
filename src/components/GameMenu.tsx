@@ -14,6 +14,7 @@ import { OpenGames } from "./OpenGames";
 import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
@@ -22,12 +23,14 @@ interface GameMenuProps {
   onShowLeaderboard: () => void;
   onResumeGame?: (gameId: string) => void;
   onShowHelp?: () => void;
+  themeClassName?: string;
 }
 
-export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShowHelp }: GameMenuProps) => {
+export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShowHelp, themeClassName }: GameMenuProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [friendsKey, setFriendsKey] = useState(0);
+  const hasBackgroundTheme = themeClassName?.includes("theme-bg-") ?? false;
 
   const handleSignOut = async () => {
     await signOut();
@@ -39,11 +42,15 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_30%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,hsl(var(--menu-classic)/0.12),transparent_18%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--background-alt)))]" />
-      <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(hsl(var(--border)/0.45)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border)/0.45)_1px,transparent_1px)] [background-size:72px_72px]" />
+    <div className={cn("relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:py-10", themeClassName)}>
+      {!hasBackgroundTheme && (
+        <>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_30%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,hsl(var(--menu-classic)/0.12),transparent_18%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--background-alt)))]" />
+          <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(hsl(var(--border)/0.45)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border)/0.45)_1px,transparent_1px)] [background-size:72px_72px]" />
+        </>
+      )}
 
       <div className="absolute right-4 top-4 flex items-center gap-2">
         {onShowHelp && (

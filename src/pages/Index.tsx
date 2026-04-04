@@ -26,6 +26,9 @@ import {
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { getEquippedCosmeticThemeClassName, getEquippedCosmeticThemeClasses } from "@/lib/cosmetics";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -44,6 +47,8 @@ type ActiveHint = {
 const Index = () => {
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
+  const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
+  const cosmeticThemeClassName = getEquippedCosmeticThemeClassName(wallet?.equippedCosmetics);
 
   // Check for URL params to auto-start multiplayer
   const urlParams = new URLSearchParams(window.location.search);
@@ -93,6 +98,28 @@ const Index = () => {
     if (!activeHint || activeHint.turn === currentTurn) return;
     setActiveHint(null);
   }, [activeHint, currentTurn]);
+
+  // Apply cosmetics globally
+  useEffect(() => {
+    const cosmeticThemeClasses = getEquippedCosmeticThemeClasses(wallet?.equippedCosmetics).filter(
+      (className) => !className.startsWith("theme-bg-"),
+    );
+    const existingThemeClasses = Array.from(document.body.classList).filter((className) =>
+      className.startsWith("theme-"),
+    );
+    if (existingThemeClasses.length > 0) {
+      document.body.classList.remove(...existingThemeClasses);
+    }
+    if (cosmeticThemeClasses.length > 0) {
+      document.body.classList.add(...cosmeticThemeClasses);
+    }
+
+    return () => {
+      if (cosmeticThemeClasses.length > 0) {
+        document.body.classList.remove(...cosmeticThemeClasses);
+      }
+    };
+  }, [wallet?.equippedCosmetics]);
 
 
 
@@ -521,6 +548,7 @@ const Index = () => {
           onShowLeaderboard={() => setShowLeaderboard(true)}
           onResumeGame={handleResumeGame}
           onShowHelp={() => setShowHelpSlides(true)}
+          themeClassName={cosmeticThemeClassName}
         />
         <Leaderboard open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       </>
@@ -530,14 +558,14 @@ const Index = () => {
   if (gameMode === "multiplayer") {
     return (
       <Suspense fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className={cn("min-h-screen bg-background flex items-center justify-center", cosmeticThemeClassName)}>
           <div className="text-center space-y-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-muted-foreground">Loading multiplayer...</p>
           </div>
         </div>
       }>
-        <MultiplayerGame onBackToMenu={handleBackToMenu} />
+        <MultiplayerGame onBackToMenu={handleBackToMenu} themeClassName={cosmeticThemeClassName} />
       </Suspense>
     );
   }
@@ -545,7 +573,7 @@ const Index = () => {
   if (botActive) {
     return (
       <Suspense fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className={cn("min-h-screen bg-background flex items-center justify-center", cosmeticThemeClassName)}>
           <div className="text-center space-y-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-muted-foreground">Loading bot game...</p>
@@ -556,13 +584,14 @@ const Index = () => {
           onBackToMenu={handleBackToMenu}
           gameMode={gameMode === "hard" ? "hard" : gameMode === "timed" ? "timed" : "classic"}
           botDifficulty={botDifficulty}
+          themeClassName={cosmeticThemeClassName}
         />
       </Suspense>
     );
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className={cn("h-screen bg-background flex flex-col overflow-hidden", cosmeticThemeClassName)}>
       <GameHeader
         onShowHelp={() => setShowHelp(true)}
         onShowStats={() => setShowLeaderboard(true)}
@@ -714,4 +743,3 @@ const Index = () => {
 };
 
 export default Index;
-

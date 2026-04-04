@@ -21,6 +21,7 @@ const LOBBY_CODE_REGEX = /^[A-Z0-9]{6}$/;
 
 interface MultiplayerGameProps {
   onBackToMenu: () => void;
+  themeClassName?: string;
 }
 
 type EntryMode = "select" | "join" | null;
@@ -45,7 +46,7 @@ const resetMultiplayerUrl = () => {
 
 const isLobbyCode = (value: string) => LOBBY_CODE_REGEX.test(value.trim().toUpperCase());
 
-export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
+export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGameProps) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -569,7 +570,7 @@ export const MultiplayerGame = ({ onBackToMenu }: MultiplayerGameProps) => {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background w-full max-w-6xl mx-auto animate-in fade-in duration-500 overflow-hidden">
+    <div className={cn("flex flex-col h-[100dvh] bg-background w-full max-w-6xl mx-auto animate-in fade-in duration-500 overflow-hidden", themeClassName)}>
       <div className="w-full flex justify-between items-center p-2 sm:p-4 flex-shrink-0">
         <Button variant="ghost" onClick={onBackToMenu} size="sm">
           <ArrowLeft className="mr-1 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exit</span>

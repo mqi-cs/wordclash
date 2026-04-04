@@ -25,9 +25,10 @@ interface BotGameProps {
   onBackToMenu: () => void;
   gameMode: "classic" | "hard" | "timed";
   botDifficulty: BotDifficulty;
+  themeClassName?: string;
 }
 
-export const BotGame = ({ onBackToMenu, gameMode, botDifficulty }: BotGameProps) => {
+export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName }: BotGameProps) => {
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
 
   // Timed mode state
@@ -437,7 +438,7 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty }: BotGameProps)
   const diffCfg = difficultyConfig[botDifficulty];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className={cn("min-h-screen bg-background flex flex-col", themeClassName)}>
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <Button variant="ghost" size="sm" onClick={onBackToMenu}>
           <ArrowLeft className="w-4 h-4 mr-2" />

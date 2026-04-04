@@ -35,13 +35,13 @@ const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }
   return (
     <div
       className={cn(
-        "aspect-square w-full border-2 flex items-center justify-center text-[1.65rem] sm:text-[2.1rem] font-bold uppercase transition-all duration-100",
-        status === "empty" && "border-game-border bg-game-empty",
-        status === "filled" && "border-game-border-active bg-game-empty animate-bounce-in",
-        !shouldAnimateReveal && status === "correct" && "bg-game-correct border-game-correct text-white",
-        !shouldAnimateReveal && status === "present" && "bg-game-present border-game-present text-white",
-        !shouldAnimateReveal && status === "absent" && "bg-game-absent border-game-absent text-white",
-        shouldAnimateReveal && "border-game-border bg-game-empty text-game-text animate-flip-reveal",
+        "relative aspect-square w-full overflow-hidden border-2 flex items-center justify-center text-[1.65rem] sm:text-[2.1rem] font-bold uppercase transition-all duration-100 tile",
+        status === "empty" && "tile-empty border-game-border bg-game-empty",
+        status === "filled" && "tile-filled border-game-border-active bg-game-empty animate-bounce-in",
+        !shouldAnimateReveal && status === "correct" && "tile-revealed tile-correct bg-game-correct border-game-correct text-white",
+        !shouldAnimateReveal && status === "present" && "tile-revealed tile-present bg-game-present border-game-present text-white",
+        !shouldAnimateReveal && status === "absent" && "tile-revealed tile-absent bg-game-absent border-game-absent text-white",
+        shouldAnimateReveal && `tile-revealing tile-${status} border-game-border bg-game-empty text-game-text animate-flip-reveal`,
         isHint && "hint-tile border-primary bg-primary text-primary-foreground"
       )}
       style={{
