@@ -42,18 +42,29 @@ export const COSMETIC_CATALOG: CosmeticItem[] = [
   { id: "letters_neon", category: "letters", name: "Neon Glow", description: "Electric neon letter outlines", cost: 1 },
   { id: "letters_gold", category: "letters", name: "Gold Foil", description: "Luxurious gold leaf letters", cost: 1 },
   { id: "letters_pixel", category: "letters", name: "Pixel Art", description: "Retro 8-bit style letters", cost: 1 },
+  { id: "letters_glitch", category: "letters", name: "Digital Glitch", description: "High-tech unstable font", cost: 0 },
+  { id: "letters_stamped", category: "letters", name: "Hand-Stamped", description: "Tactile, weathered text", cost: 0 },
+  { id: "letters_pebble", category: "letters", name: "Soft Pebble", description: "Cozy pillowy letters", cost: 0 },
+  { id: "letters_chiseled", category: "letters", name: "Chiseled Stone", description: "Engraved epic letters", cost: 0 },
   // Grid styles
   { id: "grid_glass", category: "grid", name: "Glass Tiles", description: "Frosted glass tile effect", cost: 1 },
   { id: "grid_neon", category: "grid", name: "Neon Frame", description: "Glowing neon grid borders", cost: 1 },
   { id: "grid_retro", category: "grid", name: "Retro Grid", description: "80s synthwave grid look", cost: 1 },
+  { id: "grid_cyberpunk", category: "grid", name: "Neon Cyberpunk", description: "Vibrant glowing cyan", cost: 0 },
+  { id: "grid_library", category: "grid", name: "Ancient Library", description: "Wood and brass borders", cost: 0 },
   // Backgrounds
   { id: "bg_starfield", category: "background", name: "Starfield", description: "Animated twinkling starfield", cost: 1 },
-  { id: "bg_cybercity", category: "background", name: "Cyber City", description: "Neon-lit cityscape backdrop", cost: 1 },
   { id: "bg_aurora", category: "background", name: "Aurora", description: "Shimmering northern lights", cost: 1 },
+  { id: "bg_cyberpunk", category: "background", name: "Neon Cyberpunk", description: "Deep dark purple circuit", cost: 0 },
+  { id: "bg_library", category: "background", name: "Ancient Library", description: "Old parchment look", cost: 0 },
   // Animations
   { id: "anim_confetti", category: "animation", name: "Confetti Burst", description: "Confetti explosion on guess", cost: 1 },
   { id: "anim_shockwave", category: "animation", name: "Shockwave", description: "Expanding shockwave ring", cost: 1 },
   { id: "anim_flame", category: "animation", name: "Flame Trail", description: "Fiery trail across tiles", cost: 1 },
+  { id: "anim_decrypt", category: "animation", name: "Data Decrypt", description: "Hacking slot reveal", cost: 0 },
+  { id: "anim_ink", category: "animation", name: "Ink Soak", description: "Spreading ink stain", cost: 0 },
+  { id: "anim_solar", category: "animation", name: "Solar Flare", description: "Soft light halo", cost: 0 },
+  { id: "anim_slam", category: "animation", name: "Stone Slam", description: "Heavy jumping impact", cost: 0 },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────

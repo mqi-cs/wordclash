@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { CSSProperties, useEffect, useRef } from "react";
+import { CSSProperties, useEffect, useRef, useState } from "react";
 
 interface TileProps {
   letter: string;
@@ -29,8 +29,34 @@ const revealedTileStyles: Record<"correct" | "present" | "absent", CSSProperties
 };
 
 const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }: TileProps) => {
+  const [displayLetter, setDisplayLetter] = useState(letter);
   const shouldAnimateReveal =
     animate && (status === "correct" || status === "present" || status === "absent");
+
+  useEffect(() => {
+    // Check if the hack reveal animation is equipped globally length > 0
+    if (!shouldAnimateReveal || !document.body.classList.contains("theme-anim-decrypt")) {
+      setDisplayLetter(letter);
+      return;
+    }
+
+    // Wait for the animation delay before starting the decryption cycle
+    const timeout = setTimeout(() => {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+      let iterations = 0;
+      const interval = setInterval(() => {
+        setDisplayLetter(chars[Math.floor(Math.random() * chars.length)]);
+        iterations++;
+        if (iterations > 12) {
+          clearInterval(interval);
+          setDisplayLetter(letter);
+        }
+      }, 35);
+      return () => clearInterval(interval);
+    }, delay);
+
+    return () => clearTimeout(timeout);
+  }, [letter, shouldAnimateReveal, delay]);
 
   return (
     <div
@@ -50,7 +76,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }
         ...(blurLetter ? { filter: "blur(8px)" } : {}),
       }}
     >
-      {letter}
+      {displayLetter}
     </div>
   );
 };
