@@ -70,7 +70,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
         </span>
       </div>
 
-      <div className="relative mx-auto max-w-6xl space-y-10">
+      <div className="relative mx-auto max-w-[1360px] space-y-10">
         {/* Header */}
         <div id="tour-header" className="space-y-5 text-center animate-fade-in">
           <div className="mb-2 flex items-center justify-center gap-3">
@@ -112,243 +112,246 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
           </div>
         </div>
 
-        {/* User Stats */}
-        {user && (
-          <div className="animate-fade-in">
-            <UserStats />
-          </div>
-        )}
-
-        {/* Friends Section */}
-        {user && (
-          <div className="space-y-6 animate-fade-in">
-            <OpenGames onResumeGame={(gameId) => onResumeGame?.(gameId)} />
-            <IncomingChallenges />
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-6">
-                <Card className="border-border/70 bg-card/60 p-6">
-                  <h3 className="mb-4 text-xl font-bold tracking-tight">Add Friends</h3>
-                  <FriendSearch onRequestSent={refreshFriends} />
-                </Card>
-                <FriendRequests key={friendsKey} onRequestHandled={refreshFriends} />
-              </div>
-              <FriendsList key={friendsKey} />
-            </div>
-          </div>
-        )}
-
-        {/* Game Mode Cards */}
-        <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
-          {/* Classic Mode */}
-          <Card
-            id="tour-classic"
-            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]"
-            onClick={() => onSelectMode("classic")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-classic))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-            <div className="relative p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-classic))]/30 bg-[hsl(var(--menu-classic))]/12 transition-colors group-hover:bg-[hsl(var(--menu-classic))]/18">
-                  <Target className="w-8 h-8 text-[hsl(var(--menu-classic))]" />
-                </div>
-                <Badge variant="secondary" className="border border-border/70 bg-secondary/80 text-xs text-foreground">Popular</Badge>
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold tracking-tight text-foreground">Classic</h3>
-                <p className="text-sm text-muted-foreground">
-                  The original WordClash experience with 6 attempts to guess the word
-                </p>
-              </div>
-
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-classic))]" />
-                  6 guesses maximum
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-classic))]" />
-                  Green & yellow hints
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-classic))]" />
-                  Perfect for beginners
-                </li>
-              </ul>
-
-              <Button
-                className="w-full bg-[hsl(var(--menu-classic))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-classic))]/90"
-                size="lg"
-                onClick={() => onSelectMode("classic")}
-              >
-                Start Classic
-              </Button>
-            </div>
-          </Card>
-
-          {/* Hard Mode */}
-          <Card
-            id="tour-hard"
-            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]"
-            onClick={() => onSelectMode("hard")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-hard))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-            <div className="relative p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-hard))]/30 bg-[hsl(var(--menu-hard))]/12 transition-colors group-hover:bg-[hsl(var(--menu-hard))]/18">
-                  <Flame className="w-8 h-8 text-[hsl(var(--menu-hard))]" />
-                </div>
-                <Badge className="border-0 bg-[hsl(var(--menu-hard))] text-xs text-white">Challenge</Badge>
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold tracking-tight text-foreground">Hard Mode</h3>
-                <p className="text-sm text-muted-foreground">
-                  No yellow hints! Pure skill mode for word masters
-                </p>
-              </div>
-
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-hard))]" />
-                  10 guesses maximum
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-hard))]" />
-                  Only correct or wrong
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-hard))]" />
-                  No hints available
-                </li>
-              </ul>
-
-              <Button
-                className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90"
-                size="lg"
-                onClick={() => onSelectMode("hard")}
-              >
-                Start Hard Mode
-              </Button>
-            </div>
-          </Card>
-
-          {/* Timed Mode */}
-          <Card
-            id="tour-timed"
-            className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]"
-            onClick={() => onSelectMode("timed")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-timed))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-            <div className="relative p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-timed))]/30 bg-[hsl(var(--menu-timed))]/12 transition-colors group-hover:bg-[hsl(var(--menu-timed))]/18">
-                  <Timer className="w-8 h-8 text-[hsl(var(--menu-timed))]" />
-                </div>
-                <Badge className="border-0 bg-[hsl(var(--menu-timed))] text-xs text-white">Fast</Badge>
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold tracking-tight text-foreground">Timed Mode</h3>
-                <p className="text-sm text-muted-foreground">
-                  Race against the clock! Solve as many as you can
-                </p>
-              </div>
-
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
-                  90 seconds to start
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
-                  +30s bonus per word
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
-                  Unlimited attempts
-                </li>
-              </ul>
-
-              <Button
-                className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90"
-                size="lg"
-                onClick={() => onSelectMode("timed")}
-              >
-                Start Timed
-              </Button>
-            </div>
-          </Card>
-        </div>
-
-        {/* Multiplayer Mode - Full Width */}
-        <Card
-          id="tour-multiplayer"
-          className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] animate-scale-in"
-          onClick={() => {
-            if (!user) {
-              toast.error("Please sign in or create an account to play Multiplayer modes!");
-              return;
-            }
-            onSelectMode("multiplayer");
-          }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-          <div className="relative p-6 md:p-8">
-            <div className="max-w-4xl mx-auto space-y-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-multiplayer))]/30 bg-[hsl(var(--menu-multiplayer))]/12 transition-colors group-hover:bg-[hsl(var(--menu-multiplayer))]/18">
-                    <Zap className="w-8 h-8 text-[hsl(var(--menu-multiplayer))]" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-3xl font-bold tracking-tight text-foreground">Multiplayer Mode</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Create or join a lobby and play with up to four people
-                    </p>
-                  </div>
-                </div>
-                <Badge className="border-0 bg-[hsl(var(--menu-multiplayer))] text-xs text-[hsl(var(--primary-foreground))]">New</Badge>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
-                  <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                  <p className="text-sm text-muted-foreground">Host a lobby with a shareable code</p>
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
-                  <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                  <p className="text-sm text-muted-foreground">Start once everyone is ready</p>
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
-                  <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                  <p className="text-sm text-muted-foreground">Up to 4 players, first solver wins</p>
-                </div>
-              </div>
-
-              <Button
-                className="w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:w-auto"
-                size="lg"
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent the card onClick from firing twice
-                  if (!user) {
-                    toast.error("Please sign in or create an account to play Multiplayer modes!");
-                    return;
-                  }
-                  onSelectMode("multiplayer");
-                }}
-              >
-                Open Multiplayer Lobby
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <CosmeticsStore />
-          <aside className="xl:sticky xl:top-6">
+        <div className="grid items-start gap-8 xl:grid-cols-[20rem_minmax(0,1fr)]">
+          <aside className="order-2 xl:order-1 xl:sticky xl:top-8">
             <DailyQuestsSidebar />
           </aside>
+
+          <div className="order-1 space-y-10 xl:order-2">
+            {/* User Stats */}
+            {user && (
+              <div className="animate-fade-in">
+                <UserStats />
+              </div>
+            )}
+
+            {/* Friends Section */}
+            {user && (
+              <div className="space-y-6 animate-fade-in">
+                <OpenGames onResumeGame={(gameId) => onResumeGame?.(gameId)} />
+                <IncomingChallenges />
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-6">
+                    <Card className="border-border/70 bg-card/60 p-6">
+                      <h3 className="mb-4 text-xl font-bold tracking-tight">Add Friends</h3>
+                      <FriendSearch onRequestSent={refreshFriends} />
+                    </Card>
+                    <FriendRequests key={friendsKey} onRequestHandled={refreshFriends} />
+                  </div>
+                  <FriendsList key={friendsKey} />
+                </div>
+              </div>
+            )}
+
+            {/* Game Mode Cards */}
+            <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
+              {/* Classic Mode */}
+              <Card
+                id="tour-classic"
+                className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]"
+                onClick={() => onSelectMode("classic")}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-classic))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="relative p-6 space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-classic))]/30 bg-[hsl(var(--menu-classic))]/12 transition-colors group-hover:bg-[hsl(var(--menu-classic))]/18">
+                      <Target className="w-8 h-8 text-[hsl(var(--menu-classic))]" />
+                    </div>
+                    <Badge variant="secondary" className="border border-border/70 bg-secondary/80 text-xs text-foreground">Popular</Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold tracking-tight text-foreground">Classic</h3>
+                    <p className="text-sm text-muted-foreground">
+                      The original WordClash experience with 6 attempts to guess the word
+                    </p>
+                  </div>
+
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-classic))]" />
+                      6 guesses maximum
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-classic))]" />
+                      Green & yellow hints
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-classic))]" />
+                      Perfect for beginners
+                    </li>
+                  </ul>
+
+                  <Button
+                    className="w-full bg-[hsl(var(--menu-classic))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-classic))]/90"
+                    size="lg"
+                    onClick={() => onSelectMode("classic")}
+                  >
+                    Start Classic
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Hard Mode */}
+              <Card
+                id="tour-hard"
+                className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]"
+                onClick={() => onSelectMode("hard")}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-hard))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="relative p-6 space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-hard))]/30 bg-[hsl(var(--menu-hard))]/12 transition-colors group-hover:bg-[hsl(var(--menu-hard))]/18">
+                      <Flame className="w-8 h-8 text-[hsl(var(--menu-hard))]" />
+                    </div>
+                    <Badge className="border-0 bg-[hsl(var(--menu-hard))] text-xs text-white">Challenge</Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold tracking-tight text-foreground">Hard Mode</h3>
+                    <p className="text-sm text-muted-foreground">
+                      No yellow hints! Pure skill mode for word masters
+                    </p>
+                  </div>
+
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-hard))]" />
+                      10 guesses maximum
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-hard))]" />
+                      Only correct or wrong
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-hard))]" />
+                      No hints available
+                    </li>
+                  </ul>
+
+                  <Button
+                    className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90"
+                    size="lg"
+                    onClick={() => onSelectMode("hard")}
+                  >
+                    Start Hard Mode
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Timed Mode */}
+              <Card
+                id="tour-timed"
+                className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]"
+                onClick={() => onSelectMode("timed")}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-timed))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="relative p-6 space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-timed))]/30 bg-[hsl(var(--menu-timed))]/12 transition-colors group-hover:bg-[hsl(var(--menu-timed))]/18">
+                      <Timer className="w-8 h-8 text-[hsl(var(--menu-timed))]" />
+                    </div>
+                    <Badge className="border-0 bg-[hsl(var(--menu-timed))] text-xs text-white">Fast</Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold tracking-tight text-foreground">Timed Mode</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Race against the clock! Solve as many as you can
+                    </p>
+                  </div>
+
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
+                      90 seconds to start
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
+                      +30s bonus per word
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
+                      Unlimited attempts
+                    </li>
+                  </ul>
+
+                  <Button
+                    className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90"
+                    size="lg"
+                    onClick={() => onSelectMode("timed")}
+                  >
+                    Start Timed
+                  </Button>
+                </div>
+              </Card>
+            </div>
+
+            {/* Multiplayer Mode - Full Width */}
+            <Card
+              id="tour-multiplayer"
+              className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] animate-scale-in"
+              onClick={() => {
+                if (!user) {
+                  toast.error("Please sign in or create an account to play Multiplayer modes!");
+                  return;
+                }
+                onSelectMode("multiplayer");
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="relative p-6 md:p-8">
+                <div className="max-w-4xl mx-auto space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-multiplayer))]/30 bg-[hsl(var(--menu-multiplayer))]/12 transition-colors group-hover:bg-[hsl(var(--menu-multiplayer))]/18">
+                        <Zap className="w-8 h-8 text-[hsl(var(--menu-multiplayer))]" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-3xl font-bold tracking-tight text-foreground">Multiplayer Mode</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Create or join a lobby and play with up to four people
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="border-0 bg-[hsl(var(--menu-multiplayer))] text-xs text-[hsl(var(--primary-foreground))]">New</Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
+                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                      <p className="text-sm text-muted-foreground">Host a lobby with a shareable code</p>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
+                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                      <p className="text-sm text-muted-foreground">Start once everyone is ready</p>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
+                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                      <p className="text-sm text-muted-foreground">Up to 4 players, first solver wins</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:w-auto"
+                    size="lg"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent the card onClick from firing twice
+                      if (!user) {
+                        toast.error("Please sign in or create an account to play Multiplayer modes!");
+                        return;
+                      }
+                      onSelectMode("multiplayer");
+                    }}
+                  >
+                    Open Multiplayer Lobby
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <CosmeticsStore />
+          </div>
         </div>
       </div>
     </div>
