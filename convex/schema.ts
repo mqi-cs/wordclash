@@ -71,9 +71,12 @@ export default defineSchema({
       v.literal("abandoned")
     ),
     gameType: v.union(v.literal("multiplayer"), v.literal("challenge")),
+    mode: v.optional(v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"))),
     winnerId: v.optional(v.id("users")),
+    isDraw: v.optional(v.boolean()),
     startedAt: v.optional(v.number()),
     finishedAt: v.optional(v.number()),
+    gameEndTime: v.optional(v.number()), // For timed mode
   })
     .index("by_player1", ["player1Id"])
     .index("by_player2", ["player2Id"])
@@ -85,7 +88,8 @@ export default defineSchema({
   // Target words for games (Server-side validation only)
   gameSecrets: defineTable({
     gameId: v.id("games"),
-    targetWord: v.string(),
+    targetWord: v.string(), // Kept for backwards compatibility / classic
+    targetWords: v.optional(v.array(v.string())), // For timed or long sequences
   }).index("by_game", ["gameId"]),
 
   // Guesses submitted by players
@@ -95,6 +99,7 @@ export default defineSchema({
     guess: v.string(),
     evaluation: v.array(v.union(v.literal("correct"), v.literal("present"), v.literal("absent"))),
     guessNumber: v.number(),
+    wordIndex: v.optional(v.number()), // For timed mode
   }).index("by_game_and_player", ["gameId", "playerId"]),
 
   // Pending Invites
@@ -134,6 +139,7 @@ export default defineSchema({
     shards: v.number(),
     ownedCosmetics: v.array(v.string()), // cosmetic template IDs
     equippedCosmetics: v.object({
+      theme: v.optional(v.string()),
       letters: v.optional(v.string()),
       grid: v.optional(v.string()),
       background: v.optional(v.string()),

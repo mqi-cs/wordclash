@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Swords, Trophy } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) => void }) => {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
   const inviteToGame = useMutation(api.games.inviteToGame);
 
   const [sendingChallenge, setSendingChallenge] = useState<string | null>(null);
+  const [challengeMode, setChallengeMode] = useState<"classic" | "hard" | "timed">("classic");
 
   if (!user || friends === undefined) {
     return (
@@ -46,7 +48,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
     setSendingChallenge(friendId);
 
     try {
-      const gameId = await createGame({ gameType: "challenge" });
+      const gameId = await createGame({ gameType: "challenge", mode: challengeMode });
       // Target word is now picked server-side automatically
       
       // We pass the friend's Convex ID. Since we mapped string `id` to `_id` in User type, we just cast it.
@@ -98,18 +100,34 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
                   </div>
                 )}
               </div>
-              <Button
-                onClick={() => handleChallenge(friend.friendId)}
-                disabled={sendingChallenge === friend.friendId}
-                variant="secondary"
-                size="sm"
-                className="w-full sm:w-auto shrink-0"
-              >
-                <Swords className="h-4 w-4 mr-2" />
-                {sendingChallenge === friend.friendId
-                  ? "Sending..."
-                  : "Challenge"}
-              </Button>
+              <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
+                <div className="flex bg-muted rounded-md p-1">
+                    {(["classic", "hard", "timed"] as const).map((m) => (
+                        <button
+                            key={m}
+                            onClick={() => setChallengeMode(m)}
+                            className={cn(
+                                "px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
+                                challengeMode === m ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {m}
+                        </button>
+                    ))}
+                </div>
+                <Button
+                    onClick={() => handleChallenge(friend.friendId)}
+                    disabled={sendingChallenge === friend.friendId}
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                >
+                    <Swords className="h-4 w-4 mr-2" />
+                    {sendingChallenge === friend.friendId
+                    ? "Sending..."
+                    : "Challenge"}
+                </Button>
+              </div>
             </div>
           ))}
         </div>

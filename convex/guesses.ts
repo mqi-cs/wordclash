@@ -46,17 +46,18 @@ export const submitGuess = mutation({
 
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new Error("Game not found");
+    if (!isParticipant(game, userId)) throw new Error("You are not part of this game");
+    if (game.status !== "in_progress") throw new Error("Game is not active");
 
-    if (!isParticipant(game, userId)) {
-      throw new Error("You are not part of this game");
-    }
+    const now = Date.now();
+    const mode = game.mode ?? "classic";
 
-    if (game.status !== "in_progress") {
-      throw new Error("Game is not active");
+    // For timed mode, block if time is up
+    if (mode === "timed" && game.gameEndTime && now > game.gameEndTime) {
+      throw new Error("Time is up!");
     }
 
     const normalizedGuess = args.guess.toUpperCase();
-
     if (!isValidGuessFormat(normalizedGuess)) {
       throw new Error("Invalid guess format — must be exactly 5 letters");
     }
@@ -65,23 +66,38 @@ export const submitGuess = mutation({
       .query("gameSecrets")
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
       .unique();
-
-    if (!secret) {
-      throw new Error("Target word not configured for this game yet");
-    }
+    if (!secret) throw new Error("Target word not configured for this game yet");
 
     const existingGuesses = await ctx.db
       .query("guesses")
       .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", userId))
       .collect();
 
-    const guessNumber = existingGuesses.length + 1;
+    // Determine current word index and target word
+    const solvedCount = existingGuesses.filter(g =>
+      g.evaluation.every(e => e === "correct")
+    ).length;
 
-    if (guessNumber > 6) {
+    let wordIndex = 0;
+    let targetWord = secret.targetWord;
+
+    if (mode === "timed") {
+      wordIndex = solvedCount;
+      if (secret.targetWords && secret.targetWords[wordIndex]) {
+        targetWord = secret.targetWords[wordIndex];
+      }
+    }
+
+    const guessesOnCurrentWord = existingGuesses.filter(g => (g.wordIndex ?? 0) === wordIndex);
+    const guessNumber = guessesOnCurrentWord.length + 1;
+
+    const maxGuesses = mode === "hard" ? 10 : mode === "timed" ? 999 : 6;
+
+    if (guessNumber > maxGuesses) {
       throw new Error("Maximum guesses reached");
     }
 
-    const evaluation = evaluateGuess(normalizedGuess, secret.targetWord, game.gameType);
+    const evaluation = evaluateGuess(normalizedGuess, targetWord, mode);
     const validEvaluation = evaluation as Array<"correct" | "present" | "absent">;
 
     await ctx.db.insert("guesses", {
@@ -90,49 +106,71 @@ export const submitGuess = mutation({
       guess: normalizedGuess,
       evaluation: validEvaluation,
       guessNumber,
+      wordIndex,
     });
 
-    const isWon = validEvaluation.every(e => e === "correct");
-    if (isWon) {
-      await ctx.db.patch(args.gameId, {
-        status: "finished",
-        winnerId: userId,
-        finishedAt: Date.now()
-      });
+    const isCorrect = validEvaluation.every(e => e === "correct");
 
-      await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
-        distinctId: userId,
-        event: "game won",
-        properties: {
-          game_id: args.gameId,
-          game_type: game.gameType,
-          guess_number: guessNumber,
-        },
-      });
-    } else if (guessNumber >= 6) {
-      const otherPlayers = getGamePlayerIds(game).filter((playerId) => playerId !== userId);
-      let everyPlayerFinished = true;
+    // Check if the game should finish
+    const players = getGamePlayerIds(game);
+    const playerSummaries = await Promise.all(players.map(async (playerId) => {
+      const pGuesses = await ctx.db
+        .query("guesses")
+        .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", playerId))
+        .collect();
 
-      for (const playerId of otherPlayers) {
-        const playerGuesses = await ctx.db
-          .query("guesses")
-          .withIndex("by_game_and_player", (q) =>
-            q.eq("gameId", args.gameId).eq("playerId", playerId),
-          )
-          .collect();
+      const solved = pGuesses.filter(g => g.evaluation.every(e => e === "correct"));
+      const latestWordIndex = (mode === "timed") ? solved.length : 0;
+      const onLatestWord = pGuesses.filter(g => (g.wordIndex ?? 0) === latestWordIndex);
 
-        if (playerGuesses.length < 6) {
-          everyPlayerFinished = false;
-          break;
+      const hasWon = (mode !== "timed") && solved.length > 0;
+      const isOut = (mode !== "timed") && onLatestWord.length >= maxGuesses;
+
+      // In classic/hard, a player is done if they won or are out of guesses.
+      // In timed, a player is only done when time is up.
+      const isDone = (mode === "timed") ? (game.gameEndTime ? Date.now() > game.gameEndTime : false) : (hasWon || isOut);
+
+      return {
+        id: playerId,
+        isDone,
+        hasWon,
+        attempts: hasWon ? onLatestWord.length : 999, // Attempts for the word solved
+        solvedCount: solved.length,
+      };
+    }));
+
+    const allDone = playerSummaries.every(p => p.isDone);
+
+    if (allDone) {
+      let winnerId: Id<"users"> | undefined = undefined;
+      let isDraw = false;
+
+      if (mode === "timed") {
+        // Winner is the one with most solvedCount
+        playerSummaries.sort((a, b) => b.solvedCount - a.solvedCount);
+        if (playerSummaries.length > 1 && playerSummaries[0].solvedCount === playerSummaries[1].solvedCount) {
+          isDraw = true;
+        } else {
+          winnerId = playerSummaries[0].id;
+        }
+      } else {
+        // Winner is the one with hasWon=true and lowest attempts
+        const winners = playerSummaries.filter(p => p.hasWon).sort((a, b) => a.attempts - b.attempts);
+        if (winners.length === 0) {
+          isDraw = true; // Nobody guessed it
+        } else if (winners.length > 1 && winners[0].attempts === winners[1].attempts) {
+          isDraw = true;
+        } else {
+          winnerId = winners[0].id;
         }
       }
 
-      if (everyPlayerFinished) {
-        await ctx.db.patch(args.gameId, {
-          status: "finished",
-          finishedAt: Date.now()
-        });
-      }
+      await ctx.db.patch(args.gameId, {
+        status: "finished",
+        winnerId,
+        isDraw,
+        finishedAt: Date.now(),
+      });
     }
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
@@ -141,11 +179,13 @@ export const submitGuess = mutation({
       properties: {
         game_id: args.gameId,
         game_type: game.gameType,
+        mode: mode,
         guess_number: guessNumber,
-        is_correct: isWon,
+        is_correct: isCorrect,
+        word_index: wordIndex,
       },
     });
 
-    return { evaluation: validEvaluation, isWon };
+    return { evaluation: validEvaluation, isWon: isCorrect };
   },
 });

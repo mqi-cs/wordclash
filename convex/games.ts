@@ -1,4 +1,4 @@
-import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
+import { MutationCtx, QueryCtx, internalMutation, mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
@@ -314,6 +314,7 @@ export const getOpenGames = query({
             _id: game._id,
             _creationTime: game._creationTime,
             gameType: game.gameType,
+            mode: game.mode,
             hostUsername: getDisplayName(host),
             playerCount: getPlayerCount(game),
             lobbyCode: game.lobbyCode ?? null,
@@ -324,7 +325,10 @@ export const getOpenGames = query({
 });
 
 export const createGame = mutation({
-  args: { gameType: v.union(v.literal("multiplayer"), v.literal("challenge")) },
+  args: { 
+    gameType: v.union(v.literal("multiplayer"), v.literal("challenge")),
+    mode: v.optional(v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"))),
+  },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
@@ -342,17 +346,30 @@ export const createGame = mutation({
     const lobbyCode =
       args.gameType === "multiplayer" ? await generateLobbyCode(ctx) : undefined;
 
+    const gameMode = args.mode ?? "classic";
+
     const gameId = await ctx.db.insert("games", {
       player1Id: userId,
       status: "waiting",
       gameType: args.gameType,
+      mode: gameMode,
       ...(lobbyCode ? { lobbyCode } : {}),
     });
 
-    const word = getRandomTargetWord();
+    let targetWord = getRandomTargetWord();
+    let targetWords: string[] | undefined = undefined;
+
+    if (gameMode === "timed") {
+      targetWords = Array.from({ length: 50 }, () => getRandomTargetWord());
+      targetWord = targetWords[0];
+    } else {
+      targetWord = getRandomTargetWord();
+    }
+
     await ctx.db.insert("gameSecrets", {
       gameId,
-      targetWord: word,
+      targetWord,
+      ...(targetWords ? { targetWords } : {}),
     });
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
@@ -360,6 +377,7 @@ export const createGame = mutation({
       event: "game created",
       properties: {
         game_type: args.gameType,
+        mode: gameMode,
         game_id: gameId,
         has_lobby_code: !!lobbyCode,
       },
@@ -383,10 +401,17 @@ export const startGame = mutation({
     if (game.status !== "waiting") throw new Error("This game has already started.");
     if (getPlayerCount(game) < 2) throw new Error("You need at least 2 players to start.");
 
-    await ctx.db.patch(game._id, {
+    const updates: Partial<Doc<"games">> = {
       status: "in_progress",
       startedAt: Date.now(),
-    });
+    };
+
+    if (game.mode === "timed") {
+      updates.gameEndTime = Date.now() + 90 * 1000; // 90 seconds
+      await ctx.scheduler.runAfter(90 * 1000, internal.games.finishTimedGame, { gameId: args.gameId });
+    }
+
+    await ctx.db.patch(game._id, updates);
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
@@ -607,6 +632,41 @@ export const deleteGame = mutation({
     await deleteGameWithArtifacts(ctx, game._id);
 
     return { success: true };
+  },
+});
+
+export const finishTimedGame = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "in_progress" || game.mode !== "timed") return;
+
+    const players = getGamePlayerIds(game);
+    const playerSummaries = await Promise.all(players.map(async (playerId) => {
+      const pGuesses = await ctx.db
+        .query("guesses")
+        .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", playerId))
+        .collect();
+      const solvedCount = pGuesses.filter(g => g.evaluation.every(e => e === "correct")).length;
+      return { id: playerId, solvedCount };
+    }));
+
+    playerSummaries.sort((a, b) => b.solvedCount - a.solvedCount);
+    let winnerId: Id<"users"> | undefined = undefined;
+    let isDraw = false;
+
+    if (playerSummaries.length > 1 && playerSummaries[0].solvedCount === playerSummaries[1].solvedCount) {
+        isDraw = true;
+    } else {
+        winnerId = playerSummaries[0].id;
+    }
+
+    await ctx.db.patch(args.gameId, {
+      status: "finished",
+      winnerId,
+      isDraw,
+      finishedAt: Date.now(),
+    });
   },
 });
 

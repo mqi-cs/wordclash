@@ -34,6 +34,7 @@ type PlayerBoard = {
   evaluations: Array<Array<"correct" | "present" | "absent">>;
   hasWon: boolean;
   isOut: boolean;
+  solvedCount: number;
 };
 
 const syncMultiplayerUrl = (gameId: string) => {
@@ -57,8 +58,11 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const [myLetterStatus, setMyLetterStatus] = useState<Record<string, "correct" | "present" | "absent">>({});
   const [shake, setShake] = useState(false);
   const [copiedLobbyCode, setCopiedLobbyCode] = useState(false);
+  const [subMode, setSubMode] = useState<"classic" | "hard" | "timed">("classic");
   const [turnTimer, setTurnTimer] = useState(TURN_DURATION);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [gameTimeLeft, setGameTimeLeft] = useState(0);
+  const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const game = useQuery(api.games.getGame, gameId ? { gameId } : "skip");
   const shouldFetchGuesses =
@@ -86,7 +90,28 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const players = game?.players ?? [];
   const boards: PlayerBoard[] = players.map((player) => {
     const playerGuessesRaw = (guesses ?? []).filter((guess) => guess.playerId === player.id);
+    const mode = game?.mode ?? "classic";
+
+    if (mode === "timed") {
+      const solved = playerGuessesRaw.filter(g => g.evaluation.every(e => e === "correct"));
+      const latestWordIndex = solved.length;
+      const currentWordGuesses = playerGuessesRaw.filter(g => (g.wordIndex ?? 0) === latestWordIndex);
+      const evaluations = currentWordGuesses.map((guess) => guess.evaluation);
+
+      return {
+        id: player.id,
+        username: player.username,
+        isHost: player.isHost,
+        guesses: currentWordGuesses.map((guess) => guess.guess),
+        evaluations,
+        hasWon: false, // In timed mode, you win when time is up and you have most solved
+        isOut: false,
+        solvedCount: solved.length,
+      };
+    }
+
     const evaluations = playerGuessesRaw.map((guess) => guess.evaluation);
+    const maxGuesses = mode === "hard" ? 10 : 6;
     return {
       id: player.id,
       username: player.username,
@@ -94,7 +119,8 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       guesses: playerGuessesRaw.map((guess) => guess.guess),
       evaluations,
       hasWon: evaluations.some((evaluation) => evaluation.every((status) => status === "correct")),
-      isOut: playerGuessesRaw.length >= MAX_GUESSES,
+      isOut: playerGuessesRaw.length >= maxGuesses,
+      solvedCount: evaluations.some((evaluation) => evaluation.every((status) => status === "correct")) ? 1 : 0,
     };
   });
 
@@ -102,11 +128,14 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const otherBoards = boards.filter((board) => board.id !== user?.id);
   const isHost = game?.player1Id === user?.id;
   const isChallenge = game?.gameType === "challenge";
+  const mode = game?.mode ?? "classic";
+  const maxGuesses = mode === "hard" ? 10 : mode === "timed" ? 999 : 6;
   const gameStarted = game?.status === "in_progress" || game?.status === "finished";
-  const myGameOver = myBoard ? myBoard.hasWon || myBoard.isOut || game?.status === "finished" : false;
+  const myGameOver = myBoard ? (mode !== "timed" && (myBoard.hasWon || myBoard.isOut)) || game?.status === "finished" : false;
   const winningBoard = game?.winnerId
     ? boards.find((board) => board.id === game.winnerId) ?? null
     : null;
+  const isDraw = game?.isDraw;
   const challengeOpponent = otherBoards[0] ?? null;
   const hideOpponentLetters = game?.status !== "finished" && game?.status !== "abandoned";
   const isMyTurn =
@@ -234,9 +263,29 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     };
   }, [game?.status, gameId, gameStarted, isChallenge, isMyTurn, myGameOver, submitGuessMut]);
 
+  // Timed mode game timer
+  useEffect(() => {
+    if (mode !== "timed" || game?.status !== "in_progress" || !game?.gameEndTime) {
+      if (gameTimerRef.current) clearInterval(gameTimerRef.current);
+      setGameTimeLeft(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const remainingTime = Math.max(0, Math.floor((game.gameEndTime! - Date.now()) / 1000));
+      setGameTimeLeft(remainingTime);
+      if (remainingTime <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    gameTimerRef.current = interval;
+    return () => clearInterval(interval);
+  }, [game?.gameEndTime, game?.status, mode]);
+
   const handleCreateLobby = async () => {
     try {
-      const newGameId = await createGameMut({ gameType: "multiplayer" });
+      const newGameId = await createGameMut({ gameType: "multiplayer", mode: subMode });
       setGameId(newGameId);
       setEntryMode(null);
       syncMultiplayerUrl(newGameId);
@@ -286,9 +335,10 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     (key: string) => {
       if (myGameOver || !gameStarted || myCurrentGuess.length >= WORD_LENGTH) return;
       if (isChallenge && !isMyTurn) return;
+      if (mode === "timed" && gameTimeLeft <= 0) return;
       setMyCurrentGuess((previousValue) => previousValue + key);
     },
-    [gameStarted, isChallenge, isMyTurn, myCurrentGuess.length, myGameOver],
+    [gameStarted, isChallenge, isMyTurn, myCurrentGuess.length, myGameOver, mode, gameTimeLeft],
   );
 
   const handleDelete = useCallback(() => {
@@ -412,6 +462,23 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         </div>
 
         <div className="space-y-3">
+          <h3 className="text-lg font-semibold">Mode</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {(["classic", "hard", "timed"] as const).map((m) => (
+              <Button
+                key={m}
+                variant={isHost ? (subMode === m ? "default" : "outline") : (game?.mode === m ? "default" : "outline")}
+                onClick={() => isHost && setSubMode(m)}
+                disabled={!isHost}
+                className="capitalize h-10"
+              >
+                {m}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
           <h3 className="text-lg font-semibold">Players</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {players.map((player) => (
@@ -499,16 +566,17 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
 
   const renderMultiplayerBoards = () => (
     <div className="w-full space-y-8">
-      <div className="flex flex-col items-center gap-4">
-        <h2 className="text-2xl font-bold">You</h2>
-        <GameGrid
-          guesses={myBoard?.guesses ?? []}
-          currentGuess={myCurrentGuess}
-          evaluations={myBoard?.evaluations ?? []}
-          shake={shake}
-          isOpponent={false}
-        />
-      </div>
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="text-2xl font-bold">{user?.username ?? "You"}</h2>
+          <GameGrid
+            guesses={myBoard?.guesses ?? []}
+            currentGuess={myCurrentGuess}
+            evaluations={myBoard?.evaluations ?? []}
+            maxGuesses={maxGuesses}
+            shake={shake}
+            isOpponent={false}
+          />
+        </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-center">Other Players</h3>
@@ -523,12 +591,16 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
                 {board.hasWon && (
                   <span className="text-xs font-medium text-primary">Solved</span>
                 )}
+                {mode === "timed" && (
+                    <span className="text-xs font-bold text-primary">{board.solvedCount} words</span>
+                )}
               </div>
               <div className="scale-[0.82] origin-top">
                 <GameGrid
                   guesses={board.guesses}
                   currentGuess=""
                   evaluations={board.evaluations}
+                  maxGuesses={maxGuesses}
                   shake={false}
                   isOpponent={true}
                   blurCompletedGuesses={hideOpponentLetters}
@@ -579,7 +651,17 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           <div className="flex items-center gap-1 sm:gap-2 bg-secondary/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium">
             <Users className="h-3 w-3 sm:h-4 sm:w-4 text-primary" /> {game.playerCount}/{isChallenge ? 2 : MAX_MULTIPLAYER_PLAYERS}
           </div>
-          {isChallenge && gameStarted && (
+          {mode === "timed" && gameStarted && (
+            <div
+                className={cn(
+                    "flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors",
+                    gameTimeLeft <= 10 ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-primary text-primary-foreground",
+                )}
+            >
+                {gameTimeLeft}s | {myBoard?.solvedCount ?? 0} words
+            </div>
+          )}
+          {isChallenge && gameStarted && mode !== "timed" && (
             <div
               className={cn(
                 "flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors",
@@ -607,17 +689,47 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           {game.status === "finished" && (
             <Card className="w-full max-w-md p-6 text-center shadow-lg border-primary/20 bg-background/95 backdrop-blur z-10 animate-in slide-in-from-bottom-8">
               <h2 className="text-2xl font-bold mb-4">
-                {winningBoard
+                {isDraw ? "It's a Draw!" : winningBoard
                   ? winningBoard.id === user?.id
                     ? "You Won!"
                     : `${winningBoard.username} won!`
                   : "Game Over"}
               </h2>
-              <p className="text-xl mb-6">
-                The word was: <span className="font-bold text-primary">{targetWord}</span>
-              </p>
+              {mode === "timed" ? (
+                  <div className="space-y-2 mb-6">
+                      <p className="text-lg">Words Completed:</p>
+                      <div className="grid grid-cols-2 gap-4">
+                          {boards.sort((a, b) => b.solvedCount - a.solvedCount).map(b => (
+                              <div key={b.id} className={cn("p-2 rounded border", b.id === user?.id ? "border-primary bg-primary/10" : "border-border")}>
+                                  <p className="text-sm truncate">{b.username}</p>
+                                  <p className="text-xl font-bold">{b.solvedCount}</p>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              ) : (
+                <p className="text-xl mb-6">
+                    The word was: <span className="font-bold text-primary">{targetWord}</span>
+                </p>
+              )}
               <Button onClick={onBackToMenu} className="w-full">Return to Menu</Button>
             </Card>
+          )}
+
+          {!gameStarted && !isHost && (
+              <p className="text-sm font-medium text-muted-foreground bg-muted/50 px-4 py-2 rounded-full border border-border/30">
+                  Mode: <span className="text-foreground capitalize">{game.mode}</span>
+              </p>
+          )}
+
+          {(mode === "timed" || (myGameOver && game.status !== "finished")) && gameStarted && (
+             <Card className="p-4 text-center border-primary/20 bg-background/80 backdrop-blur animate-in fade-in">
+                {mode === "timed" && gameTimeLeft > 0 ? (
+                    <p className="text-primary font-bold">Solve as many words as you can!</p>
+                ) : (
+                    <p className="text-muted-foreground font-medium">Waiting for other players to finish...</p>
+                )}
+             </Card>
           )}
 
           {!gameStarted && game.gameType === "challenge" && (

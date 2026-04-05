@@ -96,14 +96,19 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      {game.gameType === "challenge" ? (
-                        <Crown className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Users className="h-4 w-4 text-primary" />
-                      )}
-                      <h3 className="font-semibold text-lg capitalize">{game.gameType} Match</h3>
-                    </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {game.gameType === "challenge" ? (
+                          <Crown className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Users className="h-4 w-4 text-primary" />
+                        )}
+                        <h3 className="font-semibold text-lg capitalize">{game.gameType} Match</h3>
+                        {game.mode && (
+                          <span className="ml-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase tracking-wider">
+                            {game.mode}
+                          </span>
+                        )}
+                      </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {game.startedAt
