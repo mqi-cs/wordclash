@@ -26,25 +26,10 @@ const CATEGORY_META: Record<
   string,
   { icon: React.ReactNode; accentHsl: string; label: string }
 > = {
-  letters: {
-    icon: <Type className="w-5 h-5" />,
-    accentHsl: "280 72% 58%",
-    label: "Letter Skins",
-  },
-  grid: {
-    icon: <Grid3X3 className="w-5 h-5" />,
-    accentHsl: "340 75% 55%",
-    label: "Grid Styles",
-  },
-  background: {
-    icon: <Wallpaper className="w-5 h-5" />,
-    accentHsl: "200 80% 52%",
-    label: "Backgrounds",
-  },
-  animation: {
+  theme: {
     icon: <Sparkles className="w-5 h-5" />,
-    accentHsl: "38 92% 55%",
-    label: "Guess Animations",
+    accentHsl: "280 72% 58%",
+    label: "Theme Bundles",
   },
 };
 

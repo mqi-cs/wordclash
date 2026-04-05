@@ -31,40 +31,17 @@ const QUEST_TEMPLATES: QuestTemplate[] = [
 
 export interface CosmeticItem {
   id: string;
-  category: "letters" | "grid" | "background" | "animation";
+  category: "theme";
   name: string;
   description: string;
   cost: number; // shards
 }
 
 export const COSMETIC_CATALOG: CosmeticItem[] = [
-  // Letter skins
-  { id: "letters_neon", category: "letters", name: "Neon Glow", description: "Electric neon letter outlines", cost: 1 },
-  { id: "letters_gold", category: "letters", name: "Gold Foil", description: "Luxurious gold leaf letters", cost: 1 },
-  { id: "letters_pixel", category: "letters", name: "Pixel Art", description: "Retro 8-bit style letters", cost: 1 },
-  { id: "letters_glitch", category: "letters", name: "Digital Glitch", description: "High-tech unstable font", cost: 0 },
-  { id: "letters_stamped", category: "letters", name: "Hand-Stamped", description: "Tactile, weathered text", cost: 0 },
-  { id: "letters_pebble", category: "letters", name: "Soft Pebble", description: "Cozy pillowy letters", cost: 0 },
-  { id: "letters_chiseled", category: "letters", name: "Chiseled Stone", description: "Engraved epic letters", cost: 0 },
-  // Grid styles
-  { id: "grid_glass", category: "grid", name: "Glass Tiles", description: "Frosted glass tile effect", cost: 1 },
-  { id: "grid_neon", category: "grid", name: "Neon Frame", description: "Glowing neon grid borders", cost: 1 },
-  { id: "grid_retro", category: "grid", name: "Retro Grid", description: "80s synthwave grid look", cost: 1 },
-  { id: "grid_cyberpunk", category: "grid", name: "Neon Cyberpunk", description: "Vibrant glowing cyan", cost: 0 },
-  { id: "grid_library", category: "grid", name: "Ancient Library", description: "Wood and brass borders", cost: 0 },
-  // Backgrounds
-  { id: "bg_starfield", category: "background", name: "Starfield", description: "Animated twinkling starfield", cost: 1 },
-  { id: "bg_aurora", category: "background", name: "Aurora", description: "Shimmering northern lights", cost: 1 },
-  { id: "bg_cyberpunk", category: "background", name: "Neon Cyberpunk", description: "Deep dark purple circuit", cost: 0 },
-  { id: "bg_library", category: "background", name: "Ancient Library", description: "Old parchment look", cost: 0 },
-  // Animations
-  { id: "anim_confetti", category: "animation", name: "Confetti Burst", description: "Confetti explosion on guess", cost: 1 },
-  { id: "anim_shockwave", category: "animation", name: "Shockwave", description: "Expanding shockwave ring", cost: 1 },
-  { id: "anim_flame", category: "animation", name: "Flame Trail", description: "Fiery trail across tiles", cost: 1 },
-  { id: "anim_decrypt", category: "animation", name: "Data Decrypt", description: "Hacking slot reveal", cost: 0 },
-  { id: "anim_ink", category: "animation", name: "Ink Soak", description: "Spreading ink stain", cost: 0 },
-  { id: "anim_solar", category: "animation", name: "Solar Flare", description: "Soft light halo", cost: 0 },
-  { id: "anim_slam", category: "animation", name: "Stone Slam", description: "Heavy jumping impact", cost: 0 },
+  { id: "theme_cyberpunk", category: "theme", name: "Neon Cyberpunk", description: "Vibrant glowing grid, glitch letters, data decrypt animation, and circuitry background", cost: 0 },
+  { id: "theme_library", category: "theme", name: "Ancient Library", description: "Wood/brass grid, hand-stamped letters, ink soak animation, and dark parchment landscape", cost: 0 },
+  { id: "theme_minimalist", category: "theme", name: "Garden Minimalist", description: "Glass tile grid, soft pebble letters, solar flare animation, and an aurora background", cost: 0 },
+  { id: "theme_fantasy", category: "theme", name: "Fantasy Epic", description: "Retro neon grid, chiseled stone letters, stone slam animation, and a starfield sky", cost: 0 },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -424,9 +401,7 @@ export const equipCosmetic = mutation({
 
     const equipped = { ...wallet.equippedCosmetics };
     // Toggle: if already equipped, unequip
-    const slotKey = item.category === "animation" ? "animation" :
-                    item.category === "letters" ? "letters" :
-                    item.category === "grid" ? "grid" : "background";
+    const slotKey = "theme";
 
     if (equipped[slotKey] === item.id) {
       equipped[slotKey] = undefined;

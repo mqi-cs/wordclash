@@ -1,17 +1,20 @@
 export type EquippedCosmetics = Partial<{
-  letters: string;
-  grid: string;
-  background: string;
-  animation: string;
+  theme: string;
 }>;
 
-const EQUIPPED_COSMETIC_SLOTS = ["letters", "grid", "background", "animation"] as const;
+const THEME_BUNDLES: Record<string, string[]> = {
+  theme_cyberpunk: ["theme-grid-cyberpunk", "theme-letters-glitch", "theme-bg-cyberpunk", "theme-anim-decrypt"],
+  theme_library: ["theme-grid-library", "theme-letters-stamped", "theme-bg-library", "theme-anim-ink"],
+  theme_minimalist: ["theme-grid-glass", "theme-letters-pebble", "theme-bg-aurora", "theme-anim-solar"],
+  theme_fantasy: ["theme-grid-retro", "theme-letters-chiseled", "theme-bg-starfield", "theme-anim-slam"],
+};
 
-export const getEquippedCosmeticThemeClasses = (equippedCosmetics?: EquippedCosmetics | null) =>
-  EQUIPPED_COSMETIC_SLOTS.flatMap((slot) => {
-    const cosmeticId = equippedCosmetics?.[slot];
-    return cosmeticId ? [`theme-${cosmeticId.replace(/_/g, "-")}`] : [];
-  });
+export const getEquippedCosmeticThemeClasses = (equippedCosmetics?: EquippedCosmetics | null) => {
+  const themeId = equippedCosmetics?.theme;
+  if (!themeId) return [];
+  return THEME_BUNDLES[themeId] || [];
+};
 
 export const getEquippedCosmeticThemeClassName = (equippedCosmetics?: EquippedCosmetics | null) =>
   getEquippedCosmeticThemeClasses(equippedCosmetics).join(" ");
+
