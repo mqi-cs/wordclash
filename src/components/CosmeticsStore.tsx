@@ -50,45 +50,19 @@ function getTimeUntilReset(): string {
 export const CosmeticsStore = () => {
   const { user } = useAuth();
 
-  const quests = useQuery(api.cosmetics.getMyQuests, user ? {} : "skip");
   const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
   const catalog = useQuery(api.cosmetics.getCatalog, {});
 
-  const seedQuests = useMutation(api.cosmetics.seedDailyQuests);
-  const claimReward = useMutation(api.cosmetics.claimQuestReward);
   const purchase = useMutation(api.cosmetics.purchaseCosmetic);
   const equip = useMutation(api.cosmetics.equipCosmetic);
 
-  const [storeOpen, setStoreOpen] = useState(false);
-  const [resetTimer, setResetTimer] = useState(getTimeUntilReset);
-
-  // Seed quests once per session
-  useEffect(() => {
-    if (user) {
-      seedQuests().catch(() => {});
-    }
-  }, [user?.id]);
-
-  // Update the countdown timer every minute
-  useEffect(() => {
-    const t = setInterval(() => setResetTimer(getTimeUntilReset()), 60_000);
-    return () => clearInterval(t);
-  }, []);
+  const [storeOpen, setStoreOpen] = useState(true);
 
   const shards = wallet?.shards ?? 0;
   const owned = wallet?.ownedCosmetics ?? [];
   const equipped = wallet?.equippedCosmetics ?? {};
 
   // ── Handlers ──────────────────────────────────────────────────────
-
-  const handleClaim = async (questId: string) => {
-    try {
-      await claimReward({ questId });
-      toast.success("+3 shards earned! 💎");
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to claim");
-    }
-  };
 
   const handlePurchase = async (cosmeticId: string) => {
     try {
@@ -125,7 +99,6 @@ export const CosmeticsStore = () => {
 
   // ── Render ─────────────────────────────────────────────────────────
 
-  const questSlots = quests?.questSlots ?? [];
   const catalogItems = catalog ?? [];
 
   // Group catalog by category
@@ -140,36 +113,7 @@ export const CosmeticsStore = () => {
     <section className="space-y-6 animate-fade-in" id="cosmetics-section">
       <SectionHeader shards={shards} />
 
-      {/* ── Daily Quests ─────────────────────────────────────────── */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Gift className="w-4 h-4 text-amber-400" />
-            Daily Quests
-          </h3>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            Resets in {resetTimer}
-          </span>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          {questSlots.map((slot) => (
-            <QuestCard
-              key={slot.questId}
-              slot={slot}
-              onClaim={() => handleClaim(slot.questId)}
-            />
-          ))}
-          {questSlots.length === 0 && (
-            <Card className="border-border/70 bg-card/60 p-6 col-span-3 text-center">
-              <p className="text-sm text-muted-foreground">Loading quests…</p>
-            </Card>
-          )}
-        </div>
-      </div>
-
-      {/* ── Store Toggle ─────────────────────────────────────────── */}
+      {/* ── Store Toggle ───────────────────────────────────────── */}
       <Button
         variant="outline"
         className="w-full border-purple-500/25 bg-purple-500/5 text-purple-300 hover:bg-purple-500/10 hover:border-purple-400/40 transition-all duration-300"
@@ -185,7 +129,7 @@ export const CosmeticsStore = () => {
         )}
       </Button>
 
-      {/* ── Store Grid ───────────────────────────────────────────── */}
+      {/* ── Store Grid ─────────────────────────────────────────── */}
       {storeOpen && (
         <div className="space-y-6 animate-fade-in">
           {Object.entries(grouped).map(([category, items]) => {
@@ -209,7 +153,7 @@ export const CosmeticsStore = () => {
                   </h4>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {items.map((item) => {
                     const isOwned = owned.includes(item.id);
                     const isEquipped =
@@ -318,6 +262,89 @@ interface QuestSlot {
   claimed: boolean;
   reward: number;
 }
+
+export const DailyQuestsSidebar = () => {
+  const { user } = useAuth();
+  const quests = useQuery(api.cosmetics.getMyQuests, user ? {} : "skip");
+  const seedQuests = useMutation(api.cosmetics.seedDailyQuests);
+  const claimReward = useMutation(api.cosmetics.claimQuestReward);
+  const [resetTimer, setResetTimer] = useState(getTimeUntilReset);
+
+  useEffect(() => {
+    if (user) {
+      seedQuests().catch(() => {});
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    const t = setInterval(() => setResetTimer(getTimeUntilReset()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const handleClaim = async (questId: string) => {
+    try {
+      await claimReward({ questId });
+      toast.success("+3 shards earned! 💎");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to claim");
+    }
+  };
+
+  if (!user) {
+    return (
+      <Card className="overflow-hidden border-border/70 bg-card/60">
+        <div className="border-b border-border/60 bg-gradient-to-br from-amber-400/10 via-background to-background p-5">
+          <h3 className="flex items-center gap-2 text-base font-bold tracking-tight text-foreground">
+            <Gift className="w-4 h-4 text-amber-400" />
+            Daily Quests
+          </h3>
+        </div>
+        <div className="p-5 text-sm text-muted-foreground">
+          Sign in to view today&apos;s quests and claim shard rewards.
+        </div>
+      </Card>
+    );
+  }
+
+  const questSlots = quests?.questSlots ?? [];
+
+  return (
+    <Card className="overflow-hidden border-border/70 bg-card/60">
+      <div className="border-b border-border/60 bg-gradient-to-br from-amber-400/10 via-background to-background p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h3 className="flex items-center gap-2 text-base font-bold tracking-tight text-foreground">
+              <Gift className="w-4 h-4 text-amber-400" />
+              Daily Quests
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Knock these out to stack shards for new cosmetic drops.
+            </p>
+          </div>
+          <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Clock className="w-3.5 h-3.5" />
+            {resetTimer}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3 p-4">
+        {questSlots.map((slot) => (
+          <QuestCard
+            key={slot.questId}
+            slot={slot}
+            onClaim={() => handleClaim(slot.questId)}
+          />
+        ))}
+        {questSlots.length === 0 && (
+          <Card className="border-dashed border-border/70 bg-background/40 p-6 text-center">
+            <p className="text-sm text-muted-foreground">Loading quests…</p>
+          </Card>
+        )}
+      </div>
+    </Card>
+  );
+};
 
 function QuestCard({
   slot,

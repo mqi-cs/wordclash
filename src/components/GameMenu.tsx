@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { CosmeticsStore } from "./CosmeticsStore";
+import { CosmeticsStore, DailyQuestsSidebar } from "./CosmeticsStore";
 import { Card } from "@/components/ui/card";
 import { Zap, Target, Trophy, Flame, Timer, Award, LogIn, LogOut, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -344,8 +344,12 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
           </div>
         </Card>
 
-        {/* Cosmetics Store */}
-        <CosmeticsStore />
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <CosmeticsStore />
+          <aside className="xl:sticky xl:top-6">
+            <DailyQuestsSidebar />
+          </aside>
+        </div>
       </div>
     </div>
   );
