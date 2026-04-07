@@ -3,6 +3,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
+import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
 
 type GameDoc = Doc<"games">;
 type GameMode = "classic" | "hard" | "timed" | "multiplayer";
@@ -197,6 +198,32 @@ export const updateStats = mutation({
       greenLetters,
     });
 
+    const completedMetrics = await incrementMetric(
+      ctx,
+      ANALYTICS_METRICS.gamesCompleted,
+      userId,
+    );
+
+    const analyticsProperties = {
+      metric_day: completedMetrics.dayKey,
+      games_completed_total: completedMetrics.totalCount,
+      games_completed_today_total: completedMetrics.todayTotalCount,
+      games_completed_by_user_total: completedMetrics.userTotalCount,
+      games_completed_by_user_today: completedMetrics.userTodayCount,
+    };
+
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      distinctId: userId,
+      event: "game_completed",
+      properties: {
+        mode: args.mode,
+        won,
+        green_letters: greenLetters,
+        game_id: args.gameId,
+        ...analyticsProperties,
+      },
+    });
+
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "stats updated",
@@ -205,6 +232,7 @@ export const updateStats = mutation({
         won,
         green_letters: greenLetters,
         game_id: args.gameId,
+        ...analyticsProperties,
       },
     });
   },

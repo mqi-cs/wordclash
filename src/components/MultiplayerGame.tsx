@@ -86,6 +86,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const joinGameByCodeMut = useMutation(api.games.joinGameByCode);
   const startGameMut = useMutation(api.games.startGame);
   const submitGuessMut = useMutation(api.guesses.submitGuess);
+  const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
 
   const players = game?.players ?? [];
   const boards: PlayerBoard[] = players.map((player) => {
@@ -331,6 +332,25 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     window.setTimeout(() => setCopiedLobbyCode(false), 1500);
   };
 
+  const handleBack = () => {
+    if (gameId && game && game.status !== "finished") {
+      void captureUserEvent({
+        event: "game_abandoned",
+        properties: {
+          game_id: gameId,
+          game_type: game.gameType,
+          mode: game.mode ?? "classic",
+          status: game.status,
+          player_count: game.playerCount,
+          abandon_reason:
+            game.status === "waiting" ? "returned_to_menu_from_lobby" : "returned_to_menu",
+        },
+      }).catch(() => null);
+    }
+
+    onBackToMenu();
+  };
+
   const handleKeyPress = useCallback(
     (key: string) => {
       if (myGameOver || !gameStarted || myCurrentGuess.length >= WORD_LENGTH) return;
@@ -385,7 +405,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
 
   const renderEntryScreen = () => (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <Button variant="ghost" className="self-start -ml-4" onClick={onBackToMenu}>
+      <Button variant="ghost" className="self-start -ml-4" onClick={handleBack}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
       <div className="flex flex-col items-center max-w-xl w-full gap-6">
@@ -439,7 +459,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const renderLobby = () => (
     <div className="flex flex-col items-center max-w-3xl mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="w-full flex justify-between items-center">
-        <Button variant="ghost" onClick={onBackToMenu}>
+        <Button variant="ghost" onClick={handleBack}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Exit
         </Button>
         <div className="flex items-center gap-2 bg-secondary/60 px-3 py-1.5 rounded-full text-sm font-medium">
@@ -632,7 +652,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <p className="text-muted-foreground">Game not found.</p>
-        <Button onClick={onBackToMenu}>Return to Menu</Button>
+        <Button onClick={handleBack}>Return to Menu</Button>
       </div>
     );
   }
@@ -644,7 +664,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   return (
     <div className={cn("flex flex-col h-[100dvh] bg-background w-full max-w-6xl mx-auto animate-in fade-in duration-500 overflow-hidden", themeClassName)}>
       <div className="w-full flex justify-between items-center p-2 sm:p-4 flex-shrink-0">
-        <Button variant="ghost" onClick={onBackToMenu} size="sm">
+        <Button variant="ghost" onClick={handleBack} size="sm">
           <ArrowLeft className="mr-1 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exit</span>
         </Button>
         <div className="flex items-center gap-2 sm:gap-4">
@@ -712,7 +732,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
                     The word was: <span className="font-bold text-primary">{targetWord}</span>
                 </p>
               )}
-              <Button onClick={onBackToMenu} className="w-full">Return to Menu</Button>
+              <Button onClick={handleBack} className="w-full">Return to Menu</Button>
             </Card>
           )}
 

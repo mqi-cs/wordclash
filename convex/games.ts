@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { auth } from "./auth";
 import { getRandomTargetWord } from "./shared/gameLogic";
 import { internal } from "./_generated/api";
+import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
 
 const MAX_MULTIPLAYER_PLAYERS = 4;
 const LOBBY_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -130,11 +131,31 @@ const deleteGameWithArtifacts = async (ctx: MutationCtx, gameId: Id<"games">) =>
   await ctx.db.delete(gameId);
 };
 
+const captureGameAbandoned = async (
+  ctx: MutationCtx,
+  game: GameDoc,
+  abandonReason: string,
+) => {
+  await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    distinctId: game.player1Id,
+    event: "game_abandoned",
+    properties: {
+      game_id: game._id,
+      game_type: game.gameType,
+      mode: game.mode ?? "classic",
+      status: game.status,
+      player_count: getPlayerCount(game),
+      abandon_reason: abandonReason,
+    },
+  });
+};
+
 const ensureGameIsNotStale = async (ctx: MutationCtx, game: GameDoc) => {
   if (!isWaitingGameStale(game)) {
     return;
   }
 
+  await captureGameAbandoned(ctx, game, "waiting_game_expired");
   await deleteGameWithArtifacts(ctx, game._id);
   throw new Error("This waiting game expired.");
 };
@@ -151,6 +172,7 @@ const cleanupStaleWaitingGamesImpl = async (ctx: MutationCtx) => {
     if (!isWaitingGameStale(game, now)) {
       continue;
     }
+    await captureGameAbandoned(ctx, game, "waiting_game_expired");
     await deleteGameWithArtifacts(ctx, game._id);
     deletedCount += 1;
   }
@@ -372,14 +394,25 @@ export const createGame = mutation({
       ...(targetWords ? { targetWords } : {}),
     });
 
+    const createdMetrics = await incrementMetric(
+      ctx,
+      ANALYTICS_METRICS.gamesCreated,
+      userId,
+    );
+
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: "game created",
+      event: "game_created",
       properties: {
         game_type: args.gameType,
         mode: gameMode,
         game_id: gameId,
         has_lobby_code: !!lobbyCode,
+        metric_day: createdMetrics.dayKey,
+        games_created_total: createdMetrics.totalCount,
+        games_created_today_total: createdMetrics.todayTotalCount,
+        games_created_by_user_total: createdMetrics.userTotalCount,
+        games_created_by_user_today: createdMetrics.userTodayCount,
       },
     });
 
@@ -518,6 +551,7 @@ export const declineInvitation = mutation({
       game.player2Id === undefined
     ) {
       await deleteGameWithArtifacts(ctx, game._id);
+      await captureGameAbandoned(ctx, game, "invitation_declined");
       await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
         distinctId: userId,
         event: "invitation declined",
@@ -629,6 +663,7 @@ export const deleteGame = mutation({
       throw new Error("Only the host can delete waiting challenges or waiting lobbies.");
     }
 
+    await captureGameAbandoned(ctx, game, "host_deleted_waiting_game");
     await deleteGameWithArtifacts(ctx, game._id);
 
     return { success: true };

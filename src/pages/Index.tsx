@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { getEquippedCosmeticThemeClassName, getEquippedCosmeticThemeClasses } from "@/lib/cosmetics";
 
@@ -47,6 +47,7 @@ type ActiveHint = {
 const Index = () => {
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
+  const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
   const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
   const cosmeticThemeClassName = getEquippedCosmeticThemeClassName(wallet?.equippedCosmetics);
 
@@ -300,6 +301,25 @@ const Index = () => {
   };
 
   const handleBackToMenu = () => {
+    if (
+      user &&
+      gameMode &&
+      gameMode !== "multiplayer" &&
+      !gameOver &&
+      (guesses.length > 0 || totalGuesses > 0 || botActive)
+    ) {
+      void captureUserEvent({
+        event: "game_abandoned",
+        properties: {
+          mode: gameMode,
+          abandon_reason: "returned_to_menu",
+          guess_count: guesses.length,
+          total_guesses: totalGuesses,
+          bot_active: botActive,
+        },
+      }).catch(() => null);
+    }
+
     window.history.replaceState({}, "", "/");
     setGameMode(null);
     setGuesses([]);
@@ -353,6 +373,17 @@ const Index = () => {
       
       setEliminatedLetters(prev => [...prev, ...toEliminate]);
       setActiveHint({ turn: currentTurn, position: -1 });
+      if (user) {
+        void captureUserEvent({
+          event: "hint_used",
+          properties: {
+            mode: gameMode,
+            hint_type: "eliminate_letters",
+            turn: currentTurn,
+            eliminated_letters_count: toEliminate.length,
+          },
+        }).catch(() => null);
+      }
       toast.success(`Eliminated 3 letters!`);
       return;
     }
@@ -388,6 +419,17 @@ const Index = () => {
       turn: currentTurn,
       position: positionToReveal,
     });
+    if (user) {
+      void captureUserEvent({
+        event: "hint_used",
+        properties: {
+          mode: gameMode,
+          hint_type: "reveal_letter",
+          turn: currentTurn,
+          revealed_position: positionToReveal,
+        },
+      }).catch(() => null);
+    }
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
   };
 

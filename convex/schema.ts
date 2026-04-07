@@ -45,6 +45,17 @@ export default defineSchema({
     total_green_letters: v.number(),
   }).index("by_user", ["userId"]),
 
+  analyticsCounters: defineTable({
+    metric: v.string(),
+    userId: v.optional(v.id("users")),
+    dayKey: v.optional(v.string()),
+    value: v.number(),
+  })
+    .index("by_metric", ["metric"])
+    .index("by_metric_and_user", ["metric", "userId"])
+    .index("by_metric_and_day", ["metric", "dayKey"])
+    .index("by_metric_user_and_day", ["metric", "userId", "dayKey"]),
+
   // Friendships
   friendships: defineTable({
     user1Id: v.id("users"),
