@@ -41,8 +41,9 @@ export const COSMETIC_CATALOG: CosmeticItem[] = [
   { id: "theme_cyberpunk", category: "theme", name: "Neon Cyberpunk", description: "Vibrant glowing grid, glitch letters, data decrypt animation, and circuitry background", cost: 0 },
   { id: "theme_library", category: "theme", name: "Ancient Library", description: "Wood/brass grid, hand-stamped letters, ink soak animation, and dark parchment landscape", cost: 0 },
   { id: "theme_minimalist", category: "theme", name: "Garden Minimalist", description: "Glass tile grid, soft pebble letters, solar flare animation, and an aurora background", cost: 0 },
-  { id: "theme_fantasy", category: "theme", name: "Fantasy Epic", description: "Retro neon grid, chiseled stone letters, stone slam animation, and a starfield sky", cost: 0 },
 ];
+
+const VALID_COSMETIC_IDS = new Set(COSMETIC_CATALOG.map((item) => item.id));
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -121,10 +122,15 @@ export const getMyCosmetics = query({
     if (!wallet) {
       return { shards: 0, ownedCosmetics: [], equippedCosmetics: {} };
     }
+
+    const equippedCosmetics = Object.fromEntries(
+      Object.entries(wallet.equippedCosmetics).filter(([, cosmeticId]) => VALID_COSMETIC_IDS.has(cosmeticId)),
+    );
+
     return {
       shards: wallet.shards,
       ownedCosmetics: wallet.ownedCosmetics,
-      equippedCosmetics: wallet.equippedCosmetics,
+      equippedCosmetics,
     };
   },
 });
