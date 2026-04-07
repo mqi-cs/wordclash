@@ -55,18 +55,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
         ],
         accentVar: "menu-classic",
       },
-      {
-        title: "Read the Colors",
-        subtitle: "How feedback works",
-        description:
-          "After each guess, tile colors tell you how close you are to the answer.",
-        bullets: [
-          "Green means the letter is correct and in the right spot.",
-          "Yellow means the letter exists but belongs somewhere else.",
-          "Grey means the letter is not in the word.",
-        ],
-        accentVar: "menu-classic",
-      },
     ],
     actionLabel: "Start Classic",
   },
@@ -81,18 +69,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
           "You get 10 guesses instead of 6.",
           "Only green and grey feedback appears.",
           "This mode rewards memory and discipline.",
-        ],
-        accentVar: "menu-hard",
-      },
-      {
-        title: "Hard Mode Hints",
-        subtitle: "Hints work differently here",
-        description:
-          "Because the mode is stricter, hint behavior changes too.",
-        bullets: [
-          "Hints do not reveal a letter in the grid.",
-          "Instead, they eliminate wrong letters from the keyboard.",
-          "Use them to narrow the alphabet without giving away placement.",
         ],
         accentVar: "menu-hard",
       },
@@ -113,18 +89,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
         ],
         accentVar: "menu-timed",
       },
-      {
-        title: "Build Your Run",
-        subtitle: "How scoring works",
-        description:
-          "Success in Timed Mode comes from speed and consistency, not a single perfect solve.",
-        bullets: [
-          "Each solved word adds +30 seconds.",
-          "The board resets instantly for the next target word.",
-          "Your final score is the total number of words completed.",
-        ],
-        accentVar: "menu-timed",
-      },
     ],
     actionLabel: "Start Timed",
   },
@@ -139,18 +103,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
           "Create a lobby and invite people with a code.",
           "Up to 4 players can join one match.",
           "The fastest solve wins the round.",
-        ],
-        accentVar: "menu-multiplayer",
-      },
-      {
-        title: "Challenges",
-        subtitle: "Direct matches with friends",
-        description:
-          "You can also challenge friends directly without opening a public-style lobby flow.",
-        bullets: [
-          "Add friends from the home screen social section.",
-          "Send a challenge invite to start a head-to-head match.",
-          "Resume open games anytime from Your Active Games.",
         ],
         accentVar: "menu-multiplayer",
       },
@@ -171,18 +123,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
         ],
         accentVar: "primary",
       },
-      {
-        title: "What You Keep",
-        subtitle: "Your progress follows you",
-        description:
-          "Signing in gives your profile a home so features can build over multiple sessions.",
-        bullets: [
-          "Your active games stay accessible.",
-          "Quest and cosmetic progress can be tracked.",
-          "Leaderboards and multiplayer identity work properly.",
-        ],
-        accentVar: "primary",
-      },
     ],
     actionLabel: "Go to Sign In",
   },
@@ -197,18 +137,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
           "Quest progress updates as you finish games.",
           "Completed quests can be claimed for shards.",
           "The timer shows when tomorrow's quests arrive.",
-        ],
-        accentVar: "menu-timed",
-      },
-      {
-        title: "Why Shards Matter",
-        subtitle: "Quests feed cosmetics",
-        description:
-          "Shards are the main cosmetic currency, so quests connect directly to personalization.",
-        bullets: [
-          "Claiming a finished quest adds shards to your wallet.",
-          "Those shards are spent in the cosmetics store.",
-          "Checking quests daily is the fastest way to unlock styles.",
         ],
         accentVar: "menu-timed",
       },
@@ -229,18 +157,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
         ],
         accentVar: "menu-multiplayer",
       },
-      {
-        title: "Why It Matters",
-        subtitle: "Keep momentum between sessions",
-        description:
-          "You do not need to remember codes or track games manually once your social network is set up.",
-        bullets: [
-          "Open games stay visible until they are finished.",
-          "Challenges feel more like a conversation than a one-off match.",
-          "The social area becomes your fastest route back into play.",
-        ],
-        accentVar: "menu-multiplayer",
-      },
     ],
     actionLabel: "Got it",
   },
@@ -255,18 +171,6 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
           "Shards come from daily quest rewards.",
           "Owned items can be equipped instantly.",
           "Themes affect how your board looks in game.",
-        ],
-        accentVar: "primary",
-      },
-      {
-        title: "What Other Players See",
-        subtitle: "Style is now visible in multiplayer too",
-        description:
-          "Your equipped board theme is not just for you anymore. Other players can see it in challenge and multiplayer matches.",
-        bullets: [
-          "Themes make your board feel distinct.",
-          "Multiplayer now shows each player's equipped style.",
-          "Collecting cosmetics becomes part of your public identity.",
         ],
         accentVar: "primary",
       },
