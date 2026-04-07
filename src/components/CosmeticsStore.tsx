@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { getEquippedCosmeticThemeClassName } from "@/lib/cosmetics";
 
 // ── Category metadata for icons + colors ────────────────────────────
 
@@ -189,6 +191,10 @@ export const CosmeticsStore = () => {
                           </p>
                         </div>
 
+                        {item.category === "theme" && (
+                          <ThemeBundlePreview themeId={item.id} />
+                        )}
+
                         {isOwned ? (
                           <Button
                             size="sm"
@@ -227,6 +233,76 @@ export const CosmeticsStore = () => {
 };
 
 // ── Sub-components ───────────────────────────────────────────────────
+
+const previewRevealStyles: CSSProperties = {
+  "--flip-bg": "hsl(var(--game-correct))",
+  "--flip-border": "hsl(var(--game-correct))",
+  "--flip-text": "#ffffff",
+} as CSSProperties;
+
+const THEME_PREVIEW_ROWS = [
+  [
+    { letter: "W", className: "tile-revealed tile-correct bg-game-correct border-game-correct text-white" },
+    { letter: "O", className: "tile-revealed tile-present bg-game-present border-game-present text-white" },
+    { letter: "R", className: "tile-revealed tile-absent bg-game-absent border-game-absent text-white" },
+    { letter: "D", className: "tile-filled border-game-border-active bg-game-empty" },
+    { letter: "", className: "tile-empty border-game-border bg-game-empty" },
+  ],
+  [
+    {
+      letter: "C",
+      className: "tile-revealing tile-correct border-game-border bg-game-empty text-game-text animate-flip-reveal",
+      style: previewRevealStyles,
+    },
+    { letter: "L", className: "tile-filled border-game-border-active bg-game-empty" },
+    { letter: "A", className: "tile-filled border-game-border-active bg-game-empty" },
+    { letter: "S", className: "tile-filled border-game-border-active bg-game-empty" },
+    { letter: "H", className: "tile-filled border-game-border-active bg-game-empty" },
+  ],
+];
+
+function ThemeBundlePreview({ themeId }: { themeId: string }) {
+  const themeClassName = getEquippedCosmeticThemeClassName({ theme: themeId });
+
+  if (!themeClassName) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        "cosmetic-preview relative overflow-hidden rounded-xl border border-border/60 p-3",
+        themeClassName,
+      )}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10" />
+      <div className="relative z-[1] space-y-2">
+        <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80">
+          <span>Preview</span>
+          <span>Live Theme</span>
+        </div>
+        <div className="mx-auto flex w-full max-w-[220px] flex-col gap-1.5">
+          {THEME_PREVIEW_ROWS.map((row, rowIndex) => (
+            <div key={rowIndex} className="grid grid-cols-5 gap-1.5">
+              {row.map((tile, tileIndex) => (
+                <div
+                  key={`${rowIndex}-${tileIndex}`}
+                  className={cn(
+                    "relative flex aspect-square w-full items-center justify-center overflow-hidden border-2 text-lg font-bold uppercase transition-all duration-100 tile",
+                    tile.className,
+                  )}
+                  style={tile.style}
+                >
+                  {tile.letter}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SectionHeader({ shards }: { shards: number }) {
   return (

@@ -1035,8 +1035,15 @@ body.theme-bg-zen::after,
   100% { box-shadow: 0 0 12px rgba(113, 255, 205, 0.36); transform: translateY(0); }
 }
 
+/* Shared store preview surface for theme bundles */
+.cosmetic-preview {
+  min-height: 11rem;
+  isolation: isolate;
+}
+
 /* --- Shadow Puppet Theater --- */
-body.theme-bg-silk {
+body.theme-bg-silk,
+.theme-bg-silk {
   /* Silk screen background */
   background: 
     linear-gradient(rgba(255, 235, 180, 0.1), rgba(255, 215, 100, 0.12)),
@@ -1044,14 +1051,18 @@ body.theme-bg-silk {
   background-color: #ffd89b;
   position: relative;
 }
-body.theme-bg-silk::before {
+body.theme-bg-silk::before,
+.theme-bg-silk::before {
   content: "";
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(circle at 50% 120%, rgba(255,140,0,0.1) 0%, rgba(0,0,0,0.8) 100%);
   z-index: 0;
   animation: flicker-candle 3s infinite alternate ease-in-out;
+}
+body.theme-bg-silk::before {
+  position: fixed;
 }
 @keyframes flicker-candle {
   0% { opacity: 0.85; }
@@ -1061,7 +1072,8 @@ body.theme-bg-silk::before {
   100% { opacity: 1; }
 }
 /* Grid Skin */
-body.theme-grid-shadow .tile {
+body.theme-grid-shadow .tile,
+.theme-grid-shadow .tile {
   border: 0;
   background: transparent !important;
   box-shadow: inset 0px 0px 8px rgba(0,0,0,0.8);
@@ -1069,14 +1081,16 @@ body.theme-grid-shadow .tile {
   position: relative;
 }
 /* Letter Skin */
-body.theme-letters-silhouette .tile {
+body.theme-letters-silhouette .tile,
+.theme-letters-silhouette .tile {
   font-family: 'Bebas Neue', cursive;
   font-size: 2.2rem;
   color: #111 !important; /* Silhouette */
   transform: rotate(-3deg) scale(0.95);
 }
 /* stick on the silhouette */
-body.theme-letters-silhouette .tile::after {
+body.theme-letters-silhouette .tile::after,
+.theme-letters-silhouette .tile::after {
   content: "";
   position: absolute;
   bottom: -15px;
@@ -1089,26 +1103,32 @@ body.theme-letters-silhouette .tile::after {
 }
 /* Guess Animation - The Lantern Shift */
 body.theme-anim-lantern .tile-revealing,
-body.theme-anim-lantern .tile-revealed {
+body.theme-anim-lantern .tile-revealed,
+.theme-anim-lantern .tile-revealing,
+.theme-anim-lantern .tile-revealed {
   animation: none !important;
   transform: none !important;
 }
-body.theme-anim-lantern .tile-revealing {
+body.theme-anim-lantern .tile-revealing,
+.theme-anim-lantern .tile-revealing {
   animation: lantern-shift 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
 }
-body.theme-anim-lantern .tile-correct {
+body.theme-anim-lantern .tile-correct,
+.theme-anim-lantern .tile-correct {
   background: transparent !important;
   box-shadow: inset 0px 0px 30px rgba(220, 20, 60, 0.8) !important;
   color: rgba(220, 20, 60, 1) !important;
   text-shadow: 0 0 10px rgba(220, 20, 60, 0.8);
 }
-body.theme-anim-lantern .tile-present {
+body.theme-anim-lantern .tile-present,
+.theme-anim-lantern .tile-present {
   background: transparent !important;
   box-shadow: inset 0px 0px 30px rgba(255, 140, 0, 0.8) !important;
   color: rgba(255, 140, 0, 1) !important;
   text-shadow: 0 0 10px rgba(255, 140, 0, 0.8);
 }
-body.theme-anim-lantern .tile-absent {
+body.theme-anim-lantern .tile-absent,
+.theme-anim-lantern .tile-absent {
   background: transparent !important;
   box-shadow: inset 0px 0px 20px rgba(0, 0, 0, 0.9) !important;
   color: #000 !important;
@@ -1121,7 +1141,8 @@ body.theme-anim-lantern .tile-absent {
 }
 
 /* --- The Embroidered Tapestry (Textile/Craft) --- */
-body.theme-bg-basket {
+body.theme-bg-basket,
+.theme-bg-basket {
   /* Soft blurred sewing basket */
   background: 
     radial-gradient(circle at 80% 20%, rgba(200,100,50,0.15) 0%, transparent 60%),
@@ -1130,7 +1151,8 @@ body.theme-bg-basket {
   position: relative;
 }
 /* Cross-stitch canvas */
-body.theme-grid-canvas .tile {
+body.theme-grid-canvas .tile,
+.theme-grid-canvas .tile {
   background: #fdfbf7 !important;
   border: 1px dashed #d1c5b4;
   box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
@@ -1138,7 +1160,8 @@ body.theme-grid-canvas .tile {
   background-size: 4px 4px;
 }
 /* Letter Skin */
-body.theme-letters-yarn .tile {
+body.theme-letters-yarn .tile,
+.theme-letters-yarn .tile {
   font-family: 'Codystar', display;
   font-weight: 700;
   font-size: 2.2rem;
@@ -1148,16 +1171,20 @@ body.theme-letters-yarn .tile {
 
 /* Guess Animation - The Needle Work */
 body.theme-anim-sewing .tile-revealing,
-body.theme-anim-sewing .tile-revealed {
+body.theme-anim-sewing .tile-revealed,
+.theme-anim-sewing .tile-revealing,
+.theme-anim-sewing .tile-revealed {
   animation: none !important;
   transform: none !important;
 }
-body.theme-anim-sewing .tile-revealing {
+body.theme-anim-sewing .tile-revealing,
+.theme-anim-sewing .tile-revealing {
   animation: needle-zip 0.5s ease-out forwards !important;
   position: relative;
   overflow: visible;
 }
-body.theme-anim-sewing .tile-revealing::before {
+body.theme-anim-sewing .tile-revealing::before,
+.theme-anim-sewing .tile-revealing::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -1182,21 +1209,24 @@ body.theme-anim-sewing .tile-revealing::before {
   100% { transform: scale(1); filter: brightness(1); }
 }
 
-body.theme-anim-sewing .tile-correct {
+body.theme-anim-sewing .tile-correct,
+.theme-anim-sewing .tile-correct {
   background: #fdfbf7 !important;
   border-color: #4169E1 !important;
   color: #4169E1 !important;
   text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
 }
 
-body.theme-anim-sewing .tile-present {
+body.theme-anim-sewing .tile-present,
+.theme-anim-sewing .tile-present {
   background: #fdfbf7 !important;
   border-color: #daa520 !important;
   color: #daa520 !important;
   text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
 }
 
-body.theme-anim-sewing .tile-absent {
+body.theme-anim-sewing .tile-absent,
+.theme-anim-sewing .tile-absent {
   background: #e9e5de !important;
   border-color: #a9a9a9 !important;
   color: #7a7a7a !important;
