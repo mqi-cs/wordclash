@@ -16,6 +16,13 @@ type UserSummary = {
   id: Id<"users">;
   username: string;
   isHost: boolean;
+  equippedCosmetics: {
+    theme?: string;
+    letters?: string;
+    grid?: string;
+    background?: string;
+    animation?: string;
+  };
 };
 
 const getGamePlayerIds = (game: GameDoc): Id<"users">[] =>
@@ -46,12 +53,23 @@ const buildPlayerSummaries = async (
   game: GameDoc,
 ): Promise<UserSummary[]> => {
   const playerIds = getGamePlayerIds(game);
-  const players = await Promise.all(playerIds.map((playerId) => ctx.db.get(playerId)));
+  const [players, cosmetics] = await Promise.all([
+    Promise.all(playerIds.map((playerId) => ctx.db.get(playerId))),
+    Promise.all(
+      playerIds.map((playerId) =>
+        ctx.db
+          .query("userCosmetics")
+          .withIndex("by_user", (q) => q.eq("userId", playerId))
+          .unique(),
+      ),
+    ),
+  ]);
 
   return playerIds.map((playerId, index) => ({
     id: playerId,
     username: getDisplayName(players[index]),
     isHost: playerId === game.player1Id,
+    equippedCosmetics: cosmetics[index]?.equippedCosmetics ?? {},
   }));
 };
 

@@ -30,12 +30,16 @@ const revealedTileStyles: Record<"correct" | "present" | "absent", CSSProperties
 
 const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }: TileProps) => {
   const [displayLetter, setDisplayLetter] = useState(letter);
+  const tileRef = useRef<HTMLDivElement>(null);
   const shouldAnimateReveal =
     animate && (status === "correct" || status === "present" || status === "absent");
 
   useEffect(() => {
-    // Check if the hack reveal animation is equipped globally length > 0
-    if (!shouldAnimateReveal || !document.body.classList.contains("theme-anim-decrypt")) {
+    const hasDecryptTheme =
+      document.body.classList.contains("theme-anim-decrypt") ||
+      tileRef.current?.closest(".theme-anim-decrypt") !== null;
+
+    if (!shouldAnimateReveal || !hasDecryptTheme) {
       setDisplayLetter(letter);
       return;
     }
@@ -60,6 +64,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }
 
   return (
     <div
+      ref={tileRef}
       className={cn(
         "relative aspect-square w-full overflow-hidden border-2 flex items-center justify-center text-[1.65rem] sm:text-[2.1rem] font-bold uppercase transition-all duration-100 tile",
         status === "empty" && "tile-empty border-game-border bg-game-empty",

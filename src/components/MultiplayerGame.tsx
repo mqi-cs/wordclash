@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { getEquippedCosmeticThemeClassName } from "@/lib/cosmetics";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -30,6 +31,7 @@ type PlayerBoard = {
   id: string;
   username: string;
   isHost: boolean;
+  themeClassName: string;
   guesses: string[];
   evaluations: Array<Array<"correct" | "present" | "absent">>;
   hasWon: boolean;
@@ -103,6 +105,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         id: player.id,
         username: player.username,
         isHost: player.isHost,
+        themeClassName: getEquippedCosmeticThemeClassName(player.equippedCosmetics),
         guesses: currentWordGuesses.map((guess) => guess.guess),
         evaluations,
         hasWon: false, // In timed mode, you win when time is up and you have most solved
@@ -117,6 +120,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       id: player.id,
       username: player.username,
       isHost: player.isHost,
+      themeClassName: getEquippedCosmeticThemeClassName(player.equippedCosmetics),
       guesses: playerGuessesRaw.map((guess) => guess.guess),
       evaluations,
       hasWon: evaluations.some((evaluation) => evaluation.every((status) => status === "correct")),
@@ -551,7 +555,12 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           >
             {opponentBoard?.username ?? "Opponent"}
           </h2>
-          <div className="scale-75 origin-top md:scale-90 opacity-80">
+          <div
+            className={cn(
+              "scale-75 origin-top rounded-3xl border border-primary/10 p-4 md:scale-90 opacity-80 overflow-hidden",
+              opponentBoard?.themeClassName,
+            )}
+          >
             <GameGrid
               guesses={opponentBoard?.guesses ?? []}
               currentGuess=""
@@ -572,13 +581,20 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           >
             You
           </h2>
-          <GameGrid
-            guesses={myBoard?.guesses ?? []}
-            currentGuess={myCurrentGuess}
-            evaluations={myBoard?.evaluations ?? []}
-            shake={shake}
-            isOpponent={false}
-          />
+          <div
+            className={cn(
+              "rounded-3xl border border-primary/10 p-4 overflow-hidden",
+              myBoard?.themeClassName,
+            )}
+          >
+            <GameGrid
+              guesses={myBoard?.guesses ?? []}
+              currentGuess={myCurrentGuess}
+              evaluations={myBoard?.evaluations ?? []}
+              shake={shake}
+              isOpponent={false}
+            />
+          </div>
         </div>
       </div>
     );
@@ -588,21 +604,28 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     <div className="w-full space-y-8">
         <div className="flex flex-col items-center gap-4">
           <h2 className="text-2xl font-bold">{user?.username ?? "You"}</h2>
-          <GameGrid
-            guesses={myBoard?.guesses ?? []}
-            currentGuess={myCurrentGuess}
-            evaluations={myBoard?.evaluations ?? []}
-            maxGuesses={maxGuesses}
-            shake={shake}
-            isOpponent={false}
-          />
+          <div
+            className={cn(
+              "rounded-3xl border border-primary/10 p-4 overflow-hidden",
+              myBoard?.themeClassName,
+            )}
+          >
+            <GameGrid
+              guesses={myBoard?.guesses ?? []}
+              currentGuess={myCurrentGuess}
+              evaluations={myBoard?.evaluations ?? []}
+              maxGuesses={maxGuesses}
+              shake={shake}
+              isOpponent={false}
+            />
+          </div>
         </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-center">Other Players</h3>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {otherBoards.map((board) => (
-            <Card key={board.id} className="p-4 space-y-4 border-primary/10">
+            <Card key={board.id} className={cn("p-4 space-y-4 border-primary/10 overflow-hidden", board.themeClassName)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {board.isHost && <Crown className="h-4 w-4 text-primary" />}
