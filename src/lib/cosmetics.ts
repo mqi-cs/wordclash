@@ -11,6 +11,7 @@ const THEME_BUNDLES: Record<string, string[]> = {
   theme_cathedral: ["theme-grid-cathedral", "theme-letters-gothic", "theme-bg-cloister", "theme-anim-sunbeam"],
   theme_origami_zen: ["theme-grid-origami", "theme-letters-sumie", "theme-bg-zen", "theme-anim-fold"],
   theme_shadow_puppet: ["theme-grid-shadow", "theme-letters-silhouette", "theme-bg-silk", "theme-anim-lantern"],
+  theme_tapestry: ["theme-grid-canvas", "theme-letters-yarn", "theme-bg-basket", "theme-anim-sewing"],
 };
 
 export const getEquippedCosmeticThemeClasses = (equippedCosmetics?: EquippedCosmetics | null) => {

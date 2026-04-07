@@ -46,6 +46,7 @@ export const COSMETIC_CATALOG: CosmeticItem[] = [
   { id: "theme_cathedral", category: "theme", name: "Stained Glass Cathedral", description: "Lead came grid, gothic serif letters, light ray bloom reveals, and a dim stone cloister backdrop", cost: 0 },
   { id: "theme_origami_zen", category: "theme", name: "Origami Zen", description: "Washi paper grid, Sumi-e letters, paper fold reveals, and a cherry blossom zen garden", cost: 0 },
   { id: "theme_shadow_puppet", category: "theme", name: "Shadow Puppet Theater", description: "Paper-cut screen, cardstock silhouette letters, and lantern shift reveal on a silk screen", cost: 0 },
+  { id: "theme_tapestry", category: "theme", name: "The Embroidered Tapestry", description: "Cross-stitch canvas grid, embroidered yarn letters, needle-work reveal, and a sewing basket backdrop", cost: 0 },
 ];
 
 const VALID_COSMETIC_IDS = new Set(COSMETIC_CATALOG.map((item) => item.id));
