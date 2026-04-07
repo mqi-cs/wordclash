@@ -8,7 +8,6 @@ const THEME_BUNDLES: Record<string, string[]> = {
   theme_minimalist: ["theme-grid-glass", "theme-letters-pebble", "theme-bg-aurora", "theme-anim-solar"],
   theme_cosmic_voyager: ["theme-grid-cosmic", "theme-letters-cosmic", "theme-bg-galaxy", "theme-anim-warp"],
   theme_arcade_8bit: ["theme-grid-arcade", "theme-letters-arcade", "theme-bg-arcade", "theme-anim-pixel"],
-  theme_abyssal_deep: ["theme-grid-abyssal", "theme-letters-abyssal", "theme-bg-abyssal", "theme-anim-bubble"],
   theme_cathedral: ["theme-grid-cathedral", "theme-letters-gothic", "theme-bg-cloister", "theme-anim-sunbeam"],
   theme_origami_zen: ["theme-grid-origami", "theme-letters-sumie", "theme-bg-zen", "theme-anim-fold"],
 };
