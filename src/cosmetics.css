@@ -81,6 +81,65 @@
   color: #fffac2 !important;
 }
 
+/* Cosmic Voyager Letters */
+.theme-letters-cosmic .tile {
+  font-family: "Trebuchet MS", "Avenir Next", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.theme-letters-cosmic :is(.tile-filled, .tile-revealed, .tile-revealing, .hint-tile) {
+  color: #e6f6ff !important;
+  text-shadow:
+    0 0 10px rgba(148, 220, 255, 0.8),
+    0 0 22px rgba(173, 131, 255, 0.45);
+}
+.theme-letters-cosmic .tile-correct {
+  color: #f3feff !important;
+  text-shadow:
+    0 0 12px rgba(147, 255, 255, 0.95),
+    0 0 28px rgba(72, 221, 255, 0.75);
+}
+
+/* 8-Bit Arcade Letters */
+.theme-letters-arcade .tile {
+  font-family: "Courier New", monospace;
+  font-weight: 900;
+  border-radius: 0 !important;
+  text-rendering: geometricPrecision;
+  image-rendering: pixelated;
+}
+.theme-letters-arcade :is(.tile-filled, .tile-revealed, .tile-revealing, .hint-tile) {
+  color: #f9ff61 !important;
+  text-shadow:
+    2px 0 0 #ff4f9a,
+    -2px 0 0 #22e7ff;
+}
+.theme-letters-arcade .tile-correct {
+  color: #7cff6b !important;
+  text-shadow:
+    2px 0 0 #133b18,
+    0 0 12px rgba(124, 255, 107, 0.45);
+}
+
+/* Abyssal Deep Letters */
+.theme-letters-abyssal .tile {
+  font-family: "Trebuchet MS", "Gill Sans", sans-serif;
+  font-weight: 800;
+}
+.theme-letters-abyssal :is(.tile-filled, .tile-revealed, .tile-revealing, .hint-tile) {
+  color: #bfffee !important;
+  text-shadow:
+    0 1px 0 rgba(0, 24, 32, 0.75),
+    0 0 12px rgba(113, 255, 205, 0.35);
+  box-shadow: inset 0 0 18px rgba(59, 205, 171, 0.12);
+}
+.theme-letters-abyssal .tile-correct {
+  color: #f6ff8a !important;
+  text-shadow:
+    0 0 12px rgba(215, 255, 93, 0.85),
+    0 0 24px rgba(87, 255, 199, 0.45);
+}
+
 /* --- Grid Styles --- */
 /* Glass Tiles */
 .theme-grid-glass .tile {
@@ -182,6 +241,123 @@
   color: #696969 !important;
 }
 
+/* Cosmic Voyager Grid */
+.theme-grid-cosmic :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
+  border: 1px solid rgba(153, 188, 216, 0.55) !important;
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(34, 43, 65, 0.92), rgba(10, 14, 28, 0.96)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(194, 216, 232, 0.14),
+    inset 0 -10px 18px rgba(7, 10, 22, 0.45),
+    0 10px 25px rgba(3, 6, 18, 0.35);
+}
+.theme-grid-cosmic .tile-empty,
+.theme-grid-cosmic .tile-filled {
+  background-image:
+    linear-gradient(90deg, rgba(89, 171, 255, 0.08), rgba(170, 123, 255, 0.04)),
+    radial-gradient(circle at top left, rgba(141, 205, 255, 0.2), transparent 42%);
+}
+.theme-grid-cosmic .tile-correct {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(232, 253, 255, 0.95), rgba(87, 219, 255, 0.82) 34%, rgba(27, 89, 158, 0.96) 100%) !important;
+  border-color: rgba(198, 251, 255, 0.95) !important;
+  box-shadow:
+    0 0 22px rgba(96, 230, 255, 0.85),
+    inset 0 0 25px rgba(255, 255, 255, 0.28);
+}
+.theme-grid-cosmic .tile-present {
+  background:
+    linear-gradient(135deg, rgba(95, 83, 204, 0.95), rgba(176, 113, 255, 0.92)) !important;
+  border-color: rgba(217, 185, 255, 0.85) !important;
+}
+.theme-grid-cosmic .tile-absent {
+  background:
+    linear-gradient(135deg, rgba(40, 47, 66, 0.96), rgba(18, 23, 39, 0.96)) !important;
+  border-color: rgba(86, 104, 138, 0.7) !important;
+  color: #8b95ad !important;
+}
+
+/* 8-Bit Arcade Grid */
+.theme-grid-arcade :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
+  border: 3px solid #2df8ff !important;
+  border-radius: 0 !important;
+  background:
+    linear-gradient(180deg, rgba(23, 30, 47, 0.98), rgba(7, 10, 16, 0.98)) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.6),
+    4px 4px 0 rgba(7, 247, 255, 0.55);
+}
+.theme-grid-arcade .tile-empty,
+.theme-grid-arcade .tile-filled {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 50%, rgba(0, 0, 0, 0.14) 50%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 50%, transparent 50%);
+  background-size: 100% 4px, 4px 100%;
+}
+.theme-grid-arcade .tile-correct {
+  background: #59ff5d !important;
+  color: #06240c !important;
+  border-color: #d4ff57 !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.22),
+    4px 4px 0 rgba(211, 255, 87, 0.45);
+}
+.theme-grid-arcade .tile-present {
+  background: #ffd84a !important;
+  color: #2f2000 !important;
+  border-color: #ff6f91 !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.22),
+    4px 4px 0 rgba(255, 111, 145, 0.45);
+}
+.theme-grid-arcade .tile-absent {
+  background: #5b6476 !important;
+  color: #dde4ff !important;
+  border-color: #95a0b9 !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.08),
+    4px 4px 0 rgba(35, 42, 59, 0.7);
+}
+
+/* Abyssal Deep Grid */
+.theme-grid-abyssal :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
+  border: 2px solid rgba(81, 214, 185, 0.45) !important;
+  border-radius: 18px 18px 12px 12px;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(93, 223, 183, 0.22), transparent 28%),
+    linear-gradient(160deg, rgba(8, 41, 48, 0.96), rgba(3, 18, 25, 0.98)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(159, 255, 229, 0.08),
+    inset 0 -8px 16px rgba(1, 10, 13, 0.45),
+    0 10px 18px rgba(2, 17, 24, 0.28);
+}
+.theme-grid-abyssal .tile-empty,
+.theme-grid-abyssal .tile-filled {
+  background-image:
+    radial-gradient(circle at 82% 22%, rgba(190, 255, 208, 0.08), transparent 18%),
+    radial-gradient(circle at 14% 84%, rgba(95, 242, 255, 0.08), transparent 16%);
+}
+.theme-grid-abyssal .tile-correct {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(245, 255, 140, 0.95), rgba(132, 255, 101, 0.86) 38%, rgba(13, 98, 65, 0.98) 100%) !important;
+  border-color: rgba(229, 255, 151, 0.9) !important;
+  box-shadow:
+    0 0 18px rgba(141, 255, 114, 0.65),
+    inset 0 0 20px rgba(255, 255, 255, 0.16);
+}
+.theme-grid-abyssal .tile-present {
+  background:
+    linear-gradient(135deg, rgba(41, 174, 173, 0.96), rgba(18, 116, 120, 0.96)) !important;
+  border-color: rgba(91, 255, 224, 0.72) !important;
+}
+.theme-grid-abyssal .tile-absent {
+  background:
+    linear-gradient(135deg, rgba(33, 62, 69, 0.96), rgba(13, 29, 33, 0.98)) !important;
+  border-color: rgba(86, 132, 143, 0.58) !important;
+  color: #8cb2b7 !important;
+}
+
 /* --- Backgrounds --- */
 /* Starfield */
 body.theme-bg-starfield,
@@ -247,6 +423,99 @@ body.theme-bg-aurora,
   background-size: 400% 400% !important;
   animation: bg-gradient-aurora 15s ease infinite !important;
   background-attachment: fixed !important;
+}
+
+/* Spiral Galaxy */
+body.theme-bg-galaxy,
+.theme-bg-galaxy {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(211, 172, 255, 0.34), transparent 18%),
+    radial-gradient(circle at 47% 44%, rgba(107, 235, 255, 0.28), transparent 26%),
+    conic-gradient(from 120deg at 50% 45%, rgba(141, 118, 255, 0.1), rgba(80, 182, 255, 0.24), rgba(203, 157, 255, 0.18), rgba(141, 118, 255, 0.1)),
+    radial-gradient(circle at top, #15224d 0%, #080b18 46%, #03050d 100%) !important;
+  background-attachment: fixed !important;
+}
+body.theme-bg-galaxy::before,
+.theme-bg-galaxy::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 8% 20%, rgba(255, 255, 255, 0.92), transparent 55%),
+    radial-gradient(1.5px 1.5px at 22% 70%, rgba(170, 248, 255, 0.8), transparent 60%),
+    radial-gradient(1px 1px at 74% 26%, rgba(255, 255, 255, 0.9), transparent 55%),
+    radial-gradient(2px 2px at 80% 62%, rgba(177, 160, 255, 0.8), transparent 60%),
+    radial-gradient(1px 1px at 60% 80%, rgba(255, 255, 255, 0.7), transparent 55%);
+}
+
+/* 8-Bit Arcade Cabinet */
+body.theme-bg-arcade,
+.theme-bg-arcade {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(180deg, rgba(12, 18, 40, 0.97), rgba(5, 8, 18, 0.99)) !important;
+  background-attachment: fixed !important;
+}
+body.theme-bg-arcade::before,
+.theme-bg-arcade::before {
+  content: "HIGH SCORE";
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #f8ff71;
+  font-family: "Courier New", monospace;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-shadow: 0 0 14px rgba(248, 255, 113, 0.55);
+  pointer-events: none;
+  z-index: -1;
+}
+body.theme-bg-arcade::after,
+.theme-bg-arcade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.06) 50%, rgba(0, 0, 0, 0.14) 50%),
+    radial-gradient(circle at 18% 22%, rgba(255, 76, 149, 0.26), transparent 14%),
+    radial-gradient(circle at 82% 30%, rgba(43, 233, 255, 0.22), transparent 16%),
+    radial-gradient(circle at 34% 78%, rgba(124, 255, 107, 0.18), transparent 12%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 100% 4px, auto, auto, auto, 28px 28px;
+}
+
+/* Abyssal Vent */
+body.theme-bg-abyssal,
+.theme-bg-abyssal {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 48% 92%, rgba(249, 255, 145, 0.16), transparent 16%),
+    radial-gradient(circle at 18% 18%, rgba(36, 152, 138, 0.2), transparent 24%),
+    linear-gradient(180deg, #04131b 0%, #041a23 46%, #01080d 100%) !important;
+  background-attachment: fixed !important;
+}
+body.theme-bg-abyssal::before,
+.theme-bg-abyssal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 100%, rgba(255, 228, 119, 0.12), transparent 20%),
+    radial-gradient(circle at 54% 88%, rgba(156, 255, 165, 0.14), transparent 12%),
+    linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, 0.22) 100%);
+  opacity: 0.95;
 }
 
 /* --- Guess Animations --- */
@@ -327,6 +596,61 @@ body.theme-bg-aurora,
   pointer-events: none;
 }
 
+/* Warp Speed */
+.theme-anim-warp .tile-revealing {
+  overflow: hidden;
+}
+.theme-anim-warp .tile-revealing::before {
+  content: "";
+  position: absolute;
+  inset: -8% -40%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(177, 245, 255, 0.9), transparent);
+  transform: translateX(-130%) skewX(-24deg);
+  animation: warp-streak 650ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
+}
+.theme-anim-warp .tile-correct {
+  animation: cosmic-starborn 900ms ease-out both !important;
+}
+
+/* Pixel Shatter */
+.theme-anim-pixel .tile-revealing {
+  overflow: hidden;
+}
+.theme-anim-pixel .tile-revealing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.32) 0 18%, transparent 18% 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0 22%, transparent 22% 100%);
+  background-size: 14px 14px, 14px 14px;
+  mix-blend-mode: screen;
+  animation: pixel-shatter 700ms steps(6, end) both;
+}
+.theme-anim-pixel .tile-correct {
+  animation: pixel-build 520ms steps(6, end) both !important;
+}
+
+/* Bubble Burst */
+.theme-anim-bubble .tile-revealing {
+  overflow: hidden;
+}
+.theme-anim-bubble .tile-revealing::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border-radius: 999px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, rgba(201, 255, 232, 0.45) 0 18%, rgba(143, 255, 219, 0.18) 36%, transparent 58%);
+  animation: abyss-bubble-burst 780ms ease-out both;
+}
+.theme-anim-bubble .tile-correct {
+  animation: abyss-glow 820ms ease-out both !important;
+}
+
 @keyframes bg-gradient-aurora {
 	0% { background-position: 0% 50%; }
 	50% { background-position: 100% 50%; }
@@ -381,6 +705,18 @@ body.theme-bg-aurora,
   100% { transform: translateY(60px); opacity: 0; }
 }
 
+@keyframes warp-streak {
+  0% { opacity: 0; transform: translateX(-130%) skewX(-24deg); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(130%) skewX(-24deg); }
+}
+
+@keyframes cosmic-starborn {
+  0% { box-shadow: 0 0 0 rgba(147, 255, 255, 0); transform: scale(0.92); }
+  40% { box-shadow: 0 0 24px rgba(147, 255, 255, 0.95); transform: scale(1.04); }
+  100% { box-shadow: 0 0 14px rgba(147, 255, 255, 0.45); transform: scale(1); }
+}
+
 @keyframes stamped-slam {
   0% { transform: scale(1.5) rotate(-5deg); opacity: 0; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
@@ -390,6 +726,16 @@ body.theme-bg-aurora,
   0% { transform: scale(1); }
   50% { transform: scale(1.15); }
   100% { transform: scale(1); }
+}
+
+@keyframes pixel-shatter {
+  0% { opacity: 0.75; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(40%) scale(1.2); }
+}
+
+@keyframes pixel-build {
+  0% { filter: brightness(1.8) saturate(1.4); transform: scale(0.92); }
+  100% { filter: brightness(1) saturate(1); transform: scale(1); }
 }
 
 @keyframes decrypt-flash {
@@ -428,4 +774,16 @@ body.theme-bg-aurora,
 @keyframes slam-dust {
   0% { opacity: 1; transform: scale(0.5); }
   100% { opacity: 0; transform: scale(1.5); }
+}
+
+@keyframes abyss-bubble-burst {
+  0% { opacity: 0; transform: scale(0.3); }
+  30% { opacity: 0.9; transform: scale(0.95); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+
+@keyframes abyss-glow {
+  0% { box-shadow: 0 0 0 rgba(203, 255, 112, 0); transform: translateY(6%); }
+  35% { box-shadow: 0 0 24px rgba(203, 255, 112, 0.78); transform: translateY(0); }
+  100% { box-shadow: 0 0 12px rgba(113, 255, 205, 0.36); transform: translateY(0); }
 }

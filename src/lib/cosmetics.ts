@@ -6,6 +6,9 @@ const THEME_BUNDLES: Record<string, string[]> = {
   theme_cyberpunk: ["theme-grid-cyberpunk", "theme-letters-glitch", "theme-bg-cyberpunk", "theme-anim-decrypt"],
   theme_library: ["theme-grid-library", "theme-letters-stamped", "theme-bg-library", "theme-anim-ink"],
   theme_minimalist: ["theme-grid-glass", "theme-letters-pebble", "theme-bg-aurora", "theme-anim-solar"],
+  theme_cosmic_voyager: ["theme-grid-cosmic", "theme-letters-cosmic", "theme-bg-galaxy", "theme-anim-warp"],
+  theme_arcade_8bit: ["theme-grid-arcade", "theme-letters-arcade", "theme-bg-arcade", "theme-anim-pixel"],
+  theme_abyssal_deep: ["theme-grid-abyssal", "theme-letters-abyssal", "theme-bg-abyssal", "theme-anim-bubble"],
 };
 
 export const getEquippedCosmeticThemeClasses = (equippedCosmetics?: EquippedCosmetics | null) => {

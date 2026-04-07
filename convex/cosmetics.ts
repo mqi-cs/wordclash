@@ -41,6 +41,9 @@ export const COSMETIC_CATALOG: CosmeticItem[] = [
   { id: "theme_cyberpunk", category: "theme", name: "Neon Cyberpunk", description: "Vibrant glowing grid, glitch letters, data decrypt animation, and circuitry background", cost: 0 },
   { id: "theme_library", category: "theme", name: "Ancient Library", description: "Wood/brass grid, hand-stamped letters, ink soak animation, and dark parchment landscape", cost: 0 },
   { id: "theme_minimalist", category: "theme", name: "Garden Minimalist", description: "Glass tile grid, soft pebble letters, solar flare animation, and an aurora background", cost: 0 },
+  { id: "theme_cosmic_voyager", category: "theme", name: "Cosmic Voyager", description: "Obsidian-titanium grid, constellation letters, warp-light reveal, and a swirling galaxy backdrop", cost: 0 },
+  { id: "theme_arcade_8bit", category: "theme", name: "8-Bit Retro Arcade", description: "CRT pixel grid, chunky sprite letters, pixel-shatter reveal, and a high-score cabinet backdrop", cost: 0 },
+  { id: "theme_abyssal_deep", category: "theme", name: "Abyssal Deep", description: "Bioluminescent coral lattice, sediment-lit letters, bubble-burst reveals, and a vent-lit ocean floor", cost: 0 },
 ];
 
 const VALID_COSMETIC_IDS = new Set(COSMETIC_CATALOG.map((item) => item.id));
