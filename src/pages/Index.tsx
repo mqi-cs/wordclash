@@ -403,19 +403,19 @@ const Index = () => {
 
   const handleKeyPress = useCallback(
     (key: string) => {
-      if (gameOver || classicCoachBlocking || classicCoachPhase === "intro" || currentGuess.length >= WORD_LENGTH) return;
+      if (gameOver || currentGuess.length >= WORD_LENGTH) return;
       setCurrentGuess((prev) => prev + key);
     },
-    [classicCoachBlocking, classicCoachPhase, gameOver, currentGuess]
+    [gameOver, currentGuess]
   );
 
   const handleDelete = useCallback(() => {
-    if (gameOver || classicCoachBlocking || classicCoachPhase === "intro") return;
+    if (gameOver) return;
     setCurrentGuess((prev) => prev.slice(0, -1));
-  }, [classicCoachBlocking, classicCoachPhase, gameOver]);
+  }, [gameOver]);
 
   const handleEnter = useCallback(() => {
-    if (gameOver || classicCoachBlocking || classicCoachPhase === "intro") return;
+    if (gameOver) return;
 
     if (currentGuess.length !== WORD_LENGTH) {
       toast.error("Not enough letters");
@@ -441,10 +441,6 @@ const Index = () => {
     setEvaluations(newEvaluations);
     setCurrentGuess("");
     setActiveHint(null);
-
-    if (gameMode === "classic" && classicCoachPhase === "awaiting_first_guess") {
-      scheduleClassicCoachPhase("hint_button", 1300);
-    }
 
     // Track total guesses in timed mode
     if (gameMode === "timed") {
@@ -532,7 +528,7 @@ const Index = () => {
         setShowResult(true);
       }, 1500);
     }
-  }, [classicCoachBlocking, classicCoachPhase, currentGuess, evaluations, gameMode, gameOver, guesses, maxGuesses, targetWord]);
+  }, [currentGuess, evaluations, gameMode, gameOver, guesses, maxGuesses, targetWord]);
 
   // Keep ref updated with the latest handleEnter
   useEffect(() => {
@@ -685,7 +681,7 @@ const Index = () => {
   };
 
   const handleHint = (e?: React.MouseEvent) => {
-    if (gameOver || classicCoachBlocking) return;
+    if (gameOver) return;
 
     if (e?.currentTarget instanceof HTMLElement) {
       e.currentTarget.blur();
@@ -713,8 +709,6 @@ const Index = () => {
   };
 
   const handleToggleBot = () => {
-    if (classicCoachBlocking) return;
-
     if (!seenGameplayWalkthroughs.wordBot && gameMode === "classic" && !gameOver) {
       openGameplayWalkthrough("wordBot", handleToggleBot);
       return;
