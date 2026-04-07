@@ -4,6 +4,7 @@ import { MutationCtx } from "./_generated/server";
 export const ANALYTICS_METRICS = {
   gamesCompleted: "games_completed",
   gamesCreated: "games_created",
+  gamesStarted: "games_started",
 } as const;
 
 type AnalyticsMetric = (typeof ANALYTICS_METRICS)[keyof typeof ANALYTICS_METRICS];

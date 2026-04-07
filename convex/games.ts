@@ -431,6 +431,10 @@ export const createGame = mutation({
         games_created_today_total: createdMetrics.todayTotalCount,
         games_created_by_user_total: createdMetrics.userTotalCount,
         games_created_by_user_today: createdMetrics.userTodayCount,
+        $set: {
+            total_games_created: createdMetrics.userTotalCount,
+            games_created_today: createdMetrics.userTodayCount,
+        }
       },
     });
 
@@ -464,12 +468,27 @@ export const startGame = mutation({
 
     await ctx.db.patch(game._id, updates);
 
+    const startedMetrics = await incrementMetric(
+      ctx,
+      ANALYTICS_METRICS.gamesStarted,
+      userId,
+    );
+
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: "game started",
+      event: "game_started",
       properties: {
         game_id: args.gameId,
         player_count: getPlayerCount(game),
+        metric_day: startedMetrics.dayKey,
+        games_started_total: startedMetrics.totalCount,
+        games_started_today_total: startedMetrics.todayTotalCount,
+        games_started_by_user_total: startedMetrics.userTotalCount,
+        games_started_by_user_today: startedMetrics.userTodayCount,
+        $set: {
+            total_games_started: startedMetrics.userTotalCount,
+            games_started_today: startedMetrics.userTodayCount,
+        }
       },
     });
 
@@ -500,7 +519,7 @@ export const inviteToGame = mutation({
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: "invitation sent",
+      event: "invitation_sent",
       properties: {
         game_id: args.gameId,
         game_type: game.gameType,
@@ -535,7 +554,7 @@ export const acceptInvitation = mutation({
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: "game joined",
+      event: "game_joined",
       properties: {
         game_id: gameId,
         game_type: game.gameType,
@@ -585,7 +604,7 @@ export const declineInvitation = mutation({
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: "invitation declined",
+      event: "invitation_declined",
       properties: {
         game_id: invitation.gameId,
         game_type: game?.gameType ?? "unknown",
@@ -607,7 +626,7 @@ export const joinGame = mutation({
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: "game joined",
+      event: "game_joined",
       properties: {
         game_id: gameId,
         game_type: game?.gameType ?? "unknown",
@@ -645,7 +664,7 @@ export const joinGameByCode = mutation({
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: "game joined",
+      event: "game_joined",
       properties: {
         game_id: gameId,
         game_type: "multiplayer",

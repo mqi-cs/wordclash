@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
+import { FeatureDiscoveryHalo } from "@/components/FeatureWalkthrough";
 
 interface GameHeaderProps {
   onShowHelp: () => void;
@@ -13,9 +14,22 @@ interface GameHeaderProps {
   onToggleBot: () => void;
   botActive: boolean;
   botDisabled: boolean;
+  highlightHints?: boolean;
+  highlightBot?: boolean;
 }
 
-export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hintsDisabled, onToggleBot, botActive, botDisabled }: GameHeaderProps) => {
+export const GameHeader = ({
+  onShowHelp,
+  onShowStats,
+  onHint,
+  availableHints,
+  hintsDisabled,
+  onToggleBot,
+  botActive,
+  botDisabled,
+  highlightHints = false,
+  highlightBot = false,
+}: GameHeaderProps) => {
   return (
     <header className="border-b border-border/80 bg-background/65 px-2 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
       <div className="max-w-lg mx-auto grid grid-cols-[1fr_auto_1fr] items-center">
@@ -29,7 +43,9 @@ export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hi
         </h1>
         <div className="flex gap-0.5 sm:gap-1 items-center justify-self-end">
           <div className="relative">
+            {highlightHints && <FeatureDiscoveryHalo accentVar="menu-timed" />}
             <Button 
+              id="game-hint-button"
               variant="ghost" 
               size="icon" 
               onClick={onHint}
@@ -47,18 +63,22 @@ export const GameHeader = ({ onShowHelp, onShowStats, onHint, availableHints, hi
               </Badge>
             )}
           </div>
-          <Button 
-            variant={botActive ? "default" : "ghost"}
-            size="icon" 
-            onClick={onToggleBot}
-            disabled={botDisabled}
-            className={cn(
-              "h-9 w-9 sm:h-10 sm:w-10",
-              botActive && "bg-primary text-primary-foreground hover:bg-primary/90"
-            )}
-          >
-            <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
-          </Button>
+          <div className="relative">
+            {highlightBot && <FeatureDiscoveryHalo accentVar="menu-classic" />}
+            <Button 
+              id="game-bot-button"
+              variant={botActive ? "default" : "ghost"}
+              size="icon" 
+              onClick={onToggleBot}
+              disabled={botDisabled}
+              className={cn(
+                "h-9 w-9 sm:h-10 sm:w-10",
+                botActive && "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
+            </Button>
+          </div>
           <ThemeToggle className="h-9 w-9 sm:h-10 sm:w-10" />
           <Button variant="ghost" size="icon" onClick={onShowStats} className="h-9 w-9 sm:h-10 sm:w-10">
             <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />

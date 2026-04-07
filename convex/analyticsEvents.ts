@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 
 export const captureUserEvent = mutation({
   args: {
-    event: v.union(v.literal("hint_used"), v.literal("game_abandoned")),
+    event: v.string(),
     properties: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
@@ -14,9 +14,15 @@ export const captureUserEvent = mutation({
       throw new Error("Unauthorized");
     }
 
+    // Normalize event name to snake_case
+    const normalizedEvent = args.event
+      .replace(/([a-z])([A-Z])/g, "$1_$2")
+      .replace(/\s+/g, "_")
+      .toLowerCase();
+
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
-      event: args.event,
+      event: normalizedEvent,
       properties: args.properties ?? {},
     });
   },

@@ -29,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { getEquippedCosmeticThemeClassName, getEquippedCosmeticThemeClasses } from "@/lib/cosmetics";
+import { FeatureWalkthroughDialog, WalkthroughSlide } from "@/components/FeatureWalkthrough";
+import { InteractiveFeatureCoach } from "@/components/InteractiveFeatureCoach";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -42,6 +44,163 @@ const TIMED_BONUS_SECONDS = 30;
 type ActiveHint = {
   turn: number;
   position: number;
+};
+
+type GameplayWalkthroughKey = "hints" | "wordBot";
+type ClassicCoachPhase =
+  | "inactive"
+  | "intro"
+  | "awaiting_first_guess"
+  | "hint_button"
+  | "hint_result"
+  | "bot_button"
+  | "bot_modal"
+  | "complete";
+
+type GameplayWalkthroughConfig = {
+  slides: WalkthroughSlide[];
+  actionLabel?: string;
+};
+
+const GAMEPLAY_WALKTHROUGH_STORAGE_KEY = "wordclash_gameplay_walkthroughs_v1";
+const CLASSIC_COACH_STORAGE_KEY = "wordclash_classic_coach_v1";
+
+const GAMEPLAY_WALKTHROUGH_CONFIG: Record<GameplayWalkthroughKey, GameplayWalkthroughConfig> = {
+  hints: {
+    slides: [
+      {
+        title: "Hints",
+        subtitle: "Use them when the board gets sticky",
+        description:
+          "Hints are small nudges designed to keep you moving without solving the puzzle for you.",
+        bullets: [
+          "Hints unlock after your first guess.",
+          "You can use one hint per turn.",
+          "Hints behave differently depending on the mode.",
+        ],
+        accentVar: "menu-timed",
+      },
+      {
+        title: "Mode-Specific Hint Behavior",
+        subtitle: "Classic, Timed, and Hard differ",
+        description:
+          "WordClash uses the same button for different kinds of help depending on the ruleset.",
+        bullets: [
+          "Classic and Timed reveal a correct letter position.",
+          "Hard Mode eliminates wrong letters from the keyboard instead.",
+          "Hints are strongest when used after you've narrowed the possibilities.",
+        ],
+        accentVar: "menu-timed",
+      },
+    ],
+    actionLabel: "Try Hint",
+  },
+  wordBot: {
+    slides: [
+      {
+        title: "Word Bot",
+        subtitle: "A rival built for Classic mode",
+        description:
+          "The Word Bot lets you race an AI opponent while you solve the same word on your own board.",
+        bullets: [
+          "The bot is available in Classic mode.",
+          "It plays on a split-screen style race setup.",
+          "You still control your own guesses normally.",
+        ],
+        accentVar: "menu-classic",
+      },
+      {
+        title: "Difficulty and Feel",
+        subtitle: "Pick the pressure level",
+        description:
+          "You choose how smart the bot feels before the race starts.",
+        bullets: [
+          "Easy is relaxed and forgiving.",
+          "Medium is a balanced race.",
+          "Hard pushes you to think faster and cleaner.",
+        ],
+        accentVar: "menu-classic",
+      },
+    ],
+    actionLabel: "Open Word Bot",
+  },
+};
+
+const DEFAULT_GAMEPLAY_WALKTHROUGHS: Record<GameplayWalkthroughKey, boolean> = {
+  hints: false,
+  wordBot: false,
+};
+
+const CLASSIC_INTRO_SLIDES: WalkthroughSlide[] = [
+  {
+    title: "Classic Mode",
+    subtitle: "Your first real board",
+    description:
+      "Classic mode starts with the full game UI in place. You will guess on the grid, use the keyboard below, and learn from the feedback on every row.",
+    bullets: [
+      "The grid is where your guesses appear.",
+      "The keyboard is how you build and submit words.",
+      "Classic gives you 6 tries to solve the word.",
+    ],
+    accentVar: "menu-classic",
+  },
+  {
+    title: "Make One Guess",
+    subtitle: "We will guide the next steps",
+    description:
+      "Enter your first guess now. Right after that, WordClash will show you how hints and the word bot work with a short guided demonstration.",
+    bullets: [
+      "Type a 5-letter word and submit it.",
+      "After the first guess, controls will pause briefly for the demo.",
+      "Then you can continue playing normally.",
+    ],
+    accentVar: "menu-classic",
+  },
+];
+
+const loadGameplayWalkthroughs = (): Record<GameplayWalkthroughKey, boolean> => {
+  if (typeof window === "undefined") {
+    return DEFAULT_GAMEPLAY_WALKTHROUGHS;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(GAMEPLAY_WALKTHROUGH_STORAGE_KEY);
+    if (!raw) {
+      return DEFAULT_GAMEPLAY_WALKTHROUGHS;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<Record<GameplayWalkthroughKey, boolean>>;
+    return {
+      ...DEFAULT_GAMEPLAY_WALKTHROUGHS,
+      ...parsed,
+    };
+  } catch {
+    return DEFAULT_GAMEPLAY_WALKTHROUGHS;
+  }
+};
+
+const persistGameplayWalkthroughs = (state: Record<GameplayWalkthroughKey, boolean>) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(GAMEPLAY_WALKTHROUGH_STORAGE_KEY, JSON.stringify(state));
+};
+
+const loadClassicCoachSeen = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.localStorage.getItem(CLASSIC_COACH_STORAGE_KEY) === "true";
+};
+
+const persistClassicCoachSeen = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(CLASSIC_COACH_STORAGE_KEY, "true");
 };
 
 const Index = () => {
@@ -72,6 +231,14 @@ const Index = () => {
   const [showStats, setShowStats] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [seenGameplayWalkthroughs, setSeenGameplayWalkthroughs] = useState<
+    Record<GameplayWalkthroughKey, boolean>
+  >(loadGameplayWalkthroughs);
+  const [activeGameplayWalkthrough, setActiveGameplayWalkthrough] =
+    useState<GameplayWalkthroughKey | null>(null);
+  const [classicCoachSeen, setClassicCoachSeen] = useState(loadClassicCoachSeen);
+  const [classicCoachPhase, setClassicCoachPhase] =
+    useState<ClassicCoachPhase>("inactive");
   const [activeHint, setActiveHint] = useState<ActiveHint | null>(null);
   const [eliminatedLetters, setEliminatedLetters] = useState<string[]>([]);
 
@@ -83,6 +250,8 @@ const Index = () => {
 
   // Ref to always access the latest handleEnter function from timeouts
   const handleEnterRef = useRef<() => void>(() => {});
+  const pendingGameplayActionRef = useRef<(() => void) | null>(null);
+  const classicCoachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Timed mode state
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
@@ -94,11 +263,40 @@ const Index = () => {
   const currentTurn = guesses.length;
   const isHintActiveThisTurn = activeHint?.turn === currentTurn;
   const activeHintPosition = isHintActiveThisTurn ? activeHint.position : null;
+  const classicCoachBlocking =
+    classicCoachPhase === "hint_button" ||
+    classicCoachPhase === "hint_result" ||
+    classicCoachPhase === "bot_button" ||
+    classicCoachPhase === "bot_modal";
 
   useEffect(() => {
     if (!activeHint || activeHint.turn === currentTurn) return;
     setActiveHint(null);
   }, [activeHint, currentTurn]);
+
+  useEffect(() => {
+    if (classicCoachTimerRef.current) {
+      clearTimeout(classicCoachTimerRef.current);
+      classicCoachTimerRef.current = null;
+    }
+
+    if (gameMode === "classic" && !classicCoachSeen) {
+      setClassicCoachPhase("intro");
+      return;
+    }
+
+    if (gameMode !== "classic") {
+      setClassicCoachPhase("inactive");
+    }
+  }, [classicCoachSeen, gameMode]);
+
+  useEffect(() => {
+    return () => {
+      if (classicCoachTimerRef.current) {
+        clearTimeout(classicCoachTimerRef.current);
+      }
+    };
+  }, []);
 
   // Apply cosmetics globally
   useEffect(() => {
@@ -121,6 +319,65 @@ const Index = () => {
       }
     };
   }, [wallet?.equippedCosmetics]);
+
+  const markGameplayWalkthroughSeen = (key: GameplayWalkthroughKey) => {
+    setSeenGameplayWalkthroughs((prev) => {
+      if (prev[key]) {
+        return prev;
+      }
+      const next = { ...prev, [key]: true };
+      persistGameplayWalkthroughs(next);
+      return next;
+    });
+  };
+
+  const openGameplayWalkthrough = (
+    key: GameplayWalkthroughKey,
+    action?: () => void,
+  ) => {
+    markGameplayWalkthroughSeen(key);
+    pendingGameplayActionRef.current = action ?? null;
+    setActiveGameplayWalkthrough(key);
+  };
+
+  const closeGameplayWalkthrough = () => {
+    pendingGameplayActionRef.current = null;
+    setActiveGameplayWalkthrough(null);
+  };
+
+  const handleGameplayWalkthroughPrimary = () => {
+    const nextAction = pendingGameplayActionRef.current;
+    closeGameplayWalkthrough();
+    nextAction?.();
+  };
+
+  const finishClassicCoach = () => {
+    if (classicCoachTimerRef.current) {
+      clearTimeout(classicCoachTimerRef.current);
+      classicCoachTimerRef.current = null;
+    }
+    setShowBotDifficultyModal(false);
+    persistClassicCoachSeen();
+    setClassicCoachSeen(true);
+    setClassicCoachPhase("complete");
+    setSeenGameplayWalkthroughs((prev) => {
+      const next = { ...prev, hints: true, wordBot: true };
+      persistGameplayWalkthroughs(next);
+      return next;
+    });
+  };
+
+  const scheduleClassicCoachPhase = (
+    nextPhase: Exclude<ClassicCoachPhase, "intro" | "awaiting_first_guess" | "inactive" | "complete">,
+    delayMs: number,
+  ) => {
+    if (classicCoachTimerRef.current) {
+      clearTimeout(classicCoachTimerRef.current);
+    }
+    classicCoachTimerRef.current = setTimeout(() => {
+      setClassicCoachPhase(nextPhase);
+    }, delayMs);
+  };
 
 
 
@@ -146,19 +403,19 @@ const Index = () => {
 
   const handleKeyPress = useCallback(
     (key: string) => {
-      if (gameOver || currentGuess.length >= WORD_LENGTH) return;
+      if (gameOver || classicCoachBlocking || classicCoachPhase === "intro" || currentGuess.length >= WORD_LENGTH) return;
       setCurrentGuess((prev) => prev + key);
     },
-    [gameOver, currentGuess]
+    [classicCoachBlocking, classicCoachPhase, gameOver, currentGuess]
   );
 
   const handleDelete = useCallback(() => {
-    if (gameOver) return;
+    if (gameOver || classicCoachBlocking || classicCoachPhase === "intro") return;
     setCurrentGuess((prev) => prev.slice(0, -1));
-  }, [gameOver]);
+  }, [classicCoachBlocking, classicCoachPhase, gameOver]);
 
   const handleEnter = useCallback(() => {
-    if (gameOver) return;
+    if (gameOver || classicCoachBlocking || classicCoachPhase === "intro") return;
 
     if (currentGuess.length !== WORD_LENGTH) {
       toast.error("Not enough letters");
@@ -184,6 +441,10 @@ const Index = () => {
     setEvaluations(newEvaluations);
     setCurrentGuess("");
     setActiveHint(null);
+
+    if (gameMode === "classic" && classicCoachPhase === "awaiting_first_guess") {
+      scheduleClassicCoachPhase("hint_button", 1300);
+    }
 
     // Track total guesses in timed mode
     if (gameMode === "timed") {
@@ -271,7 +532,7 @@ const Index = () => {
         setShowResult(true);
       }, 1500);
     }
-  }, [currentGuess, guesses, evaluations, targetWord, gameOver, gameMode, maxGuesses]);
+  }, [classicCoachBlocking, classicCoachPhase, currentGuess, evaluations, gameMode, gameOver, guesses, maxGuesses, targetWord]);
 
   // Keep ref updated with the latest handleEnter
   useEffect(() => {
@@ -339,41 +600,33 @@ const Index = () => {
     setBotState(getInitialBotState());
   };
 
-  const handleHint = (e?: React.MouseEvent) => {
-    if (gameOver) return;
-
-    // Blur the button to prevent Enter key from re-triggering it
-    if (e?.currentTarget instanceof HTMLElement) {
-      e.currentTarget.blur();
-    }
-
-    // Check if hints are available for this turn
+  const performHintReveal = (trackAnalytics: boolean) => {
     if (guesses.length === 0) {
       toast.error("Make your first guess to unlock hints!");
-      return;
+      return false;
     }
-    
+
     if (isHintActiveThisTurn) {
       toast.error("You can only use one hint per guess! Make another guess first.");
-      return;
+      return false;
     }
 
     if (gameMode === "hard") {
       const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
       const targetLetters = new Set(targetWord.toUpperCase().split(""));
-      const availableToEliminate = alphabet.filter(l => !targetLetters.has(l) && !eliminatedLetters.includes(l));
-      
+      const availableToEliminate = alphabet.filter((l) => !targetLetters.has(l) && !eliminatedLetters.includes(l));
+
       if (availableToEliminate.length === 0) {
         toast.info("No more letters to eliminate!");
-        return;
+        return false;
       }
 
       const shuffled = availableToEliminate.sort(() => 0.5 - Math.random());
       const toEliminate = shuffled.slice(0, 3);
-      
-      setEliminatedLetters(prev => [...prev, ...toEliminate]);
+
+      setEliminatedLetters((prev) => [...prev, ...toEliminate]);
       setActiveHint({ turn: currentTurn, position: -1 });
-      if (user) {
+      if (trackAnalytics && user) {
         void captureUserEvent({
           event: "hint_used",
           properties: {
@@ -384,13 +637,12 @@ const Index = () => {
           },
         }).catch(() => null);
       }
-      toast.success(`Eliminated 3 letters!`);
-      return;
+      toast.success("Eliminated 3 letters!");
+      return true;
     }
 
-    // Find positions that haven't been guessed correctly yet
     const correctPositions = new Set<number>();
-    evaluations.forEach(evaluation => {
+    evaluations.forEach((evaluation) => {
       evaluation.forEach((status, index) => {
         if (status === "correct") {
           correctPositions.add(index);
@@ -398,8 +650,7 @@ const Index = () => {
       });
     });
 
-    // Find available positions to reveal (not correct and not already hinted)
-    const availablePositions = [];
+    const availablePositions: number[] = [];
     for (let i = 0; i < WORD_LENGTH; i++) {
       if (!correctPositions.has(i)) {
         availablePositions.push(i);
@@ -408,10 +659,9 @@ const Index = () => {
 
     if (availablePositions.length === 0) {
       toast.info("All letters are already revealed!");
-      return;
+      return false;
     }
 
-    // Pick a random position to reveal
     const randomIndex = Math.floor(Math.random() * availablePositions.length);
     const positionToReveal = availablePositions[randomIndex];
 
@@ -419,7 +669,7 @@ const Index = () => {
       turn: currentTurn,
       position: positionToReveal,
     });
-    if (user) {
+    if (trackAnalytics && user) {
       void captureUserEvent({
         event: "hint_used",
         properties: {
@@ -431,6 +681,22 @@ const Index = () => {
       }).catch(() => null);
     }
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
+    return true;
+  };
+
+  const handleHint = (e?: React.MouseEvent) => {
+    if (gameOver || classicCoachBlocking) return;
+
+    if (e?.currentTarget instanceof HTMLElement) {
+      e.currentTarget.blur();
+    }
+
+    if (!seenGameplayWalkthroughs.hints) {
+      openGameplayWalkthrough("hints", () => handleHint());
+      return;
+    }
+
+    void performHintReveal(true);
   };
 
   const handleSelectMode = (mode: GameMode) => {
@@ -442,7 +708,18 @@ const Index = () => {
     }
   };
 
+  const openBotDifficultyPicker = () => {
+    setShowBotDifficultyModal(true);
+  };
+
   const handleToggleBot = () => {
+    if (classicCoachBlocking) return;
+
+    if (!seenGameplayWalkthroughs.wordBot && gameMode === "classic" && !gameOver) {
+      openGameplayWalkthrough("wordBot", handleToggleBot);
+      return;
+    }
+
     if (gameMode === "hard" || gameMode === "timed") {
       toast.error(`Bot cannot be used in ${gameMode} mode!`);
       return;
@@ -455,7 +732,7 @@ const Index = () => {
 
     if (!botActive) {
       // Show difficulty picker instead of immediately activating
-      setShowBotDifficultyModal(true);
+      openBotDifficultyPicker();
     } else {
       setBotActive(false);
       toast.info("Bot deactivated.");
@@ -643,6 +920,8 @@ const Index = () => {
         onToggleBot={handleToggleBot}
         botActive={botActive}
         botDisabled={gameOver || gameMode === "hard" || gameMode === "timed"}
+        highlightHints={!seenGameplayWalkthroughs.hints && !gameOver}
+        highlightBot={!seenGameplayWalkthroughs.wordBot && gameMode === "classic" && !gameOver}
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 border-b gap-2 flex-shrink-0">
@@ -713,6 +992,16 @@ const Index = () => {
         open={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}
       />
+
+      {activeGameplayWalkthrough && (
+        <FeatureWalkthroughDialog
+          open={activeGameplayWalkthrough !== null}
+          slides={GAMEPLAY_WALKTHROUGH_CONFIG[activeGameplayWalkthrough].slides}
+          actionLabel={GAMEPLAY_WALKTHROUGH_CONFIG[activeGameplayWalkthrough].actionLabel}
+          onAction={handleGameplayWalkthroughPrimary}
+          onOpenChange={(open) => !open && closeGameplayWalkthrough()}
+        />
+      )}
 
       {/* Bot Difficulty Selection Modal */}
       <Dialog open={showBotDifficultyModal} onOpenChange={setShowBotDifficultyModal}>
