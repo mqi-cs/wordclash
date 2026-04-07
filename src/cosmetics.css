@@ -1,5 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Codystar&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
 
 /* ====== COSMETICS ====== */
 
@@ -151,6 +154,51 @@
   text-shadow:
     0 0 12px rgba(215, 255, 93, 0.85),
     0 0 24px rgba(87, 255, 199, 0.45);
+}
+
+/* Stained Glass Cathedral Letters */
+.theme-letters-gothic .tile {
+  font-family: 'UnifrakturMaguntia', cursive;
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+.theme-letters-gothic :is(.tile-filled, .tile-revealing, .hint-tile) {
+  color: #fff !important;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.4), inset 0 0 10px rgba(0, 0, 0, 0.8);
+}
+.theme-letters-gothic .tile-correct {
+  color: #c4ffe1 !important;
+  text-shadow: 0 0 10px #2db85c, 0 0 20px #2db85c;
+}
+.theme-letters-gothic .tile-present {
+  color: #ffe8b5 !important;
+  text-shadow: 0 0 10px #d99c00, 0 0 20px #d99c00;
+}
+.theme-letters-gothic .tile-absent {
+  color: #b5ccff !important;
+  text-shadow: 0 0 10px #103c8c, 0 0 20px #103c8c;
+}
+
+/* Sumi-e Brush Letters */
+.theme-letters-sumie .tile {
+  font-family: 'Yuji Syuku', serif;
+  font-weight: 400;
+}
+.theme-letters-sumie :is(.tile-filled, .tile-revealing, .hint-tile) {
+  color: rgba(30, 35, 40, 0.95) !important;
+  text-shadow: 0 0 2px rgba(30, 35, 40, 0.5), 0 0 8px rgba(30,35,40, 0.3);
+}
+.theme-letters-sumie .tile-correct {
+  color: #fff !important;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 10px rgba(174, 213, 129, 0.6);
+}
+.theme-letters-sumie .tile-present {
+  color: #fff !important;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 10px rgba(255, 183, 77, 0.6);
+}
+.theme-letters-sumie .tile-absent {
+  color: rgba(80, 80, 85, 0.9) !important;
+  text-shadow: 0 0 2px rgba(120, 120, 130, 0.5), 0 0 8px rgba(120,120,130, 0.3);
 }
 
 /* --- Grid Styles --- */
@@ -346,6 +394,53 @@
   color: #8cb2b7 !important;
 }
 
+/* Stained Glass Cathedral Grid */
+.theme-grid-cathedral :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
+  border: 3px solid #2F2F33 !important; /* Lead cames */
+  border-radius: 4px;
+  background: rgba(30, 30, 35, 0.5) !important;
+  backdrop-filter: blur(8px);
+  /* Textured glass effect */
+  background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.15"/></svg>') !important;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8), 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+.theme-grid-cathedral .tile-correct {
+  background-color: rgba(30, 140, 70, 0.6) !important;
+  box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.4), 0 0 15px rgba(0, 255, 65, 0.3);
+}
+.theme-grid-cathedral .tile-present {
+  background-color: rgba(200, 140, 20, 0.6) !important;
+  box-shadow: inset 0 0 20px rgba(255, 170, 0, 0.4), 0 0 15px rgba(255, 170, 0, 0.3);
+}
+.theme-grid-cathedral .tile-absent {
+  background-color: rgba(10, 40, 100, 0.75) !important;
+  box-shadow: inset 0 0 20px rgba(10, 60, 140, 0.4), 0 0 15px rgba(10, 60, 140, 0.3);
+}
+
+/* Origami Washi Grid */
+.theme-grid-origami :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
+  border-radius: 2px;
+  background-color: #fdfbf7 !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+  background-image: 
+    linear-gradient(45deg, transparent 48%, rgba(0,0,0,0.03) 49%, rgba(255,255,255,0.4) 51%, transparent 52%),
+    url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.08"/></svg>') !important;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.08);
+}
+.theme-grid-origami .tile-correct {
+  background-color: #aed581 !important;
+  border-color: #9ccc65 !important;
+}
+.theme-grid-origami .tile-present {
+  background-color: #ffb74d !important;
+  border-color: #ffa726 !important;
+}
+.theme-grid-origami .tile-absent {
+  background-color: #bdbdbd !important;
+  border-color: #9e9e9e !important;
+  opacity: 0.9;
+}
+
 /* --- Backgrounds --- */
 /* Starfield */
 body.theme-bg-starfield,
@@ -516,6 +611,76 @@ body.theme-bg-abyssal::before,
     radial-gradient(circle at 54% 88%, rgba(156, 255, 165, 0.14), transparent 12%),
     linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, 0.22) 100%);
   opacity: 0.95;
+}
+
+/* Stained Glass Cloister Background */
+body.theme-bg-cloister,
+.theme-bg-cloister {
+  background-color: #1a1a1c !important;
+  background-image: 
+    linear-gradient(45deg, rgba(0,0,0,0.8), transparent, rgba(0,0,0,0.8)) !important;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-attachment: fixed !important;
+}
+body.theme-bg-cloister::after,
+.theme-bg-cloister::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  pointer-events: none;
+  background-image: radial-gradient(circle 2px at center, rgba(200, 180, 150, 0.8) 0, transparent 2px), radial-gradient(circle 1.5px at center, rgba(200, 180, 150, 0.6) 0, transparent 1.5px);
+  background-size: 80px 80px, 120px 120px;
+  background-position: 0 0, 40px 40px;
+  animation: cloister-dust 80s linear infinite;
+  z-index: -1;
+  opacity: 0.4;
+}
+
+/* Zen Garden Background */
+body.theme-bg-zen,
+.theme-bg-zen {
+  background-color: #e8e3d8 !important;
+  background-image: 
+    radial-gradient(circle at 10% 20%, transparent 10%, rgba(0,0,0,0.02) 11%, transparent 12%),
+    radial-gradient(circle at 10% 20%, transparent 20%, rgba(0,0,0,0.02) 21%, transparent 22%),
+    radial-gradient(circle at 10% 20%, transparent 30%, rgba(0,0,0,0.02) 31%, transparent 32%),
+    radial-gradient(circle at 80% 80%, transparent 15%, rgba(0,0,0,0.02) 16%, transparent 17%),
+    radial-gradient(circle at 80% 80%, transparent 30%, rgba(0,0,0,0.02) 31%, transparent 32%),
+    repeating-linear-gradient(rgba(0,0,0,0.02) 0 2px, transparent 2px 14px) !important;
+  background-attachment: fixed !important;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+body.theme-bg-zen::before,
+body.theme-bg-zen::after,
+.theme-bg-zen::before,
+.theme-bg-zen::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  pointer-events: none;
+  background-color: transparent !important;
+  background-image: radial-gradient(ellipse at center, #ffd1dc 0%, #ffb6c1 50%, transparent 60%);
+  background-size: 15px 25px;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  z-index: -1;
+}
+body.theme-bg-zen::before,
+.theme-bg-zen::before {
+  animation: blossom-fall 14s linear infinite;
+  box-shadow: 20vw 10vh 0 #ffb6c1, 40vw 30vh 0 #ffd1dc, 60vw 20vh 0 #ffb6c1, 80vw 60vh 0 #ffd1dc;
+}
+body.theme-bg-zen::after,
+.theme-bg-zen::after {
+  animation: blossom-fall 19s linear infinite -7s;
+  box-shadow: 10vw 40vh 0 #ffb6c1, 30vw 70vh 0 #ffd1dc, 70vw 10vh 0 #ffb6c1, 90vw 80vh 0 #ffd1dc;
 }
 
 /* --- Guess Animations --- */
@@ -754,6 +919,69 @@ body.theme-bg-abyssal::before,
 @keyframes arcade-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* Light Ray Bloom */
+.theme-anim-sunbeam .tile-revealing {
+  animation: sunbeam-reveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+}
+.theme-anim-sunbeam .tile-correct::after,
+.theme-anim-sunbeam .tile-present::after,
+.theme-anim-sunbeam .tile-absent::after {
+  content: "";
+  position: absolute;
+  inset: -100px;
+  z-index: -1;
+  background: radial-gradient(circle, var(--beam-color, rgba(255,255,255,0.4)) 0%, transparent 70%);
+  opacity: 0;
+  animation: sunbeam-burst 1s 0.2s ease-out forwards;
+  pointer-events: none;
+}
+.theme-anim-sunbeam .tile-correct {
+  --beam-color: rgba(45, 184, 92, 0.6);
+}
+.theme-anim-sunbeam .tile-present {
+  --beam-color: rgba(217, 156, 0, 0.6);
+}
+.theme-anim-sunbeam .tile-absent {
+  --beam-color: rgba(16, 60, 140, 0.4);
+}
+
+/* Origami Fold */
+.theme-anim-fold .tile-revealing {
+  animation: origami-fold-cycle 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+
+@keyframes origami-fold-cycle {
+  0% { transform: scale(1) rotateZ(0) rotateY(0); filter: drop-shadow(0 0 0 rgba(0,0,0,0)); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  35% { transform: scale(0.7) rotateZ(25deg) rotateY(45deg); clip-path: polygon(20% 0, 100% 20%, 80% 100%, 0 80%); filter: drop-shadow(5px 5px 5px rgba(0,0,0,0.3)); }
+  50% { transform: scale(0.5) rotateZ(45deg) rotateX(80deg); clip-path: polygon(50% 50%, 100% 50%, 50% 100%, 50% 50%); }
+  65% { transform: scale(0.7) rotateZ(25deg) rotateY(0deg); clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%); }
+  100% { transform: scale(1) rotateZ(0) rotateX(0) rotateY(0); filter: drop-shadow(0 0 0 rgba(0,0,0,0)); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+@keyframes blossom-fall {
+  0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { transform: translateY(100vh) translateX(30vw) rotate(360deg); opacity: 0; }
+}
+
+@keyframes cloister-dust {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-100px, 100px) rotate(10deg); }
+}
+
+@keyframes sunbeam-reveal {
+  0% { filter: brightness(0.2) contrast(1.5); box-shadow: inset 0 0 0 rgba(0,0,0,1); }
+  50% { filter: brightness(2) contrast(1.2); }
+  100% { filter: brightness(1) contrast(1); }
+}
+
+@keyframes sunbeam-burst {
+  0% { opacity: 0; transform: scale(0.5) translateY(-50px); }
+  30% { opacity: 1; transform: scale(1.2) translateY(0); }
+  100% { opacity: 0.6; transform: scale(1) translateY(0); }
 }
 
 @keyframes decrypt-flash {
