@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Codystar&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 /* ====== COSMETICS ====== */
 
 /* --- Letter Skins --- */
@@ -83,42 +86,52 @@
 
 /* Cosmic Voyager Letters */
 .theme-letters-cosmic .tile {
-  font-family: "Trebuchet MS", "Avenir Next", sans-serif;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-family: 'Codystar', cursive, sans-serif;
+  font-weight: 400;
+  letter-spacing: 2px;
 }
 .theme-letters-cosmic :is(.tile-filled, .tile-revealed, .tile-revealing, .hint-tile) {
-  color: #e6f6ff !important;
-  text-shadow:
-    0 0 10px rgba(148, 220, 255, 0.8),
-    0 0 22px rgba(173, 131, 255, 0.45);
+  background: radial-gradient(white, rgba(255,255,255,0.8) 2px, transparent 3px);
+  background-size: 8px 8px;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: rgba(255, 255, 255, 0.9) !important;
+  text-shadow: 
+    0 0 5px rgba(148, 220, 255, 0.6),
+    0 0 15px rgba(173, 131, 255, 0.5); /* spectral lines glow */
 }
 .theme-letters-cosmic .tile-correct {
-  color: #f3feff !important;
+  /* Electric white with a cyan core */
+  color: #ffffff !important;
   text-shadow:
-    0 0 12px rgba(147, 255, 255, 0.95),
-    0 0 28px rgba(72, 221, 255, 0.75);
+    0 0 4px #00ffff,
+    0 0 10px #00ffff,
+    0 0 20px rgba(0, 255, 255, 0.8),
+    0 0 30px rgba(0, 255, 255, 0.6);
 }
 
 /* 8-Bit Arcade Letters */
 .theme-letters-arcade .tile {
-  font-family: "Courier New", monospace;
-  font-weight: 900;
+  font-family: 'Press Start 2P', monospace;
+  font-weight: 400;
   border-radius: 0 !important;
-  text-rendering: geometricPrecision;
-  image-rendering: pixelated;
+  text-transform: uppercase;
 }
-.theme-letters-arcade :is(.tile-filled, .tile-revealed, .tile-revealing, .hint-tile) {
-  color: #f9ff61 !important;
-  text-shadow:
-    2px 0 0 #ff4f9a,
-    -2px 0 0 #22e7ff;
+.theme-letters-arcade :is(.tile-filled, .tile-empty, .hint-tile) {
+  color: #ffffff !important;
+  text-shadow: 2px 2px 0 #555555;
 }
 .theme-letters-arcade .tile-correct {
-  color: #7cff6b !important;
-  text-shadow:
-    2px 0 0 #133b18,
-    0 0 12px rgba(124, 255, 107, 0.45);
+  color: #00ff00 !important;
+  text-shadow: 2px 2px 0 #005500;
+}
+.theme-letters-arcade .tile-present {
+  color: #ffff00 !important;
+  text-shadow: 2px 2px 0 #555500;
+}
+.theme-letters-arcade .tile-absent {
+  color: #888888 !important;
+  text-shadow: 2px 2px 0 #333333;
 }
 
 /* Abyssal Deep Letters */
@@ -243,81 +256,56 @@
 
 /* Cosmic Voyager Grid */
 .theme-grid-cosmic :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
-  border: 1px solid rgba(153, 188, 216, 0.55) !important;
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, rgba(34, 43, 65, 0.92), rgba(10, 14, 28, 0.96)) !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(194, 216, 232, 0.14),
-    inset 0 -10px 18px rgba(7, 10, 22, 0.45),
-    0 10px 25px rgba(3, 6, 18, 0.35);
+  /* Brushed space-grade titanium frame */
+  border: 2px solid transparent !important;
+  border-radius: 8px;
+  /* Dark obsidian tiles */
+  background: linear-gradient(#050508, #0b0c10) padding-box,
+              linear-gradient(135deg, #e0e5ec 0%, #7a8294 50%, #3e4453 100%) border-box !important;
+  /* Faintly glowing nebula trails as box shadow */
+  box-shadow: 0 0 10px rgba(138, 43, 226, 0.4), inset 0 0 15px rgba(0, 0, 0, 0.9);
 }
 .theme-grid-cosmic .tile-empty,
 .theme-grid-cosmic .tile-filled {
-  background-image:
-    linear-gradient(90deg, rgba(89, 171, 255, 0.08), rgba(170, 123, 255, 0.04)),
-    radial-gradient(circle at top left, rgba(141, 205, 255, 0.2), transparent 42%);
+  /* Nebula background hint */
+  background-image: radial-gradient(circle at center, rgba(138, 43, 226, 0.15) 0%, transparent 60%);
 }
 .theme-grid-cosmic .tile-correct {
-  background:
-    radial-gradient(circle at 50% 45%, rgba(232, 253, 255, 0.95), rgba(87, 219, 255, 0.82) 34%, rgba(27, 89, 158, 0.96) 100%) !important;
-  border-color: rgba(198, 251, 255, 0.95) !important;
-  box-shadow:
-    0 0 22px rgba(96, 230, 255, 0.85),
-    inset 0 0 25px rgba(255, 255, 255, 0.28);
+  /* Electric white with cyan core representation here translates to the tile's active state */
+  background: linear-gradient(#081a25, #0b2536) padding-box,
+              linear-gradient(135deg, #e0e5ec 0%, #7a8294 50%, #3e4453 100%) border-box !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2);
 }
 .theme-grid-cosmic .tile-present {
-  background:
-    linear-gradient(135deg, rgba(95, 83, 204, 0.95), rgba(176, 113, 255, 0.92)) !important;
-  border-color: rgba(217, 185, 255, 0.85) !important;
+  background: linear-gradient(#1a1025, #251636) padding-box,
+              linear-gradient(135deg, #e0e5ec 0%, #7a8294 50%, #3e4453 100%) border-box !important;
+  box-shadow: 0 0 15px rgba(186, 85, 211, 0.6), inset 0 0 20px rgba(186, 85, 211, 0.2);
 }
 .theme-grid-cosmic .tile-absent {
-  background:
-    linear-gradient(135deg, rgba(40, 47, 66, 0.96), rgba(18, 23, 39, 0.96)) !important;
-  border-color: rgba(86, 104, 138, 0.7) !important;
-  color: #8b95ad !important;
+  background: linear-gradient(#020203, #040405) padding-box,
+              linear-gradient(135deg, #3e4453 0%, #1e222a 100%) border-box !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 1);
+  color: #4a5568 !important;
 }
 
 /* 8-Bit Arcade Grid */
 .theme-grid-arcade :is(.tile-empty, .tile-filled, .tile-revealed, .hint-tile) {
-  border: 3px solid #2df8ff !important;
+  border: 4px solid #555 !important;
   border-radius: 0 !important;
-  background:
-    linear-gradient(180deg, rgba(23, 30, 47, 0.98), rgba(7, 10, 16, 0.98)) !important;
-  box-shadow:
-    inset 0 0 0 2px rgba(0, 0, 0, 0.6),
-    4px 4px 0 rgba(7, 247, 255, 0.55);
-}
-.theme-grid-arcade .tile-empty,
-.theme-grid-arcade .tile-filled {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.05) 50%, rgba(0, 0, 0, 0.14) 50%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 50%, transparent 50%);
-  background-size: 100% 4px, 4px 100%;
+  background-color: #111 !important;
+  /* CRT scanlines effect */
+  background-image: repeating-linear-gradient(rgba(0, 0, 0, 0.4) 0, rgba(0, 0, 0, 0.4) 2px, transparent 2px, transparent 4px) !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 1);
 }
 .theme-grid-arcade .tile-correct {
-  background: #59ff5d !important;
-  color: #06240c !important;
-  border-color: #d4ff57 !important;
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.22),
-    4px 4px 0 rgba(211, 255, 87, 0.45);
+  border-color: #00ff00 !important;
 }
 .theme-grid-arcade .tile-present {
-  background: #ffd84a !important;
-  color: #2f2000 !important;
-  border-color: #ff6f91 !important;
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.22),
-    4px 4px 0 rgba(255, 111, 145, 0.45);
+  border-color: #ffff00 !important;
 }
 .theme-grid-arcade .tile-absent {
-  background: #5b6476 !important;
-  color: #dde4ff !important;
-  border-color: #95a0b9 !important;
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.08),
-    4px 4px 0 rgba(35, 42, 59, 0.7);
+  border-color: #333 !important;
 }
 
 /* Abyssal Deep Grid */
@@ -430,26 +418,48 @@ body.theme-bg-galaxy,
 .theme-bg-galaxy {
   position: relative;
   isolation: isolate;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(211, 172, 255, 0.34), transparent 18%),
-    radial-gradient(circle at 47% 44%, rgba(107, 235, 255, 0.28), transparent 26%),
-    conic-gradient(from 120deg at 50% 45%, rgba(141, 118, 255, 0.1), rgba(80, 182, 255, 0.24), rgba(203, 157, 255, 0.18), rgba(141, 118, 255, 0.1)),
-    radial-gradient(circle at top, #15224d 0%, #080b18 46%, #03050d 100%) !important;
+  background-color: #05060a !important;
+  overflow: hidden;
   background-attachment: fixed !important;
 }
 body.theme-bg-galaxy::before,
-.theme-bg-galaxy::before {
+body.theme-bg-galaxy::after,
+.theme-bg-galaxy::before,
+.theme-bg-galaxy::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
+}
+/* Starfield */
+body.theme-bg-galaxy::after,
+.theme-bg-galaxy::after {
   background-image:
-    radial-gradient(1px 1px at 8% 20%, rgba(255, 255, 255, 0.92), transparent 55%),
-    radial-gradient(1.5px 1.5px at 22% 70%, rgba(170, 248, 255, 0.8), transparent 60%),
-    radial-gradient(1px 1px at 74% 26%, rgba(255, 255, 255, 0.9), transparent 55%),
-    radial-gradient(2px 2px at 80% 62%, rgba(177, 160, 255, 0.8), transparent 60%),
-    radial-gradient(1px 1px at 60% 80%, rgba(255, 255, 255, 0.7), transparent 55%);
+    radial-gradient(1px 1px at 15% 25%, #ffffff 100%, transparent),
+    radial-gradient(1px 1px at 45% 15%, #ffffff 100%, transparent),
+    radial-gradient(2px 2px at 75% 35%, rgba(255, 255, 255, 0.8) 100%, transparent),
+    radial-gradient(1px 1px at 85% 65%, #ffffff 100%, transparent),
+    radial-gradient(1px 1px at 25% 85%, #ffffff 100%, transparent),
+    radial-gradient(1.5px 1.5px at 55% 75%, rgba(170, 248, 255, 0.8) 100%, transparent);
+  background-size: 150px 150px;
+}
+/* Swirling Galaxy */
+body.theme-bg-galaxy::before,
+.theme-bg-galaxy::before {
+  background:
+    conic-gradient(from 0deg at 50% 50%, 
+      rgba(75, 46, 131, 0) 0%, 
+      rgba(75, 46, 131, 0.3) 15%, 
+      rgba(0, 255, 255, 0.2) 30%, 
+      rgba(75, 46, 131, 0) 45%,
+      rgba(75, 46, 131, 0.3) 65%,
+      rgba(0, 255, 255, 0.2) 80%,
+      rgba(75, 46, 131, 0) 100%);
+  filter: blur(30px);
+  animation: bg-galaxy-spin 60s linear infinite;
+  transform-origin: center center;
+  scale: 2; /* To ensure corners are covered when spinning */
 }
 
 /* 8-Bit Arcade Cabinet */
@@ -457,40 +467,30 @@ body.theme-bg-arcade,
 .theme-bg-arcade {
   position: relative;
   isolation: isolate;
-  background:
-    linear-gradient(180deg, rgba(12, 18, 40, 0.97), rgba(5, 8, 18, 0.99)) !important;
+  background-color: #000 !important;
+  background-image: 
+    repeating-linear-gradient(rgba(0, 255, 0, 0.05) 0, rgba(0, 255, 0, 0.05) 1px, transparent 1px, transparent 20px),
+    repeating-linear-gradient(90deg, rgba(0, 255, 0, 0.05) 0, rgba(0, 255, 0, 0.05) 1px, transparent 1px, transparent 20px) !important;
+  animation: bg-arcade-scroll 20s linear infinite !important;
   background-attachment: fixed !important;
 }
 body.theme-bg-arcade::before,
 .theme-bg-arcade::before {
-  content: "HIGH SCORE";
+  content: "1UP  HIGH SCORE\A 00   999990";
+  white-space: pre-wrap;
+  text-align: center;
   position: absolute;
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  color: #f8ff71;
-  font-family: "Courier New", monospace;
-  font-size: clamp(1rem, 2vw, 1.4rem);
-  font-weight: 900;
-  letter-spacing: 0.22em;
-  text-shadow: 0 0 14px rgba(248, 255, 113, 0.55);
+  color: #ff0000;
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(0.8rem, 1.5vw, 1.2rem);
+  line-height: 1.5;
+  text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+  animation: arcade-blink 1s steps(2, start) infinite;
   pointer-events: none;
   z-index: -1;
-}
-body.theme-bg-arcade::after,
-.theme-bg-arcade::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.06) 50%, rgba(0, 0, 0, 0.14) 50%),
-    radial-gradient(circle at 18% 22%, rgba(255, 76, 149, 0.26), transparent 14%),
-    radial-gradient(circle at 82% 30%, rgba(43, 233, 255, 0.22), transparent 16%),
-    radial-gradient(circle at 34% 78%, rgba(124, 255, 107, 0.18), transparent 12%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 100% 4px, auto, auto, auto, 28px 28px;
 }
 
 /* Abyssal Vent */
@@ -598,39 +598,39 @@ body.theme-bg-abyssal::before,
 
 /* Warp Speed */
 .theme-anim-warp .tile-revealing {
+  position: relative;
   overflow: hidden;
 }
 .theme-anim-warp .tile-revealing::before {
   content: "";
   position: absolute;
-  inset: -8% -40%;
+  top: 40%;
+  left: -100%;
+  width: 150%;
+  height: 20%;
+  background: linear-gradient(90deg, transparent, #ffffff, #00ffff, transparent);
+  box-shadow: 0 0 15px #00ffff, 0 0 30px #ffffff;
+  transform: skewX(-45deg);
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(177, 245, 255, 0.9), transparent);
-  transform: translateX(-130%) skewX(-24deg);
-  animation: warp-streak 650ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
+  animation: warp-streak 0.4s cubic-bezier(0.8, 0, 0.2, 1) both;
 }
-.theme-anim-warp .tile-correct {
-  animation: cosmic-starborn 900ms ease-out both !important;
+.theme-anim-warp .tile-correct::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 20px 10px #ffffff, 0 0 50px 20px #00ffff;
+  opacity: 0;
+  animation: cosmic-starborn-pulse 0.8s ease-out both;
+  pointer-events: none;
 }
 
 /* Pixel Shatter */
 .theme-anim-pixel .tile-revealing {
-  overflow: hidden;
+  animation: arc-pixel-shatter 0.4s steps(5, end) forwards !important;
 }
-.theme-anim-pixel .tile-revealing::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.32) 0 18%, transparent 18% 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0 22%, transparent 22% 100%);
-  background-size: 14px 14px, 14px 14px;
-  mix-blend-mode: screen;
-  animation: pixel-shatter 700ms steps(6, end) both;
-}
-.theme-anim-pixel .tile-correct {
-  animation: pixel-build 520ms steps(6, end) both !important;
+.theme-anim-pixel .tile-revealed, .theme-anim-pixel .tile-correct {
+  animation: arc-pixel-build 0.4s steps(5, start) forwards !important;
 }
 
 /* Bubble Burst */
@@ -705,16 +705,22 @@ body.theme-bg-abyssal::before,
   100% { transform: translateY(60px); opacity: 0; }
 }
 
-@keyframes warp-streak {
-  0% { opacity: 0; transform: translateX(-130%) skewX(-24deg); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translateX(130%) skewX(-24deg); }
+@keyframes bg-galaxy-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-@keyframes cosmic-starborn {
-  0% { box-shadow: 0 0 0 rgba(147, 255, 255, 0); transform: scale(0.92); }
-  40% { box-shadow: 0 0 24px rgba(147, 255, 255, 0.95); transform: scale(1.04); }
-  100% { box-shadow: 0 0 14px rgba(147, 255, 255, 0.45); transform: scale(1); }
+@keyframes warp-streak {
+  0% { left: -150%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 150%; opacity: 0; }
+}
+
+@keyframes cosmic-starborn-pulse {
+  0% { transform: scale(0); opacity: 1; filter: brightness(2) contrast(2); }
+  50% { opacity: 0.8; filter: brightness(1); }
+  100% { transform: scale(2); opacity: 0; }
 }
 
 @keyframes stamped-slam {
@@ -728,14 +734,26 @@ body.theme-bg-abyssal::before,
   100% { transform: scale(1); }
 }
 
-@keyframes pixel-shatter {
-  0% { opacity: 0.75; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(40%) scale(1.2); }
+@keyframes arc-pixel-shatter {
+  0% { opacity: 1; transform: scale(1); filter: contrast(1); }
+  50% { opacity: 0.5; transform: scale(1.2) rotate(5deg); filter: contrast(2) brightness(1.5); }
+  100% { opacity: 0; transform: translateY(20px) scale(0.8); }
 }
 
-@keyframes pixel-build {
-  0% { filter: brightness(1.8) saturate(1.4); transform: scale(0.92); }
-  100% { filter: brightness(1) saturate(1); transform: scale(1); }
+@keyframes arc-pixel-build {
+  0% { opacity: 0; transform: translateY(-20px) scale(0.8); }
+  50% { opacity: 0.5; transform: scale(1.1); filter: contrast(2); }
+  100% { opacity: 1; transform: scale(1); filter: contrast(1); }
+}
+
+@keyframes bg-arcade-scroll {
+  0% { background-position: 0px 0px; }
+  100% { background-position: 100px 100px; }
+}
+
+@keyframes arcade-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 @keyframes decrypt-flash {
