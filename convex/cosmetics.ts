@@ -45,6 +45,7 @@ export const COSMETIC_CATALOG: CosmeticItem[] = [
   { id: "theme_arcade_8bit", category: "theme", name: "8-Bit Retro Arcade", description: "CRT pixel grid, chunky sprite letters, pixel-shatter reveal, and a high-score cabinet backdrop", cost: 0 },
   { id: "theme_cathedral", category: "theme", name: "Stained Glass Cathedral", description: "Lead came grid, gothic serif letters, light ray bloom reveals, and a dim stone cloister backdrop", cost: 0 },
   { id: "theme_origami_zen", category: "theme", name: "Origami Zen", description: "Washi paper grid, Sumi-e letters, paper fold reveals, and a cherry blossom zen garden", cost: 0 },
+  { id: "theme_shadow_puppet", category: "theme", name: "Shadow Puppet Theater", description: "Paper-cut screen, cardstock silhouette letters, and lantern shift reveal on a silk screen", cost: 0 },
 ];
 
 const VALID_COSMETIC_IDS = new Set(COSMETIC_CATALOG.map((item) => item.id));

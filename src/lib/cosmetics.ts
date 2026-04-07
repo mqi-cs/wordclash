@@ -10,6 +10,7 @@ const THEME_BUNDLES: Record<string, string[]> = {
   theme_arcade_8bit: ["theme-grid-arcade", "theme-letters-arcade", "theme-bg-arcade", "theme-anim-pixel"],
   theme_cathedral: ["theme-grid-cathedral", "theme-letters-gothic", "theme-bg-cloister", "theme-anim-sunbeam"],
   theme_origami_zen: ["theme-grid-origami", "theme-letters-sumie", "theme-bg-zen", "theme-anim-fold"],
+  theme_shadow_puppet: ["theme-grid-shadow", "theme-letters-silhouette", "theme-bg-silk", "theme-anim-lantern"],
 };
 
 export const getEquippedCosmeticThemeClasses = (equippedCosmetics?: EquippedCosmetics | null) => {

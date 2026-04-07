@@ -3,6 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 
 /* ====== COSMETICS ====== */
 
@@ -1032,4 +1033,98 @@ body.theme-bg-zen::after,
   0% { box-shadow: 0 0 0 rgba(203, 255, 112, 0); transform: translateY(6%); }
   35% { box-shadow: 0 0 24px rgba(203, 255, 112, 0.78); transform: translateY(0); }
   100% { box-shadow: 0 0 12px rgba(113, 255, 205, 0.36); transform: translateY(0); }
+}
+
+/* --- Shadow Puppet Theater --- */
+body.theme-bg-silk {
+  /* Silk screen background */
+  background: 
+    linear-gradient(rgba(255, 235, 180, 0.1), rgba(255, 215, 100, 0.12)),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  background-color: #ffd89b;
+  position: relative;
+}
+body.theme-bg-silk::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 120%, rgba(255,140,0,0.1) 0%, rgba(0,0,0,0.8) 100%);
+  z-index: 0;
+  animation: flicker-candle 3s infinite alternate ease-in-out;
+}
+@keyframes flicker-candle {
+  0% { opacity: 0.85; }
+  25% { opacity: 0.95; }
+  50% { opacity: 0.8; }
+  75% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+/* Grid Skin */
+body.theme-grid-shadow .game-grid .flex > div {
+  border: 0;
+  background: transparent !important;
+  box-shadow: inset 0px 0px 8px rgba(0,0,0,0.8);
+  border-radius: 0;
+  position: relative;
+}
+/* Letter Skin */
+body.theme-letters-silhouette .game-grid .flex > div span {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 2.2rem;
+  color: #111 !important; /* Silhouette */
+  transform: rotate(-3deg) scale(0.95);
+  display: inline-block;
+  position: relative;
+  z-index: 2;
+}
+/* stick on the silhouette */
+body.theme-letters-silhouette .game-grid .flex > div::after {
+  content: "";
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  width: 3px;
+  height: 25px;
+  background: #111;
+  z-index: 1;
+  transform: translateX(-50%) rotate(2deg);
+}
+/* Guess Animation - The Lantern Shift */
+body.theme-anim-lantern .game-grid .tile-revealing,
+body.theme-anim-lantern .game-grid .tile-revealed {
+  animation: none !important;
+  transform: none !important;
+}
+body.theme-anim-lantern .game-grid .tile-revealing[data-animation-state="revealing"] {
+  animation: lantern-shift 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+}
+body.theme-anim-lantern .game-grid .tile-revealed[data-state="correct"] {
+  background: transparent !important;
+  box-shadow: inset 0px 0px 30px rgba(220, 20, 60, 0.8) !important;
+}
+body.theme-anim-lantern .game-grid .tile-revealed[data-state="correct"] span {
+  color: rgba(220, 20, 60, 1) !important;
+  text-shadow: 0 0 10px rgba(220, 20, 60, 0.8);
+}
+body.theme-anim-lantern .game-grid .tile-revealed[data-state="present"] {
+  background: transparent !important;
+  box-shadow: inset 0px 0px 30px rgba(255, 140, 0, 0.8) !important;
+}
+body.theme-anim-lantern .game-grid .tile-revealed[data-state="present"] span {
+  color: rgba(255, 140, 0, 1) !important;
+  text-shadow: 0 0 10px rgba(255, 140, 0, 0.8);
+}
+body.theme-anim-lantern .game-grid .tile-revealed[data-state="absent"] {
+  background: transparent !important;
+  box-shadow: inset 0px 0px 20px rgba(0, 0, 0, 0.9) !important;
+}
+body.theme-anim-lantern .game-grid .tile-revealed[data-state="absent"] span {
+  color: #000 !important;
+  text-shadow: 10px 10px 10px rgba(0,0,0,0.8); /* Stretches shadow */
+}
+@keyframes lantern-shift {
+  0% { opacity: 1; filter: brightness(1) drop-shadow(0 0 0 rgba(0,0,0,0)); transform: scale(1) rotate(-3deg); }
+  50% { opacity: 0.5; filter: brightness(2) drop-shadow(-20px 10px 10px rgba(0,0,0,0.5)); transform: scale(1.05) rotate(5deg); }
+  100% { opacity: 1; filter: brightness(1) drop-shadow(10px 10px 10px rgba(0,0,0,0.8)); transform: scale(1) rotate(-3deg); }
 }
