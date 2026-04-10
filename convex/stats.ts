@@ -271,8 +271,8 @@ export const updateStats = mutation({
         green_letters: greenLetters,
         game_id: args.gameId,
         ...analyticsProperties,
-        $set: userProperties,
       },
+      personProperties: userProperties,
     });
 
     ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
@@ -286,8 +286,8 @@ export const updateStats = mutation({
         green_letters: greenLetters,
         game_id: args.gameId,
         ...analyticsProperties,
-        $set: userProperties,
       },
+      personProperties: userProperties,
     });
   },
 });

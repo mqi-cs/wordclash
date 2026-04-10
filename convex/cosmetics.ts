@@ -491,9 +491,9 @@ export const claimQuestReward = mutation({
       properties: {
         quest_id: args.questId,
         shards_earned: slot.reward,
-        $set: { 
-          shards_total: wallet ? wallet.shards + slot.reward : slot.reward 
-        },
+      },
+      personProperties: {
+        shards_total: wallet ? wallet.shards + slot.reward : slot.reward,
       },
     });
   },
@@ -545,10 +545,10 @@ export const purchaseCosmetic = mutation({
         cosmetic_name: item.name,
         cosmetic_category: item.category,
         shards_spent: item.cost,
-        $set: { 
-          shards_total: newShards,
-          themes_owned_count: newOwned.length
-        },
+      },
+      personProperties: {
+        shards_total: newShards,
+        themes_owned_count: newOwned.length,
       },
     });
   },
@@ -595,9 +595,9 @@ export const equipCosmetic = mutation({
         cosmetic_name: item.name,
         cosmetic_category: item.category,
         equipped: isNowEquipped,
-        $set: { 
-          equipped_theme: isNowEquipped ? item.name : "Default" 
-        },
+      },
+      personProperties: {
+        equipped_theme: isNowEquipped ? item.name : "Default",
       },
     });
   },

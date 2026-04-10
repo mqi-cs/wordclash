@@ -33,6 +33,8 @@ export const captureEvent = internalAction({
     distinctId: v.string(),
     event: v.string(),
     properties: v.optional(v.any()),
+    personProperties: v.optional(v.any()),
+    setOnce: v.optional(v.any()),
   },
   handler: async (_ctx, args) => {
     const client = getClient();
@@ -41,6 +43,15 @@ export const captureEvent = internalAction({
       event: normalizeEventName(args.event),
       properties: args.properties ?? {},
     });
+    if (args.personProperties || args.setOnce) {
+      client.identify({
+        distinctId: args.distinctId,
+        properties: {
+          ...(args.personProperties ?? {}),
+          ...(args.setOnce ? { $set_once: args.setOnce } : {}),
+        },
+      });
+    }
     await client.shutdown();
   },
 });
