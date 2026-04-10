@@ -110,9 +110,15 @@ interface OnboardingGuideProps {
 }
 
 export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
+  const { trackGame } = usePostHog();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState<"left" | "right">("right");
   const [isAnimating, setIsAnimating] = useState(false);
+
+  // Track initial slide view
+  useEffect(() => {
+    trackGame("onboarding_viewed", { slide_index: 0, slide_title: slides[0].title });
+  }, []);
 
   const slide = slides[currentSlide];
   const isLast = currentSlide === slides.length - 1;
@@ -122,6 +128,14 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
     if (isAnimating || index === currentSlide) return;
     setDirection(index > currentSlide ? "right" : "left");
     setIsAnimating(true);
+    
+    // Track slide transition
+    trackGame("onboarding_slide_viewed", { 
+      slide_index: index, 
+      slide_title: slides[index].title,
+      direction: index > currentSlide ? "forward" : "backward"
+    });
+
     setTimeout(() => {
       setCurrentSlide(index);
       setIsAnimating(false);
@@ -130,7 +144,7 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
 
   const next = () => {
     if (isLast) {
-      handleComplete();
+      handleComplete("finished");
     } else {
       goTo(currentSlide + 1);
     }
@@ -140,7 +154,12 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
     if (!isFirst) goTo(currentSlide - 1);
   };
 
-  const handleComplete = () => {
+  const handleComplete = (reason: "finished" | "skipped" = "skipped") => {
+    trackGame("onboarding_completed", { 
+      reason, 
+      last_slide_index: currentSlide,
+      percent_complete: Math.round(((currentSlide + 1) / slides.length) * 100)
+    });
     localStorage.setItem(ONBOARDING_KEY, "true");
     onComplete();
   };

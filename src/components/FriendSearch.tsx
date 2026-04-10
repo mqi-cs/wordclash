@@ -8,16 +8,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Search, UserPlus } from "lucide-react";
 
+import { usePostHog } from "@/contexts/PostHogContext";
+
 export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { trackGame } = usePostHog();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Only query when length is >= 3
   const searchResults = useQuery(
     api.friends.searchUsers,
     searchQuery.trim().length >= 3 ? { searchQuery: searchQuery.trim() } : "skip"
   );
+
+  // Track search when results change
+  useEffect(() => {
+    if (searchQuery.trim().length >= 3 && searchResults !== undefined) {
+      trackGame("friend_search", { 
+        query_length: searchQuery.trim().length,
+        results_count: searchResults.length 
+      });
+    }
+  }, [searchResults === undefined]);
 
   const sendRequest = useMutation(api.friends.sendRequest);
 
@@ -27,12 +39,14 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
     setSendingId(friendId);
     try {
       await sendRequest({ friendId: friendId as any });
+      trackGame("friend_request_sent", { friend_id: friendId });
       toast({
         title: "Request sent",
         description: "Friend request sent successfully!",
       });
       onRequestSent?.();
     } catch (error: any) {
+// ... existing code continues
       toast({
         title: "Error",
         description: error.message || "Failed to send request",

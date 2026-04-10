@@ -13,6 +13,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { getEquippedCosmeticThemeClassName } from "@/lib/cosmetics";
+import { usePostHog } from "@/contexts/PostHogContext";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -52,6 +53,7 @@ const isLobbyCode = (value: string) => LOBBY_CODE_REGEX.test(value.trim().toUppe
 export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGameProps) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { trackGame } = usePostHog();
 
   const [entryMode, setEntryMode] = useState<EntryMode>(null);
   const [joinCode, setJoinCode] = useState("");
@@ -157,6 +159,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         setGameId(joinedGameId);
         setEntryMode(null);
         syncMultiplayerUrl(joinedGameId);
+        trackGame("multiplayer_game_joined", { method: "code", lobby_code: code });
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to join lobby";
@@ -173,6 +176,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         setGameId(resolvedGameId);
         setEntryMode(null);
         syncMultiplayerUrl(resolvedGameId);
+        trackGame("multiplayer_game_joined", { method: "link", game_id: requestedGameId });
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to open multiplayer game";
@@ -294,6 +298,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setGameId(newGameId);
       setEntryMode(null);
       syncMultiplayerUrl(newGameId);
+      trackGame("multiplayer_lobby_created", { mode: subMode });
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create lobby";
@@ -319,6 +324,12 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
 
     try {
       await startGameMut({ gameId });
+      trackGame("multiplayer_game_started", { 
+        game_id: gameId, 
+        mode: game?.mode, 
+        player_count: game?.playerCount,
+        game_type: game?.gameType
+      });
       toast.success("Game started!");
     } catch (error: unknown) {
       const errorMessage =
@@ -338,17 +349,23 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
 
   const handleBack = () => {
     if (gameId && game && game.status !== "finished") {
+      const props = {
+        game_id: gameId,
+        game_type: game.gameType,
+        mode: game.mode ?? "classic",
+        status: game.status,
+        player_count: game.playerCount,
+        abandon_reason:
+          game.status === "waiting" ? "returned_to_menu_from_lobby" : "returned_to_menu",
+      };
+
+      // Track client-side for PostHog (immediate)
+      trackGame("game_abandoned_client", props);
+
+      // Track server-side (persistent)
       void captureUserEvent({
         event: "game_abandoned",
-        properties: {
-          game_id: gameId,
-          game_type: game.gameType,
-          mode: game.mode ?? "classic",
-          status: game.status,
-          player_count: game.playerCount,
-          abandon_reason:
-            game.status === "waiting" ? "returned_to_menu_from_lobby" : "returned_to_menu",
-        },
+        properties: props,
       }).catch(() => null);
     }
 

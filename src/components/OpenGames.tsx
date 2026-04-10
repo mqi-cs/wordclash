@@ -24,8 +24,11 @@ interface OpenGamesProps {
   onResumeGame: (gameId: string) => void;
 }
 
+import { usePostHog } from "@/contexts/PostHogContext";
+
 export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
   const { user } = useAuth();
+  const { trackGame } = usePostHog();
   const games = useQuery(api.games.getMyGames);
   const cleanupStaleWaitingGames = useMutation(api.games.cleanupStaleWaitingGames);
   const deleteGame = useMutation(api.games.deleteGame);
@@ -42,13 +45,31 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
   const handleDeleteGame = async (gameId: Id<"games">) => {
     setDeletingGameId(gameId);
     try {
+      const g = games?.find(x => x._id === gameId);
       await deleteGame({ gameId });
+      trackGame("game_deleted", { 
+        game_id: gameId, 
+        game_type: g?.gameType, 
+        mode: g?.mode 
+      });
       toast.success("Game removed");
     } catch (error: any) {
+// ... existing code continues
       toast.error(error.message || "Failed to delete game");
     } finally {
       setDeletingGameId(null);
     }
+  };
+
+  const handleResume = (gameId: Id<"games">) => {
+    const g = games?.find(x => x._id === gameId);
+    trackGame("game_resumed", { 
+      game_id: gameId, 
+      game_type: g?.gameType, 
+      mode: g?.mode,
+      status: g?.status
+    });
+    onResumeGame(gameId);
   };
 
   if (!user || games === undefined) {
@@ -128,7 +149,7 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                 </div>
 
                 <Button 
-                  onClick={() => onResumeGame(game._id)}
+                  onClick={() => handleResume(game._id)}
                   className="w-full mt-2"
                   variant={game.status === "in_progress" ? "default" : "secondary"}
                 >

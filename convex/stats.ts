@@ -228,7 +228,7 @@ export const updateStats = mutation({
         green_letters: greenLetters,
         game_id: args.gameId,
         ...analyticsProperties,
-        ...userProperties,
+        $set: userProperties,
       },
     });
 
@@ -241,7 +241,7 @@ export const updateStats = mutation({
         green_letters: greenLetters,
         game_id: args.gameId,
         ...analyticsProperties,
-        ...userProperties,
+        $set: userProperties,
       },
     });
   },
