@@ -23,6 +23,8 @@ import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
+const TIMED_INITIAL_SECONDS = 60;
+const TIMED_BONUS_SECONDS = 15;
 
 interface BotGameProps {
   onBackToMenu: () => void;
@@ -40,7 +42,7 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
   // Timed mode state
   const [playerWordsCompleted, setPlayerWordsCompleted] = useState(0);
   const [botWordsCompleted, setBotWordsCompleted] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(90);
+  const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
   const [timedGameActive, setTimedGameActive] = useState(gameMode === "timed");
 
   // Player game state
@@ -194,8 +196,8 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
 
     if (playerSolvedThisRound && gameMode === "timed") {
       setPlayerWordsCompleted((prev) => prev + 1);
-      setTimeLeft((prev) => prev + 30);
-      toast.success("+30 seconds! Next word!");
+      setTimeLeft((prev) => prev + TIMED_BONUS_SECONDS);
+      toast.success(`+${TIMED_BONUS_SECONDS} seconds! Next word!`);
 
       setTimeout(() => {
         const newWord = getRandomWord();

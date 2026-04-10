@@ -70,10 +70,10 @@ const slides: SlideData[] = [
     title: "Timed Mode",
     subtitle: "Race the Clock",
     description:
-      "Start with 90 seconds on the clock. Every word you solve earns a +30 second bonus. Solve as many words as possible before time runs out!",
+      "Start with 60 seconds on the clock. Every word you solve earns a +15 second bonus. Solve as many words as possible before time runs out!",
     features: [
       "Unlimited guesses per word",
-      "+30 seconds added for each solved word",
+      "+15 seconds added for each solved word",
       "Total words completed is your final score",
     ],
     accentVar: "menu-timed",

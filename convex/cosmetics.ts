@@ -1,4 +1,4 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, type MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
@@ -14,26 +14,50 @@ interface QuestTemplate {
   reward: number; // shards
 }
 
-// The "First Game" quest is pinned for new players (no prior quest history)
-const FIRST_GAME_QUEST: QuestTemplate = {
-  id: "play_any_1",
-  title: "First Game!",
-  description: "Play your first game (any mode)",
-  target: 1,
-  reward: 5,
+type TrackedMode = "classic" | "hard" | "timed";
+
+type QuestSlot = {
+  questId: string;
+  title: string;
+  description: string;
+  target: number;
+  progress: number;
+  completed: boolean;
+  claimed: boolean;
+  reward: number;
+  modeProgress?: TrackedMode[];
 };
 
-const QUEST_TEMPLATES: QuestTemplate[] = [
-  { id: "play_classic_1", title: "Classic Fan", description: "Play 1 Classic game", target: 1, reward: 3 },
-  { id: "play_classic_3", title: "Classic Streak", description: "Play 3 Classic games", target: 3, reward: 3 },
-  { id: "play_hard_1", title: "Brave Soul", description: "Play 1 Hard mode game", target: 1, reward: 3 },
-  { id: "play_timed_1", title: "Speed Demon", description: "Play 1 Timed game", target: 1, reward: 3 },
-  { id: "win_any_1", title: "Victory!", description: "Win any game", target: 1, reward: 3 },
-  { id: "win_any_2", title: "Double Win", description: "Win 2 games", target: 2, reward: 3 },
-  { id: "play_any_2", title: "Keep Playing", description: "Play 2 games (any mode)", target: 2, reward: 3 },
-  { id: "play_any_3", title: "Grinder", description: "Play 3 games (any mode)", target: 3, reward: 3 },
-  { id: "green_letters_5", title: "Going Green", description: "Earn 5 green letters total", target: 5, reward: 3 },
-  { id: "green_letters_10", title: "Letter Master", description: "Earn 10 green letters total", target: 10, reward: 3 },
+const TRACKED_MODES: TrackedMode[] = ["classic", "hard", "timed"];
+
+const PLAY_ONE_GAME_QUEST: QuestTemplate = {
+  id: "play_any_1",
+  title: "Play One Game",
+  description: "Play 1 game in any mode",
+  target: 1,
+  reward: 3,
+};
+
+const PLAY_ALL_MODES_QUEST: QuestTemplate = {
+  id: "play_all_modes_1",
+  title: "Play All Three Modes",
+  description: "Play Classic, Hard, and Timed in the same day",
+  target: 3,
+  reward: 3,
+};
+
+const AUTH_QUEST: QuestTemplate = {
+  id: "auth_1",
+  title: "Sign In / Sign Up",
+  description: "Create an account or sign in once today",
+  target: 1,
+  reward: 3,
+};
+
+const DEFAULT_DAILY_QUESTS: QuestTemplate[] = [
+  PLAY_ONE_GAME_QUEST,
+  PLAY_ALL_MODES_QUEST,
+  AUTH_QUEST,
 ];
 
 // ── Cosmetic Catalog ─────────────────────────────────────────────────
@@ -47,15 +71,15 @@ export interface CosmeticItem {
 }
 
 export const COSMETIC_CATALOG: CosmeticItem[] = [
-  { id: "theme_cyberpunk", category: "theme", name: "Neon Cyberpunk", description: "Vibrant glowing grid, glitch letters, data decrypt animation, and circuitry background", cost: 0 },
-  { id: "theme_library", category: "theme", name: "Ancient Library", description: "Wood/brass grid, hand-stamped letters, ink soak animation, and dark parchment landscape", cost: 0 },
-  { id: "theme_minimalist", category: "theme", name: "Garden Minimalist", description: "Glass tile grid, soft pebble letters, solar flare animation, and an aurora background", cost: 0 },
-  { id: "theme_cosmic_voyager", category: "theme", name: "Cosmic Voyager", description: "Obsidian-titanium grid, constellation letters, warp-light reveal, and a swirling galaxy backdrop", cost: 0 },
-  { id: "theme_arcade_8bit", category: "theme", name: "8-Bit Retro Arcade", description: "CRT pixel grid, chunky sprite letters, pixel-shatter reveal, and a high-score cabinet backdrop", cost: 0 },
-  { id: "theme_cathedral", category: "theme", name: "Stained Glass Cathedral", description: "Lead came grid, gothic serif letters, light ray bloom reveals, and a dim stone cloister backdrop", cost: 0 },
-  { id: "theme_origami_zen", category: "theme", name: "Origami Zen", description: "Washi paper grid, Sumi-e letters, paper fold reveals, and a cherry blossom zen garden", cost: 0 },
-  { id: "theme_shadow_puppet", category: "theme", name: "Shadow Puppet Theater", description: "Paper-cut screen, cardstock silhouette letters, and lantern shift reveal on a silk screen", cost: 0 },
-  { id: "theme_tapestry", category: "theme", name: "The Embroidered Tapestry", description: "Cross-stitch canvas grid, embroidered yarn letters, needle-work reveal, and a sewing basket backdrop", cost: 0 },
+  { id: "theme_cyberpunk", category: "theme", name: "Neon Cyberpunk", description: "Vibrant glowing grid, glitch letters, data decrypt animation, and circuitry background", cost: 9 },
+  { id: "theme_library", category: "theme", name: "Ancient Library", description: "Wood/brass grid, hand-stamped letters, ink soak animation, and dark parchment landscape", cost: 9 },
+  { id: "theme_minimalist", category: "theme", name: "Garden Minimalist", description: "Glass tile grid, soft pebble letters, solar flare animation, and an aurora background", cost: 9 },
+  { id: "theme_cosmic_voyager", category: "theme", name: "Cosmic Voyager", description: "Obsidian-titanium grid, constellation letters, warp-light reveal, and a swirling galaxy backdrop", cost: 9 },
+  { id: "theme_arcade_8bit", category: "theme", name: "8-Bit Retro Arcade", description: "CRT pixel grid, chunky sprite letters, pixel-shatter reveal, and a high-score cabinet backdrop", cost: 9 },
+  { id: "theme_cathedral", category: "theme", name: "Stained Glass Cathedral", description: "Lead came grid, gothic serif letters, light ray bloom reveals, and a dim stone cloister backdrop", cost: 9 },
+  { id: "theme_origami_zen", category: "theme", name: "Origami Zen", description: "Washi paper grid, Sumi-e letters, paper fold reveals, and a cherry blossom zen garden", cost: 9 },
+  { id: "theme_shadow_puppet", category: "theme", name: "Shadow Puppet Theater", description: "Paper-cut screen, cardstock silhouette letters, and lantern shift reveal on a silk screen", cost: 9 },
+  { id: "theme_tapestry", category: "theme", name: "The Embroidered Tapestry", description: "Cross-stitch canvas grid, embroidered yarn letters, needle-work reveal, and a sewing basket backdrop", cost: 9 },
 ];
 
 const VALID_COSMETIC_IDS = new Set(COSMETIC_CATALOG.map((item) => item.id));
@@ -67,23 +91,187 @@ function getTodayKey(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-/** Deterministic daily quest selection seeded by dayKey + userId */
-function pickDailyQuests(dayKey: string, userIdStr: string): QuestTemplate[] {
-  // Simple hash-based shuffle so every user gets different quests
-  let seed = 0;
-  const combined = dayKey + userIdStr;
-  for (let i = 0; i < combined.length; i++) {
-    seed = ((seed << 5) - seed + combined.charCodeAt(i)) | 0;
+const isTrackedMode = (value: string): value is TrackedMode =>
+  TRACKED_MODES.includes(value as TrackedMode);
+
+const normalizeModeProgress = (modes: readonly string[] | undefined): TrackedMode[] => {
+  if (!modes) return [];
+
+  return Array.from(new Set(modes.filter(isTrackedMode)));
+};
+
+const buildQuestSlot = (
+  template: QuestTemplate,
+  {
+    progress = 0,
+    completed = false,
+    claimed = false,
+    modeProgress,
+  }: Partial<QuestSlot> = {},
+): QuestSlot => ({
+  questId: template.id,
+  title: template.title,
+  description: template.description,
+  target: template.target,
+  progress,
+  completed,
+  claimed,
+  reward: template.reward,
+  ...(modeProgress && modeProgress.length > 0 ? { modeProgress } : {}),
+});
+
+const buildDefaultQuestSlots = (isAuthenticated: boolean): QuestSlot[] =>
+  DEFAULT_DAILY_QUESTS.map((template) => {
+    if (template.id === AUTH_QUEST.id) {
+      return buildQuestSlot(template, {
+        progress: isAuthenticated ? 1 : 0,
+        completed: isAuthenticated,
+      });
+    }
+
+    if (template.id === PLAY_ALL_MODES_QUEST.id) {
+      return buildQuestSlot(template, { modeProgress: [] });
+    }
+
+    return buildQuestSlot(template);
+  });
+
+const mergeQuestSlots = (
+  existingSlots: readonly QuestSlot[] | undefined,
+  isAuthenticated: boolean,
+): QuestSlot[] => {
+  const existingById = new Map(
+    (existingSlots ?? []).map((slot) => [slot.questId, slot]),
+  );
+
+  return DEFAULT_DAILY_QUESTS.map((template) => {
+    const existing = existingById.get(template.id);
+
+    if (template.id === AUTH_QUEST.id) {
+      const completed = isAuthenticated;
+      return buildQuestSlot(template, {
+        progress: completed ? 1 : 0,
+        completed,
+        claimed: completed ? existing?.claimed ?? false : false,
+      });
+    }
+
+    if (template.id === PLAY_ALL_MODES_QUEST.id) {
+      const modeProgress = normalizeModeProgress(existing?.modeProgress);
+      const progress = Math.min(modeProgress.length, template.target);
+      return buildQuestSlot(template, {
+        progress,
+        completed: progress >= template.target,
+        claimed: existing?.claimed ?? false,
+        modeProgress,
+      });
+    }
+
+    const progress = Math.min(existing?.progress ?? 0, template.target);
+    return buildQuestSlot(template, {
+      progress,
+      completed: progress >= template.target || existing?.claimed === true,
+      claimed: existing?.claimed ?? false,
+    });
+  });
+};
+
+const areQuestSlotsEqual = (left: readonly QuestSlot[], right: readonly QuestSlot[]) => {
+  if (left.length !== right.length) return false;
+
+  return left.every((slot, index) => {
+    const other = right[index];
+    if (!other) return false;
+
+    const leftModes = normalizeModeProgress(slot.modeProgress);
+    const rightModes = normalizeModeProgress(other.modeProgress);
+
+    return (
+      slot.questId === other.questId &&
+      slot.title === other.title &&
+      slot.description === other.description &&
+      slot.target === other.target &&
+      slot.progress === other.progress &&
+      slot.completed === other.completed &&
+      slot.claimed === other.claimed &&
+      slot.reward === other.reward &&
+      leftModes.length === rightModes.length &&
+      leftModes.every((mode, modeIndex) => mode === rightModes[modeIndex])
+    );
+  });
+};
+
+const ensureTodayQuestDoc = async (
+  ctx: MutationCtx,
+  userId: Id<"users">,
+) => {
+  const dayKey = getTodayKey();
+  const existing = await ctx.db
+    .query("quests")
+    .withIndex("by_user_and_day", (q) => q.eq("userId", userId).eq("dayKey", dayKey))
+    .unique();
+
+  const nextSlots = mergeQuestSlots(existing?.questSlots, true);
+
+  if (existing) {
+    if (!areQuestSlotsEqual(existing.questSlots, nextSlots)) {
+      await ctx.db.patch(existing._id, { questSlots: nextSlots });
+    }
+
+    return { questId: existing._id, questSlots: nextSlots };
   }
 
-  const shuffled = [...QUEST_TEMPLATES];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    seed = (seed * 1103515245 + 12345) | 0;
-    const j = ((seed >>> 16) & 0x7fff) % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled.slice(0, 3);
-}
+  const questId = await ctx.db.insert("quests", {
+    userId,
+    dayKey,
+    questSlots: nextSlots,
+  });
+
+  return { questId, questSlots: nextSlots };
+};
+
+const applyQuestProgressUpdate = (
+  questSlots: readonly QuestSlot[],
+  args: {
+    mode: "classic" | "hard" | "timed" | "multiplayer";
+    won: boolean;
+    greenLetters: number;
+  },
+) =>
+  questSlots.map((slot) => {
+    if (slot.claimed) return slot;
+
+    if (slot.questId === PLAY_ONE_GAME_QUEST.id) {
+      const progress = Math.min(slot.progress + 1, slot.target);
+      return {
+        ...slot,
+        progress,
+        completed: progress >= slot.target,
+      };
+    }
+
+    if (slot.questId === PLAY_ALL_MODES_QUEST.id) {
+      if (!isTrackedMode(args.mode)) {
+        return slot;
+      }
+
+      const modeProgress = normalizeModeProgress(slot.modeProgress);
+      if (modeProgress.includes(args.mode)) {
+        return slot;
+      }
+
+      const nextModeProgress = [...modeProgress, args.mode];
+      const progress = Math.min(nextModeProgress.length, slot.target);
+      return {
+        ...slot,
+        progress,
+        completed: progress >= slot.target,
+        modeProgress: nextModeProgress,
+      };
+    }
+
+    return slot;
+  });
 
 // ── Queries ──────────────────────────────────────────────────────────
 
@@ -92,7 +280,13 @@ export const getMyQuests = query({
   args: {},
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) return null;
+    if (!userId) {
+      return {
+        dayKey: getTodayKey(),
+        preview: true,
+        questSlots: buildDefaultQuestSlots(false),
+      };
+    }
 
     const dayKey = getTodayKey();
     const existing = await ctx.db
@@ -100,24 +294,18 @@ export const getMyQuests = query({
       .withIndex("by_user_and_day", (q) => q.eq("userId", userId).eq("dayKey", dayKey))
       .unique();
 
-    if (existing) return existing;
+    if (existing) {
+      return {
+        ...existing,
+        questSlots: mergeQuestSlots(existing.questSlots, true),
+      };
+    }
 
-    // Return template data so the frontend can show them while the mutation seeds them
-    const templates = pickDailyQuests(dayKey, userId);
     return {
       _id: null as unknown,
       userId,
       dayKey,
-      questSlots: templates.map((t) => ({
-        questId: t.id,
-        title: t.title,
-        description: t.description,
-        target: t.target,
-        progress: 0,
-        completed: false,
-        claimed: false,
-        reward: t.reward,
-      })),
+      questSlots: buildDefaultQuestSlots(true),
     };
   },
 });
@@ -127,7 +315,9 @@ export const getMyCosmetics = query({
   args: {},
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) return null;
+    if (!userId) {
+      return { shards: 0, ownedCosmetics: [], equippedCosmetics: {} };
+    }
 
     const wallet = await ctx.db
       .query("userCosmetics")
@@ -167,44 +357,8 @@ export const seedDailyQuests = mutation({
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Must be logged in");
 
-    const dayKey = getTodayKey();
-    const existing = await ctx.db
-      .query("quests")
-      .withIndex("by_user_and_day", (q) => q.eq("userId", userId).eq("dayKey", dayKey))
-      .unique();
-
-    if (existing) return existing._id;
-
-    // Check if this user has ever had quests before (new player detection)
-    const anyPriorQuest = await ctx.db
-      .query("quests")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-    const isNewPlayer = anyPriorQuest === null;
-
-    let templates: QuestTemplate[];
-    if (isNewPlayer) {
-      // Always pin "First Game" for new players; fill the remaining 2 slots randomly
-      const rest = pickDailyQuests(dayKey, userId).filter((t) => t.id !== FIRST_GAME_QUEST.id).slice(0, 2);
-      templates = [FIRST_GAME_QUEST, ...rest];
-    } else {
-      templates = pickDailyQuests(dayKey, userId);
-    }
-
-    return await ctx.db.insert("quests", {
-      userId,
-      dayKey,
-      questSlots: templates.map((t) => ({
-        questId: t.id,
-        title: t.title,
-        description: t.description,
-        target: t.target,
-        progress: 0,
-        completed: false,
-        claimed: false,
-        reward: t.reward,
-      })),
-    });
+    const { questId } = await ensureTodayQuestDoc(ctx, userId);
+    return questId;
   },
 });
 
@@ -220,45 +374,9 @@ export const recordQuestProgress = mutation({
     const userId = await auth.getUserId(ctx);
     if (!userId) return;
 
-    const dayKey = getTodayKey();
-    const questDoc = await ctx.db
-      .query("quests")
-      .withIndex("by_user_and_day", (q) => q.eq("userId", userId).eq("dayKey", dayKey))
-      .unique();
-
-    if (!questDoc) return; // no quests seeded yet
-
-    const updated = questDoc.questSlots.map((slot) => {
-      if (slot.completed) return slot;
-
-      let increment = 0;
-
-      // Match quest conditions
-      if (slot.questId === "play_classic_1" || slot.questId === "play_classic_3") {
-        if (args.mode === "classic") increment = 1;
-      } else if (slot.questId === "play_hard_1") {
-        if (args.mode === "hard") increment = 1;
-      } else if (slot.questId === "play_timed_1") {
-        if (args.mode === "timed") increment = 1;
-      } else if (slot.questId === "win_any_1" || slot.questId === "win_any_2") {
-        if (args.won) increment = 1;
-      } else if (slot.questId === "play_any_1" || slot.questId === "play_any_2" || slot.questId === "play_any_3") {
-        increment = 1;
-      } else if (slot.questId === "green_letters_5" || slot.questId === "green_letters_10") {
-        increment = args.greenLetters;
-      }
-
-      if (increment === 0) return slot;
-
-      const newProgress = Math.min(slot.progress + increment, slot.target);
-      return {
-        ...slot,
-        progress: newProgress,
-        completed: newProgress >= slot.target,
-      };
-    });
-
-    await ctx.db.patch(questDoc._id, { questSlots: updated });
+    const { questId, questSlots } = await ensureTodayQuestDoc(ctx, userId);
+    const updated = applyQuestProgressUpdate(questSlots, args);
+    await ctx.db.patch(questId, { questSlots: updated });
   },
 });
 
@@ -271,44 +389,9 @@ export const internalRecordQuestProgress = internalMutation({
     greenLetters: v.number(),
   },
   handler: async (ctx, args) => {
-    const dayKey = getTodayKey();
-    const questDoc = await ctx.db
-      .query("quests")
-      .withIndex("by_user_and_day", (q) => q.eq("userId", args.userId).eq("dayKey", dayKey))
-      .unique();
-
-    if (!questDoc) return;
-
-    const updated = questDoc.questSlots.map((slot) => {
-      if (slot.completed) return slot;
-
-      let increment = 0;
-
-      if (slot.questId === "play_classic_1" || slot.questId === "play_classic_3") {
-        if (args.mode === "classic") increment = 1;
-      } else if (slot.questId === "play_hard_1") {
-        if (args.mode === "hard") increment = 1;
-      } else if (slot.questId === "play_timed_1") {
-        if (args.mode === "timed") increment = 1;
-      } else if (slot.questId === "win_any_1" || slot.questId === "win_any_2") {
-        if (args.won) increment = 1;
-      } else if (slot.questId === "play_any_1" || slot.questId === "play_any_2" || slot.questId === "play_any_3") {
-        increment = 1;
-      } else if (slot.questId === "green_letters_5" || slot.questId === "green_letters_10") {
-        increment = args.greenLetters;
-      }
-
-      if (increment === 0) return slot;
-
-      const newProgress = Math.min(slot.progress + increment, slot.target);
-      return {
-        ...slot,
-        progress: newProgress,
-        completed: newProgress >= slot.target,
-      };
-    });
-
-    await ctx.db.patch(questDoc._id, { questSlots: updated });
+    const { questId, questSlots } = await ensureTodayQuestDoc(ctx, args.userId);
+    const updated = applyQuestProgressUpdate(questSlots, args);
+    await ctx.db.patch(questId, { questSlots: updated });
   },
 });
 
@@ -319,24 +402,18 @@ export const claimQuestReward = mutation({
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Must be logged in");
 
-    const dayKey = getTodayKey();
-    const questDoc = await ctx.db
-      .query("quests")
-      .withIndex("by_user_and_day", (q) => q.eq("userId", userId).eq("dayKey", dayKey))
-      .unique();
+    const { questId, questSlots } = await ensureTodayQuestDoc(ctx, userId);
 
-    if (!questDoc) throw new Error("No quests found");
-
-    const slot = questDoc.questSlots.find((s) => s.questId === args.questId);
+    const slot = questSlots.find((s) => s.questId === args.questId);
     if (!slot) throw new Error("Quest not found");
     if (!slot.completed) throw new Error("Quest not completed yet");
     if (slot.claimed) throw new Error("Already claimed");
 
     // Mark as claimed
-    const updatedSlots = questDoc.questSlots.map((s) =>
+    const updatedSlots = questSlots.map((s) =>
       s.questId === args.questId ? { ...s, claimed: true } : s
     );
-    await ctx.db.patch(questDoc._id, { questSlots: updatedSlots });
+    await ctx.db.patch(questId, { questSlots: updatedSlots });
 
     // Credit shards
     const wallet = await ctx.db

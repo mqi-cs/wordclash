@@ -21,6 +21,7 @@ import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getEquippedCosmeticThemeClassName } from "@/lib/cosmetics";
+import { useNavigate } from "react-router-dom";
 
 // ── Category metadata for icons + colors ────────────────────────────
 
@@ -51,8 +52,9 @@ function getTimeUntilReset(): string {
 
 export const CosmeticsStore = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
+  const wallet = useQuery(api.cosmetics.getMyCosmetics, {});
   const catalog = useQuery(api.cosmetics.getCatalog, {});
 
   const purchase = useMutation(api.cosmetics.purchaseCosmetic);
@@ -67,6 +69,12 @@ export const CosmeticsStore = () => {
   // ── Handlers ──────────────────────────────────────────────────────
 
   const handlePurchase = async (cosmeticId: string) => {
+    if (!user) {
+      toast.info("Sign in or sign up to unlock and save cosmetics.");
+      navigate("/auth");
+      return;
+    }
+
     try {
       await purchase({ cosmeticId });
       toast.success("Cosmetic unlocked! ✨");
@@ -76,28 +84,18 @@ export const CosmeticsStore = () => {
   };
 
   const handleEquip = async (cosmeticId: string) => {
+    if (!user) {
+      toast.info("Sign in or sign up to equip cosmetics.");
+      navigate("/auth");
+      return;
+    }
+
     try {
       await equip({ cosmeticId });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to equip");
     }
   };
-
-  // ── Not signed in ─────────────────────────────────────────────────
-
-  if (!user) {
-    return (
-      <section className="space-y-5 animate-fade-in">
-        <SectionHeader shards={0} />
-        <Card className="border-border/70 bg-card/60 p-8 text-center space-y-3">
-          <Diamond className="w-10 h-10 mx-auto text-purple-400/50" />
-          <p className="text-sm text-muted-foreground">
-            Sign in to access daily quests and earn cosmetics
-          </p>
-        </Card>
-      </section>
-    );
-  }
 
   // ── Render ─────────────────────────────────────────────────────────
 
@@ -134,6 +132,11 @@ export const CosmeticsStore = () => {
       {/* ── Store Grid ─────────────────────────────────────────── */}
       {storeOpen && (
         <div className="space-y-6 animate-fade-in">
+          {!user && (
+            <Card className="border-border/70 bg-card/60 p-4 text-sm text-muted-foreground">
+              Browse every theme now. Sign in or sign up when you want to unlock cosmetics and save your loadout.
+            </Card>
+          )}
           {Object.entries(grouped).map(([category, items]) => {
             const meta = CATEGORY_META[category];
             if (!meta) return null;
@@ -208,15 +211,20 @@ export const CosmeticsStore = () => {
                           <Button
                             size="sm"
                             className={`w-full text-xs h-8 ${
-                              canAfford
+                              user && canAfford
                                 ? "bg-purple-600 text-white hover:bg-purple-700"
-                                : "opacity-50 cursor-not-allowed"
+                                : "bg-purple-600/85 text-white hover:bg-purple-700"
                             }`}
-                            disabled={!canAfford}
                             onClick={() => handlePurchase(item.id)}
                           >
-                            <Diamond className="w-3 h-3 mr-1" />
-                            {item.cost} Shard{item.cost !== 1 ? "s" : ""}
+                            {user ? (
+                              <>
+                                <Diamond className="w-3 h-3 mr-1" />
+                                {item.cost} Shard{item.cost !== 1 ? "s" : ""}
+                              </>
+                            ) : (
+                              "Sign in to unlock"
+                            )}
                           </Button>
                         )}
                       </Card>
@@ -337,11 +345,13 @@ interface QuestSlot {
   completed: boolean;
   claimed: boolean;
   reward: number;
+  modeProgress?: Array<"classic" | "hard" | "timed">;
 }
 
 export const DailyQuestsSidebar = () => {
   const { user } = useAuth();
-  const quests = useQuery(api.cosmetics.getMyQuests, user ? {} : "skip");
+  const navigate = useNavigate();
+  const quests = useQuery(api.cosmetics.getMyQuests, {});
   const seedQuests = useMutation(api.cosmetics.seedDailyQuests);
   const claimReward = useMutation(api.cosmetics.claimQuestReward);
   const [resetTimer, setResetTimer] = useState(getTimeUntilReset);
@@ -358,29 +368,20 @@ export const DailyQuestsSidebar = () => {
   }, []);
 
   const handleClaim = async (questId: string) => {
+    if (!user) {
+      toast.info("Sign in or sign up to track quests and claim shard rewards.");
+      navigate("/auth");
+      return;
+    }
+
     try {
+      await seedQuests();
       await claimReward({ questId });
       toast.success("+3 shards earned! 💎");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to claim");
     }
   };
-
-  if (!user) {
-    return (
-      <Card className="overflow-hidden border-border/70 bg-card/60">
-        <div className="border-b border-border/60 bg-gradient-to-br from-amber-400/10 via-background to-background p-5">
-          <h3 className="flex items-center gap-2 text-base font-bold tracking-tight text-foreground">
-            <Gift className="w-4 h-4 text-amber-400" />
-            Daily Quests
-          </h3>
-        </div>
-        <div className="p-5 text-sm text-muted-foreground">
-          Sign in to view today&apos;s quests and claim shard rewards.
-        </div>
-      </Card>
-    );
-  }
 
   const questSlots = quests?.questSlots ?? [];
 
@@ -394,7 +395,9 @@ export const DailyQuestsSidebar = () => {
               Daily Quests
             </h3>
             <p className="text-xs text-muted-foreground">
-              Knock these out to stack shards for new cosmetic drops.
+              {user
+                ? "Knock these out to stack shards for new cosmetic drops."
+                : "Preview today’s quests now, then sign in to save progress and claim rewards."}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -410,6 +413,8 @@ export const DailyQuestsSidebar = () => {
             key={slot.questId}
             slot={slot}
             onClaim={() => handleClaim(slot.questId)}
+            isSignedIn={!!user}
+            onGuestAction={() => navigate("/auth")}
           />
         ))}
         {questSlots.length === 0 && (
@@ -425,9 +430,13 @@ export const DailyQuestsSidebar = () => {
 function QuestCard({
   slot,
   onClaim,
+  isSignedIn,
+  onGuestAction,
 }: {
   slot: QuestSlot;
   onClaim: () => void;
+  isSignedIn: boolean;
+  onGuestAction: () => void;
 }) {
   const pct = Math.min((slot.progress / slot.target) * 100, 100);
 
@@ -474,6 +483,15 @@ function QuestCard({
           <Check className="w-3.5 h-3.5" />
           Claimed
         </div>
+      ) : !isSignedIn ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full text-xs h-8"
+          onClick={onGuestAction}
+        >
+          {slot.questId === "auth_1" ? "Sign in or sign up" : "Sign in to track"}
+        </Button>
       ) : slot.completed ? (
         <Button
           size="sm"

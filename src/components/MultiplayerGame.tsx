@@ -138,6 +138,10 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const otherBoards = boards.filter((board) => board.id !== user?.id);
   const isHost = game?.player1Id === user?.id;
   const isChallenge = game?.gameType === "challenge";
+  const pageThemeClassName = themeClassName
+    ?.split(" ")
+    .filter((className) => className.startsWith("theme-bg-"))
+    .join(" ");
   const mode = game?.mode ?? "classic";
   const maxGuesses = mode === "hard" ? 10 : mode === "timed" ? 999 : 6;
   const gameStarted = game?.status === "in_progress" || game?.status === "finished";
@@ -602,7 +606,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           </h2>
           <div
             className={cn(
-              "scale-75 origin-top rounded-3xl border border-primary/10 p-4 md:scale-90 opacity-80 overflow-hidden",
+              "multiplayer-board-theme scale-75 origin-top rounded-3xl border border-primary/10 p-4 md:scale-90 opacity-80",
               opponentBoard?.themeClassName,
             )}
           >
@@ -628,7 +632,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           </h2>
           <div
             className={cn(
-              "rounded-3xl border border-primary/10 p-4 overflow-hidden",
+              "multiplayer-board-theme rounded-3xl border border-primary/10 p-4",
               myBoard?.themeClassName,
             )}
           >
@@ -651,7 +655,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           <h2 className="text-2xl font-bold">{user?.username ?? "You"}</h2>
           <div
             className={cn(
-              "rounded-3xl border border-primary/10 p-4 overflow-hidden",
+              "multiplayer-board-theme rounded-3xl border border-primary/10 p-4",
               myBoard?.themeClassName,
             )}
           >
@@ -670,7 +674,10 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         <h3 className="text-lg font-semibold text-center">Other Players</h3>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {otherBoards.map((board) => (
-            <Card key={board.id} className={cn("p-4 space-y-4 border-primary/10 overflow-hidden", board.themeClassName)}>
+            <Card
+              key={board.id}
+              className={cn("multiplayer-board-theme p-4 space-y-4 border-primary/10", board.themeClassName)}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {board.isHost && <Crown className="h-4 w-4 text-primary" />}
@@ -730,7 +737,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   }
 
   return (
-    <div className={cn("flex flex-col h-[100dvh] bg-background w-full max-w-6xl mx-auto animate-in fade-in duration-500 overflow-hidden", themeClassName)}>
+    <div className={cn("flex flex-col h-[100dvh] bg-background w-full max-w-6xl mx-auto animate-in fade-in duration-500 overflow-hidden", pageThemeClassName)}>
       <div className="w-full flex justify-between items-center p-2 sm:p-4 flex-shrink-0">
         <Button variant="ghost" onClick={handleBack} size="sm">
           <ArrowLeft className="mr-1 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exit</span>

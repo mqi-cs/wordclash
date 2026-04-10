@@ -6,6 +6,7 @@ import { evaluateGuess, isValidGuessFormat } from "./shared/gameLogic";
 import { internal } from "./_generated/api";
 
 type GameDoc = Doc<"games">;
+const TIMED_BONUS_MS = 15 * 1000;
 
 const getGamePlayerIds = (game: GameDoc): Id<"users">[] =>
   [game.player1Id, game.player2Id, game.player3Id, game.player4Id].filter(
@@ -111,6 +112,12 @@ export const submitGuess = mutation({
 
     const isCorrect = validEvaluation.every(e => e === "correct");
 
+    if (mode === "timed" && isCorrect && game.gameEndTime) {
+      await ctx.db.patch(args.gameId, {
+        gameEndTime: game.gameEndTime + TIMED_BONUS_MS,
+      });
+    }
+
     // Check if the game should finish
     const players = getGamePlayerIds(game);
     const playerSummaries = await Promise.all(players.map(async (playerId) => {
@@ -183,6 +190,7 @@ export const submitGuess = mutation({
         guess_number: guessNumber,
         is_correct: isCorrect,
         word_index: wordIndex,
+        ...(mode === "timed" && isCorrect ? { time_bonus_seconds: 15 } : {}),
       },
     });
 

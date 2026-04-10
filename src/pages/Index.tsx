@@ -39,8 +39,8 @@ const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ defa
 const WORD_LENGTH = 5;
 const CLASSIC_GUESSES = 6;
 const HARD_GUESSES = 10;
-const TIMED_INITIAL_SECONDS = 90;
-const TIMED_BONUS_SECONDS = 30;
+const TIMED_INITIAL_SECONDS = 60;
+const TIMED_BONUS_SECONDS = 15;
 
 type ActiveHint = {
   turn: number;
@@ -302,9 +302,12 @@ const Index = () => {
 
   // Apply cosmetics globally
   useEffect(() => {
-    const cosmeticThemeClasses = getEquippedCosmeticThemeClasses(wallet?.equippedCosmetics).filter(
-      (className) => !className.startsWith("theme-bg-"),
-    );
+    const cosmeticThemeClasses =
+      gameMode === "multiplayer"
+        ? []
+        : getEquippedCosmeticThemeClasses(wallet?.equippedCosmetics).filter(
+            (className) => !className.startsWith("theme-bg-"),
+          );
     const existingThemeClasses = Array.from(document.body.classList).filter((className) =>
       className.startsWith("theme-"),
     );
@@ -320,7 +323,7 @@ const Index = () => {
         document.body.classList.remove(...cosmeticThemeClasses);
       }
     };
-  }, [wallet?.equippedCosmetics]);
+  }, [wallet?.equippedCosmetics, gameMode]);
 
   const markGameplayWalkthroughSeen = (key: GameplayWalkthroughKey) => {
     setSeenGameplayWalkthroughs((prev) => {
@@ -1041,6 +1044,8 @@ const Index = () => {
         won={won}
         word={targetWord}
         guesses={gameMode === "timed" ? totalGuesses : guesses.length}
+        isTimed={gameMode === "timed"}
+        roundsWon={wordsCompleted}
         onPlayAgain={handlePlayAgain}
       />
 

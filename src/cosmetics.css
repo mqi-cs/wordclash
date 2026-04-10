@@ -1041,6 +1041,22 @@ body.theme-bg-zen::after,
   isolation: isolate;
 }
 
+.multiplayer-board-theme {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.tile-obscured {
+  filter: blur(10px) !important;
+  text-shadow: none !important;
+}
+
+.tile-obscured::before,
+.tile-obscured::after {
+  opacity: 0 !important;
+}
+
 /* --- Shadow Puppet Theater --- */
 body.theme-bg-silk,
 .theme-bg-silk {

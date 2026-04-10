@@ -7,6 +7,7 @@ import { internal } from "./_generated/api";
 import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
 
 const MAX_MULTIPLAYER_PLAYERS = 4;
+const TIMED_MULTIPLAYER_DURATION_MS = 60 * 1000;
 const LOBBY_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const LOBBY_CODE_LENGTH = 6;
 const STALE_WAITING_GAME_MS = 1000 * 60 * 60 * 24;
@@ -494,8 +495,10 @@ export const startGame = mutation({
     };
 
     if (game.mode === "timed") {
-      updates.gameEndTime = Date.now() + 90 * 1000; // 90 seconds
-      await ctx.scheduler.runAfter(90 * 1000, internal.games.finishTimedGame, { gameId: args.gameId });
+      updates.gameEndTime = Date.now() + TIMED_MULTIPLAYER_DURATION_MS;
+      await ctx.scheduler.runAfter(TIMED_MULTIPLAYER_DURATION_MS, internal.games.finishTimedGame, {
+        gameId: args.gameId,
+      });
     }
 
     await ctx.db.patch(game._id, updates);
@@ -734,6 +737,13 @@ export const finishTimedGame = internalMutation({
   handler: async (ctx, args) => {
     const game = await ctx.db.get(args.gameId);
     if (!game || game.status !== "in_progress" || game.mode !== "timed") return;
+
+    if (game.gameEndTime && game.gameEndTime > Date.now()) {
+      await ctx.scheduler.runAfter(game.gameEndTime - Date.now(), internal.games.finishTimedGame, {
+        gameId: args.gameId,
+      });
+      return;
+    }
 
     const players = getGamePlayerIds(game);
     const playerSummaries = await Promise.all(players.map(async (playerId) => {

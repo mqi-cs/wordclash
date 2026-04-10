@@ -138,6 +138,11 @@ export default defineSchema({
         completed: v.boolean(),
         claimed: v.boolean(),
         reward: v.number(), // shards
+        modeProgress: v.optional(
+          v.array(
+            v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"))
+          )
+        ),
       })
     ),
   })

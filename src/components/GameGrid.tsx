@@ -73,7 +73,8 @@ const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }
         !shouldAnimateReveal && status === "present" && "tile-revealed tile-present bg-game-present border-game-present text-white",
         !shouldAnimateReveal && status === "absent" && "tile-revealed tile-absent bg-game-absent border-game-absent text-white",
         shouldAnimateReveal && `tile-revealing tile-${status} border-game-border bg-game-empty text-game-text animate-flip-reveal`,
-        isHint && "hint-tile border-primary bg-primary text-primary-foreground"
+        isHint && "hint-tile border-primary bg-primary text-primary-foreground",
+        blurLetter && "tile-obscured",
       )}
       style={{
         ...(shouldAnimateReveal ? revealedTileStyles[status] : {}),
@@ -132,7 +133,7 @@ export const GameGrid = ({
       // Scroll to show the current active row near the bottom of the viewport
       const rowHeight = container.scrollHeight / displayRows;
       const targetScroll = Math.max(0, (guesses.length - 3) * rowHeight);
-      container.scrollTo({ top: targetScroll, behavior: "smooth" });
+      container.scrollTo({ top: targetScroll, behavior: guesses.length === 0 ? "auto" : "smooth" });
     }
   }, [guesses.length, needsScroll, displayRows]);
 

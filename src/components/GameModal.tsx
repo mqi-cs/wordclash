@@ -35,18 +35,41 @@ interface ResultModalProps {
   won: boolean;
   word: string;
   guesses: number;
+  isTimed?: boolean;
+  roundsWon?: number;
   onPlayAgain: () => void;
 }
 
-export const ResultModal = ({ open, onClose, won, word, guesses, onPlayAgain }: ResultModalProps) => {
+export const ResultModal = ({
+  open,
+  onClose,
+  won,
+  word,
+  guesses,
+  isTimed = false,
+  roundsWon = 0,
+  onPlayAgain,
+}: ResultModalProps) => {
   return (
     <GameModal
       open={open}
       onClose={onClose}
-      title={won ? "🎉 Congratulations!" : "Game Over"}
-      description={won ? `You guessed the word in ${guesses} ${guesses === 1 ? "try" : "tries"}!` : `The word was: ${word}`}
+      title={isTimed ? "Time's Up!" : won ? "🎉 Congratulations!" : "Game Over"}
+      description={
+        isTimed
+          ? `Current word: ${word}`
+          : won
+            ? `You guessed the word in ${guesses} ${guesses === 1 ? "try" : "tries"}!`
+            : `The word was: ${word}`
+      }
     >
       <div className="flex flex-col gap-4">
+        {isTimed && (
+          <div className="rounded-xl border border-border/70 bg-muted/40 px-4 py-3 text-center">
+            <p className="text-sm text-muted-foreground">Total rounds won</p>
+            <p className="text-2xl font-bold">{roundsWon}</p>
+          </div>
+        )}
         <Button onClick={onPlayAgain} className="w-full">
           Play Again
         </Button>
