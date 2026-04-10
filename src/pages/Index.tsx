@@ -490,18 +490,16 @@ const Index = () => {
         timestamp: Date.now(),
       });
 
-      // Track client-side (works for both auth and anon)
-      trackGame("game_completed_client", {
-        mode: gameMode,
-        won: true,
-        guesses: newGuesses.length,
-        green_letters: greenLetters,
-        game_type: "solo",
-      });
-
-      // Update database stats if user is logged in
       if (user) {
-        updateStats(gameMode!, true, greenLetters);
+        updateStats(gameMode!, true, greenLetters, undefined, "solo");
+      } else {
+        trackGame("game_completed", {
+          mode: gameMode,
+          won: true,
+          guesses: newGuesses.length,
+          green_letters: greenLetters,
+          game_type: "solo",
+        });
       }
 
       setTimeout(() => {
@@ -529,18 +527,16 @@ const Index = () => {
         });
       }
 
-      // Track client-side (works for both auth and anon)
-      trackGame("game_completed_client", {
-        mode: gameMode,
-        won: false,
-        guesses: newGuesses.length,
-        green_letters: greenLetters,
-        game_type: "solo",
-      });
-
-      // Update database stats if user is logged in
       if (user && gameMode) {
-        updateStats(gameMode, false, greenLetters);
+        updateStats(gameMode, false, greenLetters, undefined, "solo");
+      } else {
+        trackGame("game_completed", {
+          mode: gameMode,
+          won: false,
+          guesses: newGuesses.length,
+          green_letters: greenLetters,
+          game_type: "solo",
+        });
       }
 
       setTimeout(() => {
@@ -556,6 +552,13 @@ const Index = () => {
   }, [handleEnter]);
 
   const handlePlayAgain = () => {
+    if (gameMode) {
+      trackGame("game_started", {
+        mode: gameMode,
+        game_type: botActive ? "bot" : "solo",
+        start_source: "play_again",
+      });
+    }
     setTargetWord(getRandomWord());
     setGuesses([]);
     setCurrentGuess("");
@@ -584,17 +587,6 @@ const Index = () => {
       !gameOver &&
       (guesses.length > 0 || totalGuesses > 0 || botActive)
     ) {
-      // Track for ALL users (auth + anon) on client side
-      trackGame("game_abandoned_client", {
-        mode: gameMode,
-        abandon_reason: "returned_to_menu",
-        guess_count: guesses.length,
-        total_guesses: totalGuesses,
-        bot_active: botActive,
-        game_type: "solo",
-      });
-
-      // Also fire server-side for authenticated users
       if (user) {
         void captureUserEvent({
           event: "game_abandoned",
@@ -604,8 +596,18 @@ const Index = () => {
             guess_count: guesses.length,
             total_guesses: totalGuesses,
             bot_active: botActive,
+            game_type: botActive ? "bot" : "solo",
           },
         }).catch(() => null);
+      } else {
+        trackGame("game_abandoned", {
+          mode: gameMode,
+          abandon_reason: "returned_to_menu",
+          guess_count: guesses.length,
+          total_guesses: totalGuesses,
+          bot_active: botActive,
+          game_type: botActive ? "bot" : "solo",
+        });
       }
     }
 
@@ -654,16 +656,22 @@ const Index = () => {
 
       setEliminatedLetters((prev) => [...prev, ...toEliminate]);
       setActiveHint({ turn: currentTurn, position: -1 });
-      if (trackAnalytics && user) {
-        void captureUserEvent({
-          event: "hint_used",
-          properties: {
-            mode: gameMode,
-            hint_type: "eliminate_letters",
-            turn: currentTurn,
-            eliminated_letters_count: toEliminate.length,
-          },
-        }).catch(() => null);
+      if (trackAnalytics) {
+        const properties = {
+          mode: gameMode,
+          hint_type: "eliminate_letters",
+          turn: currentTurn,
+          eliminated_letters_count: toEliminate.length,
+          game_type: "solo",
+        };
+        if (user) {
+          void captureUserEvent({
+            event: "hint_used",
+            properties,
+          }).catch(() => null);
+        } else {
+          trackGame("hint_used", properties);
+        }
       }
       toast.success("Eliminated 3 letters!");
       return true;
@@ -697,16 +705,22 @@ const Index = () => {
       turn: currentTurn,
       position: positionToReveal,
     });
-    if (trackAnalytics && user) {
-      void captureUserEvent({
-        event: "hint_used",
-        properties: {
-          mode: gameMode,
-          hint_type: "reveal_letter",
-          turn: currentTurn,
-          revealed_position: positionToReveal,
-        },
-      }).catch(() => null);
+    if (trackAnalytics) {
+      const properties = {
+        mode: gameMode,
+        hint_type: "reveal_letter",
+        turn: currentTurn,
+        revealed_position: positionToReveal,
+        game_type: "solo",
+      };
+      if (user) {
+        void captureUserEvent({
+          event: "hint_used",
+          properties,
+        }).catch(() => null);
+      } else {
+        trackGame("hint_used", properties);
+      }
     }
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
     return true;
@@ -729,6 +743,11 @@ const Index = () => {
 
   const handleSelectMode = (mode: GameMode) => {
     trackGame("mode_selected", { mode, game_type: "solo" });
+    trackGame("game_started", {
+      mode,
+      game_type: "solo",
+      start_source: "mode_selected",
+    });
     setGameMode(mode);
     setTargetWord(getRandomWord());
     if (mode === "timed") {
@@ -771,6 +790,12 @@ const Index = () => {
     setBotActive(true);
     setShowBotDifficultyModal(false);
     const labels = { easy: "Easy", medium: "Medium", hard: "Hard" };
+    trackGame("game_started", {
+      mode: gameMode,
+      game_type: "bot",
+      bot_difficulty: difficulty,
+      start_source: "bot_activated",
+    });
     trackGame("bot_game_started", { mode: gameMode, bot_difficulty: difficulty });
     toast.success(`Bot activated on ${labels[difficulty]} difficulty!`);
   };
@@ -837,19 +862,17 @@ const Index = () => {
               timestamp: Date.now(),
             });
 
-            // Track client-side (works for both auth and anon)
-            trackGame("game_completed_client", {
-              mode: "timed",
-              won: wordsCompleted > 0,
-              words_completed: wordsCompleted,
-              total_guesses: totalGuesses,
-              green_letters: greenLetters,
-              game_type: "solo",
-            });
-
-            // Update database stats if user is logged in
             if (user) {
-              updateStats("timed", wordsCompleted > 0, greenLetters);
+              updateStats("timed", wordsCompleted > 0, greenLetters, undefined, "solo");
+            } else {
+              trackGame("game_completed", {
+                mode: "timed",
+                won: wordsCompleted > 0,
+                words_completed: wordsCompleted,
+                total_guesses: totalGuesses,
+                green_letters: greenLetters,
+                game_type: "solo",
+              });
             }
 
             setTimeout(() => {

@@ -8,20 +8,23 @@
  */
 import posthog from "posthog-js";
 
-const POSTHOG_KEY = "phc_qjREusjdMqe4hB4h6XcGpxuFrT7QbnrmpgY5wWv9zUUW";
-const POSTHOG_HOST = "https://eu.i.posthog.com";
+const POSTHOG_KEY =
+  import.meta.env.VITE_POSTHOG_KEY ?? "phc_qjREusjdMqe4hB4h6XcGpxuFrT7QbnrmpgY5wWv9zUUW";
+const POSTHOG_HOST =
+  import.meta.env.VITE_POSTHOG_HOST ?? "https://eu.i.posthog.com";
 
 let initialised = false;
 
 /** Initialise PostHog — safe to call multiple times */
 export function initPostHog() {
-  if (initialised || typeof window === "undefined") return;
+  if (initialised || typeof window === "undefined" || !POSTHOG_KEY) return;
 
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
-    // Session recordings
+    defaults: "2026-01-30",
     autocapture: true,
-    capture_pageview: true,
+    // React Router is SPA navigation, so pageviews should follow history changes.
+    capture_pageview: "history_change",
     capture_pageleave: true,
     persistence: "localStorage+cookie",
     // Don't wait for feature flags to load before recordings
@@ -29,6 +32,10 @@ export function initPostHog() {
   });
 
   initialised = true;
+}
+
+export function isPostHogInitialised() {
+  return initialised;
 }
 
 /**

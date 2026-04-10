@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -24,12 +24,12 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
   // Track search when results change
   useEffect(() => {
     if (searchQuery.trim().length >= 3 && searchResults !== undefined) {
-      trackGame("friend_search", { 
+      trackGame("friend_search", {
         query_length: searchQuery.trim().length,
-        results_count: searchResults.length 
+        results_count: searchResults.length,
       });
     }
-  }, [searchResults === undefined]);
+  }, [searchQuery, searchResults, trackGame]);
 
   const sendRequest = useMutation(api.friends.sendRequest);
 

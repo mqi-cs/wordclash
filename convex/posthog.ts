@@ -4,6 +4,12 @@ import { PostHog } from "posthog-node";
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 
+const normalizeEventName = (event: string) =>
+  event
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/\s+/g, "_")
+    .toLowerCase();
+
 function getClient(): PostHog {
   const apiKey = process.env.POSTHOG_API_KEY;
   const host = process.env.POSTHOG_HOST;
@@ -32,7 +38,7 @@ export const captureEvent = internalAction({
     const client = getClient();
     client.capture({
       distinctId: args.distinctId,
-      event: args.event,
+      event: normalizeEventName(args.event),
       properties: args.properties ?? {},
     });
     await client.shutdown();

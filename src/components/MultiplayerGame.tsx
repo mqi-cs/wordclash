@@ -14,6 +14,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { getEquippedCosmeticThemeClassName } from "@/lib/cosmetics";
 import { usePostHog } from "@/contexts/PostHogContext";
+import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -54,6 +55,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { trackGame } = usePostHog();
+  const { updateStats } = useStatsUpdate();
 
   const [entryMode, setEntryMode] = useState<EntryMode>(null);
   const [joinCode, setJoinCode] = useState("");
@@ -67,6 +69,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [gameTimeLeft, setGameTimeLeft] = useState(0);
   const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reportedStatsKeyRef = useRef<string | null>(null);
 
   const game = useQuery(api.games.getGame, gameId ? { gameId } : "skip");
   const shouldFetchGuesses =
@@ -292,6 +295,35 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     return () => clearInterval(interval);
   }, [game?.gameEndTime, game?.status, mode]);
 
+  useEffect(() => {
+    if (!user || !gameId || !game || game.status !== "finished") {
+      return;
+    }
+
+    const statsKey = `${gameId}:${game.finishedAt ?? 0}:${user.id}`;
+    if (reportedStatsKeyRef.current === statsKey) {
+      return;
+    }
+    reportedStatsKeyRef.current = statsKey;
+
+    const myGreenLetters =
+      (guesses ?? [])
+        .filter((guess) => guess.playerId === user.id)
+        .reduce(
+          (total, guess) =>
+            total + guess.evaluation.filter((evaluation) => evaluation === "correct").length,
+          0,
+        );
+
+    void updateStats(
+      "multiplayer",
+      game.winnerId === user.id,
+      myGreenLetters,
+      gameId,
+      "multiplayer",
+    );
+  }, [game, gameId, guesses, updateStats, user]);
+
   const handleCreateLobby = async () => {
     try {
       const newGameId = await createGameMut({ gameType: "multiplayer", mode: subMode });
@@ -359,10 +391,6 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           game.status === "waiting" ? "returned_to_menu_from_lobby" : "returned_to_menu",
       };
 
-      // Track client-side for PostHog (immediate)
-      trackGame("game_abandoned_client", props);
-
-      // Track server-side (persistent)
       void captureUserEvent({
         event: "game_abandoned",
         properties: props,

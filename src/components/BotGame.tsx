@@ -18,6 +18,8 @@ import {
 import { saveGameResult } from "@/lib/gameHistory";
 import { evaluateGuess } from "@/lib/gameLogic";
 import { usePostHog } from "@/contexts/PostHogContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -31,6 +33,8 @@ interface BotGameProps {
 
 export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName }: BotGameProps) => {
   const { trackGame } = usePostHog();
+  const { user } = useAuth();
+  const { updateStats } = useStatsUpdate();
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
 
   // Timed mode state
@@ -65,6 +69,24 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
   // Pre-computed bot guess: bot computes its next guess while the player types
   const [precomputedGuess, setPrecomputedGuess] = useState<string | null>(null);
   const precomputeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const trackCompletedGame = useCallback(
+    (won: boolean, greenLetters: number, properties: Record<string, unknown>) => {
+      if (user) {
+        void updateStats(gameMode, won, greenLetters, undefined, "bot");
+      } else {
+        trackGame("game_completed", {
+          mode: gameMode,
+          won,
+          green_letters: greenLetters,
+          game_type: "bot",
+          bot_difficulty: botDifficulty,
+          ...properties,
+        });
+      }
+    },
+    [botDifficulty, gameMode, trackGame, updateStats, user],
+  );
 
   // --- Pre-compute bot's next guess while the player types ---
   useEffect(() => {
@@ -305,6 +327,10 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast("It's a draw! 🤝 Both solved it on the same guess!");
+        trackCompletedGame(false, greenLetters, {
+          guesses: myGuesses.length,
+          outcome: "draw",
+        });
         trackGame("bot_game_completed", {
           mode: gameMode,
           outcome: "draw",
@@ -329,6 +355,10 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast.success("You won! 🎉");
+        trackCompletedGame(true, 5, {
+          guesses: myGuesses.length,
+          outcome: "player_won",
+        });
         trackGame("bot_game_completed", {
           mode: gameMode,
           outcome: "player_won",
@@ -356,6 +386,10 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast.error("Bot won! 🤖");
+        trackCompletedGame(false, greenLetters, {
+          guesses: myGuesses.length,
+          outcome: "bot_won",
+        });
         trackGame("bot_game_completed", {
           mode: gameMode,
           outcome: "bot_won",
@@ -383,6 +417,10 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast(`Draw! Nobody guessed it. The word was ${targetWord}`, { icon: "🤝" });
+        trackCompletedGame(false, greenLetters, {
+          guesses: myGuesses.length,
+          outcome: "draw_maxed",
+        });
         trackGame("bot_game_completed", {
           mode: gameMode,
           outcome: "draw_maxed",
@@ -395,7 +433,21 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
 
     const timer = setTimeout(makeBotGuess, thinkingDelay);
     return () => clearTimeout(timer);
-  }, [waitingForBot, myGuesses.length, botGuesses.length, botGameOver, targetWord, gameMode, botDifficulty, botState, precomputedGuess, myWon]);
+  }, [
+    waitingForBot,
+    myGuesses.length,
+    botGuesses.length,
+    botGameOver,
+    targetWord,
+    gameMode,
+    botDifficulty,
+    botState,
+    precomputedGuess,
+    myWon,
+    trackCompletedGame,
+    trackGame,
+    myEvaluations,
+  ]);
 
   // ─── Timed mode timer ────────────────────────────────────────────────
   useEffect(() => {
@@ -425,6 +477,17 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
               timestamp: Date.now(),
             });
 
+            trackCompletedGame(winner === "player", greenLetters, {
+              words_completed: playerWordsCompleted,
+              bot_words_completed: botWordsCompleted,
+              total_guesses: myGuesses.length,
+              outcome:
+                winner === "player"
+                  ? "player_won"
+                  : winner === "bot"
+                    ? "bot_won"
+                    : "draw",
+            });
             trackGame("bot_game_completed", {
               mode: "timed",
               outcome: winner === "player" ? "player_won" : winner === "bot" ? "bot_won" : "draw",
@@ -450,7 +513,18 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [gameMode, timedGameActive, timeLeft, playerWordsCompleted, botWordsCompleted, myEvaluations]);
+  }, [
+    gameMode,
+    timedGameActive,
+    timeLeft,
+    playerWordsCompleted,
+    botWordsCompleted,
+    myEvaluations,
+    myGuesses.length,
+    botDifficulty,
+    trackCompletedGame,
+    trackGame,
+  ]);
 
   // ─── Physical keyboard events ────────────────────────────────────────
   useEffect(() => {

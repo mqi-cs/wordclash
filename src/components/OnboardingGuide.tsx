@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { usePostHog } from "@/contexts/PostHogContext";
 import {
   Flame,
   Timer,
@@ -118,7 +119,7 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
   // Track initial slide view
   useEffect(() => {
     trackGame("onboarding_viewed", { slide_index: 0, slide_title: slides[0].title });
-  }, []);
+  }, [trackGame]);
 
   const slide = slides[currentSlide];
   const isLast = currentSlide === slides.length - 1;
@@ -173,7 +174,7 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [currentSlide, isAnimating]);
+  }, [currentSlide, isAnimating, next, prev]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-md">
@@ -187,7 +188,7 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
 
       {/* Skip button */}
       <button
-        onClick={handleComplete}
+        onClick={() => handleComplete()}
         className="absolute right-4 top-4 z-50 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:bg-card hover:text-foreground sm:right-6 sm:top-6 sm:px-4 sm:py-2 sm:text-sm"
       >
         Skip
@@ -283,7 +284,7 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
 
           {isLast ? (
             <Button
-              onClick={handleComplete}
+              onClick={() => handleComplete("finished")}
               className="h-10 rounded-full px-5 font-semibold"
               style={{
                 backgroundColor: `hsl(var(--${slide.accentVar}))`,

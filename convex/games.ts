@@ -168,6 +168,31 @@ const captureGameAbandoned = async (
   });
 };
 
+const captureGameStartedForParticipants = async (
+  ctx: MutationCtx,
+  game: GameDoc,
+  gameId: Id<"games">,
+  metricProperties?: Record<string, unknown>,
+) => {
+  const playerIds = getGamePlayerIds(game);
+  await Promise.all(
+    playerIds.map((playerId) =>
+      ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+        distinctId: playerId,
+        event: "game_started",
+        properties: {
+          game_id: gameId,
+          game_type: game.gameType,
+          mode: game.mode ?? "classic",
+          player_count: getPlayerCount(game),
+          start_role: playerId === game.player1Id ? "host" : "participant",
+          ...(playerId === game.player1Id ? metricProperties ?? {} : {}),
+        },
+      }),
+    ),
+  );
+};
+
 const ensureGameIsNotStale = async (ctx: MutationCtx, game: GameDoc) => {
   if (!isWaitingGameStale(game)) {
     return;
@@ -224,6 +249,17 @@ const joinGameById = async (
     status: "in_progress",
     startedAt: Date.now(),
   });
+
+  await captureGameStartedForParticipants(
+    ctx,
+    {
+      ...game,
+      player2Id: userId,
+      status: "in_progress",
+      startedAt: Date.now(),
+    },
+    game._id,
+  );
 
   return game._id;
 };
@@ -470,18 +506,12 @@ export const startGame = mutation({
       userId,
     );
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
-      distinctId: userId,
-      event: "game_started",
-      properties: {
-        game_id: args.gameId,
-        player_count: getPlayerCount(game),
-        metric_day: startedMetrics.dayKey,
-        games_started_total: startedMetrics.totalCount,
-        games_started_today_total: startedMetrics.todayTotalCount,
-        games_started_by_user_total: startedMetrics.userTotalCount,
-        games_started_by_user_today: startedMetrics.userTodayCount,
-      },
+    await captureGameStartedForParticipants(ctx, game, args.gameId, {
+      metric_day: startedMetrics.dayKey,
+      games_started_total: startedMetrics.totalCount,
+      games_started_today_total: startedMetrics.todayTotalCount,
+      games_started_by_user_total: startedMetrics.userTotalCount,
+      games_started_by_user_today: startedMetrics.userTodayCount,
     });
 
     return game._id;

@@ -93,6 +93,9 @@ export const updateStats = mutation({
     won: v.boolean(),
     greenLetters: v.number(),
     gameId: v.optional(v.id("games")),
+    gameType: v.optional(
+      v.union(v.literal("solo"), v.literal("bot"), v.literal("multiplayer")),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
@@ -133,8 +136,10 @@ export const updateStats = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
 
+    let nextStats: Omit<UserStatsDoc, "_id" | "_creationTime">;
+
     if (!existingStats) {
-      const newStats = {
+      nextStats = {
         userId,
         classic_played: args.mode === "classic" ? 1 : 0,
         classic_won: args.mode === "classic" && won ? 1 : 0,
@@ -148,7 +153,7 @@ export const updateStats = mutation({
         best_streak: won ? 1 : 0,
         total_green_letters: greenLetters,
       };
-      await ctx.db.insert("userStats", newStats);
+      await ctx.db.insert("userStats", nextStats);
     } else {
       const newCurrentStreak = won ? (existingStats.current_streak || 0) + 1 : 0;
       const newBestStreak = Math.max(newCurrentStreak, existingStats.best_streak || 0);
@@ -160,34 +165,52 @@ export const updateStats = mutation({
 
       switch (args.mode) {
         case "classic":
-          await ctx.db.patch(existingStats._id, {
+          nextStats = {
+            ...existingStats,
             ...baseUpdates,
             classic_played: existingStats.classic_played + 1,
-            ...(won ? { classic_won: existingStats.classic_won + 1 } : {}),
-          });
+            classic_won: existingStats.classic_won + (won ? 1 : 0),
+          };
           break;
         case "hard":
-          await ctx.db.patch(existingStats._id, {
+          nextStats = {
+            ...existingStats,
             ...baseUpdates,
             hard_played: existingStats.hard_played + 1,
-            ...(won ? { hard_won: existingStats.hard_won + 1 } : {}),
-          });
+            hard_won: existingStats.hard_won + (won ? 1 : 0),
+          };
           break;
         case "timed":
-          await ctx.db.patch(existingStats._id, {
+          nextStats = {
+            ...existingStats,
             ...baseUpdates,
             timed_played: existingStats.timed_played + 1,
-            ...(won ? { timed_won: existingStats.timed_won + 1 } : {}),
-          });
+            timed_won: existingStats.timed_won + (won ? 1 : 0),
+          };
           break;
         case "multiplayer":
-          await ctx.db.patch(existingStats._id, {
+          nextStats = {
+            ...existingStats,
             ...baseUpdates,
             multiplayer_played: existingStats.multiplayer_played + 1,
-            ...(won ? { multiplayer_won: existingStats.multiplayer_won + 1 } : {}),
-          });
+            multiplayer_won: existingStats.multiplayer_won + (won ? 1 : 0),
+          };
           break;
       }
+
+      await ctx.db.patch(existingStats._id, {
+        classic_played: nextStats.classic_played,
+        classic_won: nextStats.classic_won,
+        hard_played: nextStats.hard_played,
+        hard_won: nextStats.hard_won,
+        timed_played: nextStats.timed_played,
+        timed_won: nextStats.timed_won,
+        multiplayer_played: nextStats.multiplayer_played,
+        multiplayer_won: nextStats.multiplayer_won,
+        current_streak: nextStats.current_streak,
+        best_streak: nextStats.best_streak,
+        total_green_letters: nextStats.total_green_letters,
+      });
     }
 
     // Also progress daily quests
@@ -212,11 +235,29 @@ export const updateStats = mutation({
       games_completed_by_user_today: completedMetrics.userTodayCount,
     };
 
+    const totalGamesPlayed =
+      nextStats.classic_played +
+      nextStats.hard_played +
+      nextStats.timed_played +
+      nextStats.multiplayer_played;
+
     const userProperties = {
-      total_games_played: completedMetrics.userTotalCount,
+      total_games_played: totalGamesPlayed,
+      total_games_completed: totalGamesPlayed,
       games_played_today: completedMetrics.userTodayCount,
-      highest_streak: (existingStats?.best_streak || 0),
-      total_green_letters: (existingStats?.total_green_letters || 0) + greenLetters,
+      games_completed_today: completedMetrics.userTodayCount,
+      classic_games_played: nextStats.classic_played,
+      hard_games_played: nextStats.hard_played,
+      timed_games_played: nextStats.timed_played,
+      multiplayer_games_played: nextStats.multiplayer_played,
+      current_streak: nextStats.current_streak,
+      highest_streak: nextStats.best_streak,
+      total_green_letters: nextStats.total_green_letters,
+      last_game_mode: args.mode,
+      last_game_type:
+        args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
+      last_game_completed_at: Date.now(),
+      has_signed_up: true,
     };
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
@@ -224,6 +265,8 @@ export const updateStats = mutation({
       event: "game_completed",
       properties: {
         mode: args.mode,
+        game_type:
+          args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
         won,
         green_letters: greenLetters,
         game_id: args.gameId,
@@ -237,6 +280,8 @@ export const updateStats = mutation({
       event: "stats_updated",
       properties: {
         mode: args.mode,
+        game_type:
+          args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
         won,
         green_letters: greenLetters,
         game_id: args.gameId,
