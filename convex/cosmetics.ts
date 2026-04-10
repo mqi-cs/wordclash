@@ -485,7 +485,7 @@ export const claimQuestReward = mutation({
       });
     }
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "quest reward claimed",
       properties: {
@@ -537,7 +537,7 @@ export const purchaseCosmetic = mutation({
       });
     }
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "cosmetic purchased",
       properties: {
@@ -587,7 +587,7 @@ export const equipCosmetic = mutation({
     await ctx.db.patch(wallet._id, { equippedCosmetics: equipped });
 
     const isNowEquipped = equipped[slotKey] === item.id;
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "cosmetic equipped",
       properties: {

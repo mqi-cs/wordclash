@@ -53,7 +53,7 @@ export const completeProfile = mutation({
     await assignUsernameToUser(ctx.db, userId, username, user.username);
     await ctx.db.patch(userId, { username });
 
-    await ctx.scheduler.runAfter(0, internal.posthog.identifyUser, {
+    ctx.scheduler.runAfter(0, internal.posthog.identifyUser, {
       distinctId: userId,
       properties: {
         username,
@@ -61,7 +61,7 @@ export const completeProfile = mutation({
       setOnce: { signup_method: "google" },
     });
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "profile completed",
       properties: {

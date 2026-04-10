@@ -180,7 +180,7 @@ export const submitGuess = mutation({
       });
     }
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "guess submitted",
       properties: {

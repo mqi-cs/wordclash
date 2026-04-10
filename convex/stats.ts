@@ -260,7 +260,7 @@ export const updateStats = mutation({
       has_signed_up: true,
     };
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_completed",
       properties: {
@@ -275,7 +275,7 @@ export const updateStats = mutation({
       },
     });
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "stats_updated",
       properties: {

@@ -462,7 +462,7 @@ export const createGame = mutation({
       userId,
     );
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_created",
       properties: {
@@ -503,7 +503,7 @@ export const startGame = mutation({
 
     if (game.mode === "timed") {
       updates.gameEndTime = Date.now() + TIMED_MULTIPLAYER_DURATION_MS;
-      await ctx.scheduler.runAfter(TIMED_MULTIPLAYER_DURATION_MS, internal.games.finishTimedGame, {
+      ctx.scheduler.runAfter(TIMED_MULTIPLAYER_DURATION_MS, internal.games.finishTimedGame, {
         gameId: args.gameId,
       });
     }
@@ -549,7 +549,7 @@ export const inviteToGame = mutation({
       status: "pending",
     });
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "invitation_sent",
       properties: {
@@ -584,7 +584,7 @@ export const acceptInvitation = mutation({
     await ctx.db.patch(invitation._id, { status: "accepted" });
     const gameId = await joinGameById(ctx, invitation.gameId, userId);
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_joined",
       properties: {
@@ -621,7 +621,7 @@ export const declineInvitation = mutation({
     ) {
       await deleteGameWithArtifacts(ctx, game._id);
       await captureGameAbandoned(ctx, game, "invitation_declined");
-      await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
         distinctId: userId,
         event: "invitation declined",
         properties: {
@@ -634,7 +634,7 @@ export const declineInvitation = mutation({
 
     await ctx.db.patch(invitation._id, { status: "declined" });
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "invitation_declined",
       properties: {
@@ -656,7 +656,7 @@ export const joinGame = mutation({
     const gameId = await joinGameById(ctx, args.gameId, userId);
     const game = await ctx.db.get(args.gameId);
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_joined",
       properties: {
@@ -694,7 +694,7 @@ export const joinGameByCode = mutation({
 
     const gameId = await joinMultiplayerLobby(ctx, game, userId);
 
-    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_joined",
       properties: {
@@ -755,7 +755,7 @@ export const finishTimedGame = internalMutation({
     if (!game || game.status !== "in_progress" || game.mode !== "timed") return;
 
     if (game.gameEndTime && game.gameEndTime > Date.now()) {
-      await ctx.scheduler.runAfter(game.gameEndTime - Date.now(), internal.games.finishTimedGame, {
+      ctx.scheduler.runAfter(game.gameEndTime - Date.now(), internal.games.finishTimedGame, {
         gameId: args.gameId,
       });
       return;
