@@ -30,6 +30,11 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { getEquippedCosmeticThemeClassName, getEquippedCosmeticThemeClasses } from "@/lib/cosmetics";
+import {
+  getGuestCosmeticsState,
+  recordGuestQuestProgress,
+  subscribeToGuestCosmetics,
+} from "@/lib/guestCosmetics";
 import { FeatureWalkthroughDialog, WalkthroughSlide } from "@/components/FeatureWalkthrough";
 import { InteractiveFeatureCoach } from "@/components/InteractiveFeatureCoach";
 import { usePostHog } from "@/contexts/PostHogContext";
@@ -211,7 +216,9 @@ const Index = () => {
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
   const { trackGame } = usePostHog();
   const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
-  const cosmeticThemeClassName = getEquippedCosmeticThemeClassName(wallet?.equippedCosmetics);
+  const [guestCosmeticsState, setGuestCosmeticsState] = useState(getGuestCosmeticsState);
+  const equippedCosmetics = user ? wallet?.equippedCosmetics : guestCosmeticsState.equippedCosmetics;
+  const cosmeticThemeClassName = getEquippedCosmeticThemeClassName(equippedCosmetics);
 
   // Check for URL params to auto-start multiplayer
   const urlParams = new URLSearchParams(window.location.search);
@@ -273,6 +280,14 @@ const Index = () => {
     classicCoachPhase === "bot_modal";
 
   useEffect(() => {
+    if (user) return;
+    setGuestCosmeticsState(getGuestCosmeticsState());
+    return subscribeToGuestCosmetics(() => {
+      setGuestCosmeticsState(getGuestCosmeticsState());
+    });
+  }, [user]);
+
+  useEffect(() => {
     if (!activeHint || activeHint.turn === currentTurn) return;
     setActiveHint(null);
   }, [activeHint, currentTurn]);
@@ -306,7 +321,7 @@ const Index = () => {
     const cosmeticThemeClasses =
       gameMode === "multiplayer"
         ? []
-        : getEquippedCosmeticThemeClasses(wallet?.equippedCosmetics).filter(
+        : getEquippedCosmeticThemeClasses(equippedCosmetics).filter(
             (className) => !className.startsWith("theme-bg-"),
           );
     const existingThemeClasses = Array.from(document.body.classList).filter((className) =>
@@ -324,7 +339,7 @@ const Index = () => {
         document.body.classList.remove(...cosmeticThemeClasses);
       }
     };
-  }, [wallet?.equippedCosmetics, gameMode]);
+  }, [equippedCosmetics, gameMode]);
 
   const markGameplayWalkthroughSeen = (key: GameplayWalkthroughKey) => {
     setSeenGameplayWalkthroughs((prev) => {
@@ -497,6 +512,9 @@ const Index = () => {
       if (user) {
         updateStats(gameMode!, true, greenLetters, undefined, "solo");
       } else {
+        if (gameMode === "classic" || gameMode === "hard") {
+          recordGuestQuestProgress(gameMode);
+        }
         trackGame("game_completed", {
           mode: gameMode,
           won: true,
@@ -534,6 +552,9 @@ const Index = () => {
       if (user && gameMode) {
         updateStats(gameMode, false, greenLetters, undefined, "solo");
       } else {
+        if (gameMode === "classic" || gameMode === "hard") {
+          recordGuestQuestProgress(gameMode);
+        }
         trackGame("game_completed", {
           mode: gameMode,
           won: false,
@@ -879,6 +900,7 @@ const Index = () => {
             if (user) {
               updateStats("timed", wordsCompleted > 0, greenLetters, undefined, "solo");
             } else {
+              recordGuestQuestProgress("timed");
               trackGame("game_completed", {
                 mode: "timed",
                 won: wordsCompleted > 0,

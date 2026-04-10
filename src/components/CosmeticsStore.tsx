@@ -21,7 +21,13 @@ import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getEquippedCosmeticThemeClassName } from "@/lib/cosmetics";
-import { useNavigate } from "react-router-dom";
+import {
+  claimGuestQuestReward,
+  equipGuestCosmetic,
+  getGuestCosmeticsState,
+  purchaseGuestCosmetic,
+  subscribeToGuestCosmetics,
+} from "@/lib/guestCosmetics";
 
 // ── Category metadata for icons + colors ────────────────────────────
 
@@ -52,26 +58,44 @@ function getTimeUntilReset(): string {
 
 export const CosmeticsStore = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-
-  const wallet = useQuery(api.cosmetics.getMyCosmetics, {});
+  const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
   const catalog = useQuery(api.cosmetics.getCatalog, {});
 
   const purchase = useMutation(api.cosmetics.purchaseCosmetic);
   const equip = useMutation(api.cosmetics.equipCosmetic);
 
   const [storeOpen, setStoreOpen] = useState(true);
+  const [guestState, setGuestState] = useState(getGuestCosmeticsState);
 
-  const shards = wallet?.shards ?? 0;
-  const owned = wallet?.ownedCosmetics ?? [];
-  const equipped = wallet?.equippedCosmetics ?? {};
+  useEffect(() => {
+    if (user) return;
+    setGuestState(getGuestCosmeticsState());
+    return subscribeToGuestCosmetics(() => {
+      setGuestState(getGuestCosmeticsState());
+    });
+  }, [user]);
+
+  const activeWallet = user ? wallet : guestState;
+  const shards = activeWallet?.shards ?? 0;
+  const owned = activeWallet?.ownedCosmetics ?? [];
+  const equipped = activeWallet?.equippedCosmetics ?? {};
 
   // ── Handlers ──────────────────────────────────────────────────────
 
   const handlePurchase = async (cosmeticId: string) => {
     if (!user) {
-      toast.info("Sign in or sign up to unlock and save cosmetics.");
-      navigate("/auth");
+      const item = catalog?.find((entry) => entry.id === cosmeticId);
+      if (!item) {
+        toast.error("Cosmetic not found");
+        return;
+      }
+
+      try {
+        purchaseGuestCosmetic(cosmeticId, item.cost);
+        toast.success("Cosmetic unlocked on this device! ✨");
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Failed to unlock");
+      }
       return;
     }
 
@@ -85,8 +109,12 @@ export const CosmeticsStore = () => {
 
   const handleEquip = async (cosmeticId: string) => {
     if (!user) {
-      toast.info("Sign in or sign up to equip cosmetics.");
-      navigate("/auth");
+      try {
+        equipGuestCosmetic(cosmeticId);
+        toast.success("Theme updated for this device");
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Failed to equip");
+      }
       return;
     }
 
@@ -134,7 +162,7 @@ export const CosmeticsStore = () => {
         <div className="space-y-6 animate-fade-in">
           {!user && (
             <Card className="border-border/70 bg-card/60 p-4 text-sm text-muted-foreground">
-              Browse every theme now. Sign in or sign up when you want to unlock cosmetics and save your loadout.
+              Guest cosmetics unlock and save locally on this device, so you can buy and equip themes without signing in.
             </Card>
           )}
           {Object.entries(grouped).map(([category, items]) => {
@@ -211,20 +239,15 @@ export const CosmeticsStore = () => {
                           <Button
                             size="sm"
                             className={`w-full text-xs h-8 ${
-                              user && canAfford
+                              canAfford
                                 ? "bg-purple-600 text-white hover:bg-purple-700"
-                                : "bg-purple-600/85 text-white hover:bg-purple-700"
+                                : "opacity-50 cursor-not-allowed"
                             }`}
+                            disabled={!canAfford}
                             onClick={() => handlePurchase(item.id)}
                           >
-                            {user ? (
-                              <>
-                                <Diamond className="w-3 h-3 mr-1" />
-                                {item.cost} Shard{item.cost !== 1 ? "s" : ""}
-                              </>
-                            ) : (
-                              "Sign in to unlock"
-                            )}
+                            <Diamond className="w-3 h-3 mr-1" />
+                            {item.cost} Shard{item.cost !== 1 ? "s" : ""}
                           </Button>
                         )}
                       </Card>
@@ -350,11 +373,11 @@ interface QuestSlot {
 
 export const DailyQuestsSidebar = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const quests = useQuery(api.cosmetics.getMyQuests, {});
+  const quests = useQuery(api.cosmetics.getMyQuests, user ? {} : "skip");
   const seedQuests = useMutation(api.cosmetics.seedDailyQuests);
   const claimReward = useMutation(api.cosmetics.claimQuestReward);
   const [resetTimer, setResetTimer] = useState(getTimeUntilReset);
+  const [guestState, setGuestState] = useState(getGuestCosmeticsState);
 
   useEffect(() => {
     if (user) {
@@ -363,14 +386,26 @@ export const DailyQuestsSidebar = () => {
   }, [user?.id]);
 
   useEffect(() => {
+    if (user) return;
+    setGuestState(getGuestCosmeticsState());
+    return subscribeToGuestCosmetics(() => {
+      setGuestState(getGuestCosmeticsState());
+    });
+  }, [user]);
+
+  useEffect(() => {
     const t = setInterval(() => setResetTimer(getTimeUntilReset()), 60_000);
     return () => clearInterval(t);
   }, []);
 
   const handleClaim = async (questId: string) => {
     if (!user) {
-      toast.info("Sign in or sign up to track quests and claim shard rewards.");
-      navigate("/auth");
+      try {
+        claimGuestQuestReward(questId);
+        toast.success("+3 shards earned! 💎");
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Failed to claim");
+      }
       return;
     }
 
@@ -383,7 +418,7 @@ export const DailyQuestsSidebar = () => {
     }
   };
 
-  const questSlots = quests?.questSlots ?? [];
+  const questSlots = user ? quests?.questSlots ?? [] : guestState.questSlots;
 
   return (
     <Card className="overflow-hidden border-border/70 bg-card/60">
@@ -397,7 +432,7 @@ export const DailyQuestsSidebar = () => {
             <p className="text-xs text-muted-foreground">
               {user
                 ? "This starter quest set stays pinned until you finish it."
-                : "Sign in to save your progress and claim shard rewards."}
+                : "Pinned starter quests and shard rewards save locally on this device."}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -414,7 +449,7 @@ export const DailyQuestsSidebar = () => {
             slot={slot}
             onClaim={() => handleClaim(slot.questId)}
             isSignedIn={!!user}
-            onGuestAction={() => navigate("/auth")}
+            onGuestAction={() => handleClaim(slot.questId)}
           />
         ))}
         {questSlots.length === 0 && (
@@ -484,35 +519,21 @@ function QuestCard({
           Claimed
         </div>
       ) : !isSignedIn && slot.questId === "auth_1" ? (
-        // Auth quest — prominent sign-in CTA
-        <Button
-          size="sm"
-          className="w-full text-xs h-8 bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700"
-          onClick={onGuestAction}
-        >
-          <Gift className="w-3.5 h-3.5 mr-1" />
-          Sign in or sign up
-        </Button>
+        <div className="h-8 flex items-center justify-center text-xs text-muted-foreground">
+          Requires sign in
+        </div>
       ) : !isSignedIn && slot.completed ? (
-        // Completed quest for guest — invite to claim
         <Button
           size="sm"
           className="w-full text-xs h-8 bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700"
           onClick={onGuestAction}
         >
           <Gift className="w-3.5 h-3.5 mr-1" />
-          Sign in to claim +{slot.reward} Shards
+          Claim +{slot.reward} Shards
         </Button>
       ) : !isSignedIn ? (
-        // In-progress quest for guest — soft nudge
-        <div className="h-8 flex items-center justify-between text-xs text-muted-foreground">
-          <span>In Progress…</span>
-          <button
-            className="text-[11px] text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
-            onClick={onGuestAction}
-          >
-            Sign in to save
-          </button>
+        <div className="h-8 flex items-center justify-center text-xs text-muted-foreground">
+          In Progress…
         </div>
       ) : slot.completed ? (
         <Button

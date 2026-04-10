@@ -20,6 +20,7 @@ import { evaluateGuess } from "@/lib/gameLogic";
 import { usePostHog } from "@/contexts/PostHogContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
+import { recordGuestQuestProgress } from "@/lib/guestCosmetics";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -77,6 +78,7 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
       if (user) {
         void updateStats(gameMode, won, greenLetters, undefined, "bot");
       } else {
+        recordGuestQuestProgress(gameMode);
         trackGame("game_completed", {
           mode: gameMode,
           won,
