@@ -361,6 +361,9 @@ export const claimQuestReward = mutation({
       properties: {
         quest_id: args.questId,
         shards_earned: slot.reward,
+        $set: { 
+          shards_total: wallet ? wallet.shards + slot.reward : slot.reward 
+        },
       },
     });
   },
@@ -387,15 +390,18 @@ export const purchaseCosmetic = mutation({
     const owned = wallet?.ownedCosmetics ?? [];
     if (owned.includes(item.id)) throw new Error("Already owned");
 
+    const newShards = (wallet?.shards ?? 0) - item.cost;
+    const newOwned = [...owned, item.id];
+
     if (wallet) {
       await ctx.db.patch(wallet._id, {
-        shards: wallet.shards - item.cost,
-        ownedCosmetics: [...owned, item.id],
+        shards: newShards,
+        ownedCosmetics: newOwned,
       });
     } else {
       await ctx.db.insert("userCosmetics", {
         userId,
-        shards: -item.cost, // shouldn't happen since we check above
+        shards: -item.cost, // shouldn't happen
         ownedCosmetics: [item.id],
         equippedCosmetics: {},
       });
@@ -409,6 +415,10 @@ export const purchaseCosmetic = mutation({
         cosmetic_name: item.name,
         cosmetic_category: item.category,
         shards_spent: item.cost,
+        $set: { 
+          shards_total: newShards,
+          themes_owned_count: newOwned.length
+        },
       },
     });
   },
@@ -436,7 +446,6 @@ export const equipCosmetic = mutation({
     }
 
     const equipped = { ...wallet.equippedCosmetics };
-    // Toggle: if already equipped, unequip
     const slotKey = "theme";
 
     if (equipped[slotKey] === item.id) {
@@ -456,6 +465,9 @@ export const equipCosmetic = mutation({
         cosmetic_name: item.name,
         cosmetic_category: item.category,
         equipped: isNowEquipped,
+        $set: { 
+          equipped_theme: isNowEquipped ? item.name : "Default" 
+        },
       },
     });
   },
