@@ -31,6 +31,7 @@ import { api } from "../../convex/_generated/api";
 import { getEquippedCosmeticThemeClassName, getEquippedCosmeticThemeClasses } from "@/lib/cosmetics";
 import { FeatureWalkthroughDialog, WalkthroughSlide } from "@/components/FeatureWalkthrough";
 import { InteractiveFeatureCoach } from "@/components/InteractiveFeatureCoach";
+import { usePostHog } from "@/contexts/PostHogContext";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -207,6 +208,7 @@ const Index = () => {
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
+  const { trackGame } = usePostHog();
   const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
   const cosmeticThemeClassName = getEquippedCosmeticThemeClassName(wallet?.equippedCosmetics);
 
@@ -488,6 +490,15 @@ const Index = () => {
         timestamp: Date.now(),
       });
 
+      // Track client-side (works for both auth and anon)
+      trackGame("game_completed_client", {
+        mode: gameMode,
+        won: true,
+        guesses: newGuesses.length,
+        green_letters: greenLetters,
+        game_type: "solo",
+      });
+
       // Update database stats if user is logged in
       if (user) {
         updateStats(gameMode!, true, greenLetters);
@@ -517,6 +528,15 @@ const Index = () => {
           timestamp: Date.now(),
         });
       }
+
+      // Track client-side (works for both auth and anon)
+      trackGame("game_completed_client", {
+        mode: gameMode,
+        won: false,
+        guesses: newGuesses.length,
+        green_letters: greenLetters,
+        game_type: "solo",
+      });
 
       // Update database stats if user is logged in
       if (user && gameMode) {
@@ -559,22 +579,34 @@ const Index = () => {
 
   const handleBackToMenu = () => {
     if (
-      user &&
       gameMode &&
       gameMode !== "multiplayer" &&
       !gameOver &&
       (guesses.length > 0 || totalGuesses > 0 || botActive)
     ) {
-      void captureUserEvent({
-        event: "game_abandoned",
-        properties: {
-          mode: gameMode,
-          abandon_reason: "returned_to_menu",
-          guess_count: guesses.length,
-          total_guesses: totalGuesses,
-          bot_active: botActive,
-        },
-      }).catch(() => null);
+      // Track for ALL users (auth + anon) on client side
+      trackGame("game_abandoned_client", {
+        mode: gameMode,
+        abandon_reason: "returned_to_menu",
+        guess_count: guesses.length,
+        total_guesses: totalGuesses,
+        bot_active: botActive,
+        game_type: "solo",
+      });
+
+      // Also fire server-side for authenticated users
+      if (user) {
+        void captureUserEvent({
+          event: "game_abandoned",
+          properties: {
+            mode: gameMode,
+            abandon_reason: "returned_to_menu",
+            guess_count: guesses.length,
+            total_guesses: totalGuesses,
+            bot_active: botActive,
+          },
+        }).catch(() => null);
+      }
     }
 
     window.history.replaceState({}, "", "/");
@@ -696,6 +728,7 @@ const Index = () => {
   };
 
   const handleSelectMode = (mode: GameMode) => {
+    trackGame("mode_selected", { mode, game_type: "solo" });
     setGameMode(mode);
     setTargetWord(getRandomWord());
     if (mode === "timed") {
@@ -738,6 +771,7 @@ const Index = () => {
     setBotActive(true);
     setShowBotDifficultyModal(false);
     const labels = { easy: "Easy", medium: "Medium", hard: "Hard" };
+    trackGame("bot_game_started", { mode: gameMode, bot_difficulty: difficulty });
     toast.success(`Bot activated on ${labels[difficulty]} difficulty!`);
   };
 
@@ -801,6 +835,16 @@ const Index = () => {
               wordsCompleted: wordsCompleted,
               greenLetters,
               timestamp: Date.now(),
+            });
+
+            // Track client-side (works for both auth and anon)
+            trackGame("game_completed_client", {
+              mode: "timed",
+              won: wordsCompleted > 0,
+              words_completed: wordsCompleted,
+              total_guesses: totalGuesses,
+              green_letters: greenLetters,
+              game_type: "solo",
             });
 
             // Update database stats if user is logged in

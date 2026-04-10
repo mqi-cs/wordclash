@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Target,
   Flame,
   Timer,
   Zap,
   Bot,
   Lightbulb,
-  Users,
   Swords,
   ChevronLeft,
   ChevronRight,
@@ -27,19 +25,6 @@ interface SlideData {
 }
 
 const slides: SlideData[] = [
-  {
-    icon: <Target className="w-10 h-10" />,
-    title: "Classic Mode",
-    subtitle: "The Original Experience",
-    description:
-      "Guess a secret 5-letter word in 6 attempts. After each guess, tiles change colour to guide you closer to the answer.",
-    features: [
-      "🟩  Green — letter is correct and in the right spot",
-      "🟨  Yellow — letter is in the word but wrong spot",
-      "⬜  Grey — letter is not in the word at all",
-    ],
-    accentVar: "menu-classic",
-  },
   {
     icon: <Bot className="w-10 h-10" />,
     title: "Bot System",

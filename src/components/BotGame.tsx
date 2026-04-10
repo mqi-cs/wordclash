@@ -17,6 +17,7 @@ import {
 } from "@/lib/wordClashBot";
 import { saveGameResult } from "@/lib/gameHistory";
 import { evaluateGuess } from "@/lib/gameLogic";
+import { usePostHog } from "@/contexts/PostHogContext";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -29,6 +30,7 @@ interface BotGameProps {
 }
 
 export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName }: BotGameProps) => {
+  const { trackGame } = usePostHog();
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
 
   // Timed mode state
@@ -303,6 +305,13 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast("It's a draw! 🤝 Both solved it on the same guess!");
+        trackGame("bot_game_completed", {
+          mode: gameMode,
+          outcome: "draw",
+          guesses: myGuesses.length,
+          bot_difficulty: botDifficulty,
+          game_type: "bot",
+        });
         return;
       }
 
@@ -320,6 +329,13 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast.success("You won! 🎉");
+        trackGame("bot_game_completed", {
+          mode: gameMode,
+          outcome: "player_won",
+          guesses: myGuesses.length,
+          bot_difficulty: botDifficulty,
+          game_type: "bot",
+        });
         return;
       }
 
@@ -340,6 +356,13 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast.error("Bot won! 🤖");
+        trackGame("bot_game_completed", {
+          mode: gameMode,
+          outcome: "bot_won",
+          guesses: myGuesses.length,
+          bot_difficulty: botDifficulty,
+          game_type: "bot",
+        });
         return;
       }
 
@@ -360,6 +383,13 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         });
 
         toast(`Draw! Nobody guessed it. The word was ${targetWord}`, { icon: "🤝" });
+        trackGame("bot_game_completed", {
+          mode: gameMode,
+          outcome: "draw_maxed",
+          guesses: myGuesses.length,
+          bot_difficulty: botDifficulty,
+          game_type: "bot",
+        });
       }
     };
 
@@ -393,6 +423,15 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
               wordsCompleted: playerWordsCompleted,
               greenLetters,
               timestamp: Date.now(),
+            });
+
+            trackGame("bot_game_completed", {
+              mode: "timed",
+              outcome: winner === "player" ? "player_won" : winner === "bot" ? "bot_won" : "draw",
+              player_words: playerWordsCompleted,
+              bot_words: botWordsCompleted,
+              bot_difficulty: botDifficulty,
+              game_type: "bot",
             });
 
             setTimeout(() => {

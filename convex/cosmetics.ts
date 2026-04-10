@@ -14,6 +14,15 @@ interface QuestTemplate {
   reward: number; // shards
 }
 
+// The "First Game" quest is pinned for new players (no prior quest history)
+const FIRST_GAME_QUEST: QuestTemplate = {
+  id: "play_any_1",
+  title: "First Game!",
+  description: "Play your first game (any mode)",
+  target: 1,
+  reward: 5,
+};
+
 const QUEST_TEMPLATES: QuestTemplate[] = [
   { id: "play_classic_1", title: "Classic Fan", description: "Play 1 Classic game", target: 1, reward: 3 },
   { id: "play_classic_3", title: "Classic Streak", description: "Play 3 Classic games", target: 3, reward: 3 },
@@ -166,7 +175,22 @@ export const seedDailyQuests = mutation({
 
     if (existing) return existing._id;
 
-    const templates = pickDailyQuests(dayKey, userId);
+    // Check if this user has ever had quests before (new player detection)
+    const anyPriorQuest = await ctx.db
+      .query("quests")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    const isNewPlayer = anyPriorQuest === null;
+
+    let templates: QuestTemplate[];
+    if (isNewPlayer) {
+      // Always pin "First Game" for new players; fill the remaining 2 slots randomly
+      const rest = pickDailyQuests(dayKey, userId).filter((t) => t.id !== FIRST_GAME_QUEST.id).slice(0, 2);
+      templates = [FIRST_GAME_QUEST, ...rest];
+    } else {
+      templates = pickDailyQuests(dayKey, userId);
+    }
+
     return await ctx.db.insert("quests", {
       userId,
       dayKey,
@@ -218,7 +242,7 @@ export const recordQuestProgress = mutation({
         if (args.mode === "timed") increment = 1;
       } else if (slot.questId === "win_any_1" || slot.questId === "win_any_2") {
         if (args.won) increment = 1;
-      } else if (slot.questId === "play_any_2" || slot.questId === "play_any_3") {
+      } else if (slot.questId === "play_any_1" || slot.questId === "play_any_2" || slot.questId === "play_any_3") {
         increment = 1;
       } else if (slot.questId === "green_letters_5" || slot.questId === "green_letters_10") {
         increment = args.greenLetters;
@@ -268,7 +292,7 @@ export const internalRecordQuestProgress = internalMutation({
         if (args.mode === "timed") increment = 1;
       } else if (slot.questId === "win_any_1" || slot.questId === "win_any_2") {
         if (args.won) increment = 1;
-      } else if (slot.questId === "play_any_2" || slot.questId === "play_any_3") {
+      } else if (slot.questId === "play_any_1" || slot.questId === "play_any_2" || slot.questId === "play_any_3") {
         increment = 1;
       } else if (slot.questId === "green_letters_5" || slot.questId === "green_letters_10") {
         increment = args.greenLetters;

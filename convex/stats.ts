@@ -217,10 +217,6 @@ export const updateStats = mutation({
       games_played_today: completedMetrics.userTodayCount,
       highest_streak: (existingStats?.best_streak || 0),
       total_green_letters: (existingStats?.total_green_letters || 0) + greenLetters,
-      $set: {
-          total_games_played: completedMetrics.userTotalCount,
-          games_played_today: completedMetrics.userTodayCount,
-      }
     };
 
     await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {

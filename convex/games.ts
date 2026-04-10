@@ -431,10 +431,6 @@ export const createGame = mutation({
         games_created_today_total: createdMetrics.todayTotalCount,
         games_created_by_user_total: createdMetrics.userTotalCount,
         games_created_by_user_today: createdMetrics.userTodayCount,
-        $set: {
-            total_games_created: createdMetrics.userTotalCount,
-            games_created_today: createdMetrics.userTodayCount,
-        }
       },
     });
 
@@ -485,10 +481,6 @@ export const startGame = mutation({
         games_started_today_total: startedMetrics.todayTotalCount,
         games_started_by_user_total: startedMetrics.userTotalCount,
         games_started_by_user_today: startedMetrics.userTodayCount,
-        $set: {
-            total_games_started: startedMetrics.userTotalCount,
-            games_started_today: startedMetrics.userTodayCount,
-        }
       },
     });
 

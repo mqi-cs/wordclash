@@ -36,27 +36,30 @@ const getCounter = async (ctx: MutationCtx, key: CounterKey) => {
   }
 
   if (key.userId) {
-    return await ctx.db
+    const docs = await ctx.db
       .query("analyticsCounters")
       .withIndex("by_metric_and_user", (q) =>
         q.eq("metric", key.metric).eq("userId", key.userId),
       )
-      .unique();
+      .collect();
+    return docs.find((d) => d.dayKey === undefined);
   }
 
   if (key.dayKey) {
-    return await ctx.db
+    const docs = await ctx.db
       .query("analyticsCounters")
       .withIndex("by_metric_and_day", (q) =>
         q.eq("metric", key.metric).eq("dayKey", key.dayKey),
       )
-      .unique();
+      .collect();
+    return docs.find((d) => d.userId === undefined);
   }
 
-  return await ctx.db
+  const docs = await ctx.db
     .query("analyticsCounters")
     .withIndex("by_metric", (q) => q.eq("metric", key.metric))
-    .unique();
+    .collect();
+  return docs.find((d) => d.userId === undefined && d.dayKey === undefined);
 };
 
 const incrementCounter = async (ctx: MutationCtx, key: CounterKey) => {
