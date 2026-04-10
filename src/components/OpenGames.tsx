@@ -159,39 +159,37 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                     : "Resume Game"}
                 </Button>
 
-                {game.canDelete && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="w-full mt-2 text-destructive hover:text-destructive"
-                        disabled={deletingGameId === game._id}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full mt-2 text-destructive hover:text-destructive"
+                      disabled={deletingGameId === game._id}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {deletingGameId === game._id ? "Deleting..." : "Delete"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this game?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove this {game.gameType} match for every player involved,
+                        including all guesses and lobby state.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => void handleDeleteGame(game._id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {deletingGameId === game._id ? "Deleting..." : "Delete"}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this game?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently remove this {game.gameType} match for every player involved,
-                          including all guesses and lobby state.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Keep</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => void handleDeleteGame(game._id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           ))}

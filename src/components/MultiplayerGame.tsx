@@ -806,41 +806,39 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           )}
         </div>
         <div className="flex items-center gap-2">
-          {game.canDelete && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={deletingGame}
-                  className="text-destructive hover:text-destructive"
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={deletingGame}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">
+                  {deletingGame ? "Deleting..." : "Delete"}
+                </span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this match?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove this {game.gameType} match for every player involved,
+                  including all guesses and lobby state.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => void handleDeleteMatch()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">
-                    {deletingGame ? "Deleting..." : "Delete"}
-                  </span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this match?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently remove this {game.gameType} match for every player involved,
-                    including all guesses and lobby state.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => void handleDeleteMatch()}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete Match
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+                  Delete Match
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           {game.lobbyCode ? (
             <Button variant="outline" onClick={() => void handleCopyLobbyCode()} size="sm">
               {copiedLobbyCode ? <Check className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
