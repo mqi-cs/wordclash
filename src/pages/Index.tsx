@@ -14,6 +14,7 @@ import { getInitialBotState, updateBotState, getBotNextGuess, BotState, BotDiffi
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
+import { incrementGuestGameCount } from "@/lib/guestLimits";
 import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { GuidedTour, hasSeenTour } from "@/components/GuidedTour";
@@ -744,18 +745,28 @@ const Index = () => {
     void performHintReveal(true);
   };
 
-  const handleSelectMode = (mode: GameMode) => {
-    trackGame("mode_selected", { mode, game_type: "solo" });
+  const handleSelectMode = (mode: GameMode, isBot: boolean = false) => {
+    trackGame("mode_selected", { mode, game_type: isBot ? "bot" : "solo" });
     trackGame("game_started", {
       mode,
-      game_type: "solo",
+      game_type: isBot ? "bot" : "solo",
       start_source: "mode_selected",
     });
+
+    if (!user && !isBot && mode !== "multiplayer") {
+      incrementGuestGameCount(mode);
+    }
+
     setGameMode(mode);
     setTargetWord(getRandomWord());
     if (mode === "timed") {
       setTimedGameActive(true);
       setTimeLeft(TIMED_INITIAL_SECONDS);
+    }
+
+    if (isBot) {
+      setBotDifficulty("easy");
+      setBotActive(true);
     }
   };
 

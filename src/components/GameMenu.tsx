@@ -15,6 +15,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
 import { useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { isModeLimitedForGuest } from "@/lib/guestLimits";
 import {
   FeatureDiscoveryHalo,
   FeatureWalkthroughDialog,
@@ -220,7 +221,7 @@ const persistWalkthroughState = (state: Record<WalkthroughKey, boolean>) => {
 };
 
 interface GameMenuProps {
-  onSelectMode: (mode: GameMode) => void;
+  onSelectMode: (mode: GameMode, isBot?: boolean) => void;
   onShowLeaderboard: () => void;
   onResumeGame?: (gameId: string) => void;
   onShowHelp?: () => void;
@@ -303,7 +304,9 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
         toast.error("Please sign in or create an account to play Multiplayer modes!");
         return;
       }
-      onSelectMode(mode);
+      
+      const isBot = !user && mode === "classic" && isModeLimitedForGuest("classic", !!user);
+      onSelectMode(mode, isBot);
     };
 
     if (!seenWalkthroughs[walkthroughKey]) {
@@ -457,7 +460,10 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
               {/* Classic Mode */}
               <Card
                 id="tour-classic"
-                className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]"
+                className={cn(
+                  "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]",
+                  !user && isModeLimitedForGuest("classic", !!user) && "border-amber-500/40"
+                )}
                 onClick={(event) => handleModeSelection("classic", "classic", event)}
               >
                 {!seenWalkthroughs.classic && (
@@ -495,19 +501,30 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                   </ul>
 
                   <Button
-                    className="w-full bg-[hsl(var(--menu-classic))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-classic))]/90"
+                    className={cn(
+                      "w-full font-semibold uppercase tracking-[0.18em] text-white",
+                      !user && isModeLimitedForGuest("classic", !!user)
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-[hsl(var(--menu-classic))] hover:bg-[hsl(var(--menu-classic))]/90"
+                    )}
                     size="lg"
                     onClick={(event) => handleModeSelection("classic", "classic", event)}
                   >
-                    Start Classic
+                    {!user && isModeLimitedForGuest("classic", !!user) ? "Bot Practice" : "Start Classic"}
                   </Button>
+                  {!user && isModeLimitedForGuest("classic", !!user) && (
+                    <p className="text-[10px] text-center text-amber-500/80 font-medium">Solo sessions used up. Bot Practice remains free!</p>
+                  )}
                 </div>
               </Card>
 
               {/* Hard Mode */}
               <Card
                 id="tour-hard"
-                className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]"
+                className={cn(
+                  "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]",
+                  !user && isModeLimitedForGuest("hard", !!user) && "grayscale opacity-80"
+                )}
                 onClick={(event) => handleModeSelection("hard", "hard", event)}
               >
                 {!seenWalkthroughs.hard && (
@@ -545,19 +562,26 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                   </ul>
 
                   <Button
-                    className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90"
+                    className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
                     onClick={(event) => handleModeSelection("hard", "hard", event)}
+                    disabled={!user && isModeLimitedForGuest("hard", !!user)}
                   >
-                    Start Hard Mode
+                    {!user && isModeLimitedForGuest("hard", !!user) ? "Limit Reached" : "Start Hard Mode"}
                   </Button>
+                  {!user && isModeLimitedForGuest("hard", !!user) && (
+                    <p className="text-[10px] text-center text-red-500/80 font-medium tracking-tight">Sign in to unlock unlimited sessions</p>
+                  )}
                 </div>
               </Card>
 
               {/* Timed Mode */}
               <Card
                 id="tour-timed"
-                className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]"
+                className={cn(
+                  "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]",
+                  !user && isModeLimitedForGuest("timed", !!user) && "grayscale opacity-80"
+                )}
                 onClick={(event) => handleModeSelection("timed", "timed", event)}
               >
                 {!seenWalkthroughs.timed && (
@@ -595,12 +619,16 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                   </ul>
 
                   <Button
-                    className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90"
+                    className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
                     onClick={(event) => handleModeSelection("timed", "timed", event)}
+                    disabled={!user && isModeLimitedForGuest("timed", !!user)}
                   >
-                    Start Timed
+                    {!user && isModeLimitedForGuest("timed", !!user) ? "Limit Reached" : "Start Timed"}
                   </Button>
+                  {!user && isModeLimitedForGuest("timed", !!user) && (
+                    <p className="text-[10px] text-center text-red-500/80 font-medium tracking-tight">Sign in to unlock unlimited sessions</p>
+                  )}
                 </div>
               </Card>
             </div>

@@ -397,7 +397,7 @@ export const DailyQuestsSidebar = () => {
             <p className="text-xs text-muted-foreground">
               {user
                 ? "This starter quest set stays pinned until you finish it."
-                : "Preview the pinned starter quests now, then sign in to save progress and claim rewards."}
+                : "Sign in to save your progress and claim shard rewards."}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -483,15 +483,37 @@ function QuestCard({
           <Check className="w-3.5 h-3.5" />
           Claimed
         </div>
-      ) : !isSignedIn ? (
+      ) : !isSignedIn && slot.questId === "auth_1" ? (
+        // Auth quest — prominent sign-in CTA
         <Button
           size="sm"
-          variant="outline"
-          className="w-full text-xs h-8"
+          className="w-full text-xs h-8 bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700"
           onClick={onGuestAction}
         >
-          {slot.questId === "auth_1" ? "Sign in or sign up" : "Sign in to track"}
+          <Gift className="w-3.5 h-3.5 mr-1" />
+          Sign in or sign up
         </Button>
+      ) : !isSignedIn && slot.completed ? (
+        // Completed quest for guest — invite to claim
+        <Button
+          size="sm"
+          className="w-full text-xs h-8 bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700"
+          onClick={onGuestAction}
+        >
+          <Gift className="w-3.5 h-3.5 mr-1" />
+          Sign in to claim +{slot.reward} Shards
+        </Button>
+      ) : !isSignedIn ? (
+        // In-progress quest for guest — soft nudge
+        <div className="h-8 flex items-center justify-between text-xs text-muted-foreground">
+          <span>In Progress…</span>
+          <button
+            className="text-[11px] text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
+            onClick={onGuestAction}
+          >
+            Sign in to save
+          </button>
+        </div>
       ) : slot.completed ? (
         <Button
           size="sm"
