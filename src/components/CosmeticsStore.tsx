@@ -396,8 +396,8 @@ export const DailyQuestsSidebar = () => {
             </h3>
             <p className="text-xs text-muted-foreground">
               {user
-                ? "Knock these out to stack shards for new cosmetic drops."
-                : "Preview today’s quests now, then sign in to save progress and claim rewards."}
+                ? "This starter quest set stays pinned until you finish it."
+                : "Preview the pinned starter quests now, then sign in to save progress and claim rewards."}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">

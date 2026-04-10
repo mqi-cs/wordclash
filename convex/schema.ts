@@ -128,6 +128,7 @@ export default defineSchema({
   quests: defineTable({
     userId: v.id("users"),
     dayKey: v.string(), // "YYYY-MM-DD" in UTC
+    questVersion: v.optional(v.number()),
     questSlots: v.array(
       v.object({
         questId: v.string(), // references a quest template key

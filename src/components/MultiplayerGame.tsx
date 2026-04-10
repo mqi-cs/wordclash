@@ -3,9 +3,20 @@ import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Users, Crown, Copy, Check, Play } from "lucide-react";
+import { ArrowLeft, Users, Crown, Copy, Check, Play, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -93,7 +104,9 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const joinGameByCodeMut = useMutation(api.games.joinGameByCode);
   const startGameMut = useMutation(api.games.startGame);
   const submitGuessMut = useMutation(api.guesses.submitGuess);
+  const deleteGameMut = useMutation(api.games.deleteGame);
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
+  const [deletingGame, setDeletingGame] = useState(false);
 
   const players = game?.players ?? [];
   const boards: PlayerBoard[] = players.map((player) => {
@@ -419,6 +432,31 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     if (isChallenge && !isMyTurn) return;
     setMyCurrentGuess((previousValue) => previousValue.slice(0, -1));
   }, [gameStarted, isChallenge, isMyTurn, myGameOver]);
+
+  const handleDeleteMatch = useCallback(async () => {
+    if (!gameId || !game) return;
+
+    setDeletingGame(true);
+    try {
+      await deleteGameMut({ gameId });
+      trackGame("game_deleted", {
+        game_id: gameId,
+        game_type: game.gameType,
+        mode: game.mode ?? "classic",
+        status: game.status,
+        player_count: game.playerCount,
+      });
+      toast.success("Match deleted");
+      resetMultiplayerUrl();
+      onBackToMenu();
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete match";
+      toast.error(errorMessage);
+    } finally {
+      setDeletingGame(false);
+    }
+  }, [deleteGameMut, game, gameId, onBackToMenu, trackGame]);
 
   const handleEnter = useCallback(async () => {
     if (myGameOver || !gameStarted || !gameId) return;
@@ -767,14 +805,49 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
             </div>
           )}
         </div>
-        {game.lobbyCode ? (
-          <Button variant="outline" onClick={() => void handleCopyLobbyCode()} size="sm">
-            {copiedLobbyCode ? <Check className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
-            <span className="hidden sm:inline">Copy</span>
-          </Button>
-        ) : (
-          <div className="w-[60px] sm:w-[108px]" />
-        )}
+        <div className="flex items-center gap-2">
+          {game.canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={deletingGame}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">
+                    {deletingGame ? "Deleting..." : "Delete"}
+                  </span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this match?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove this {game.gameType} match for every player involved,
+                    including all guesses and lobby state.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => void handleDeleteMatch()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete Match
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {game.lobbyCode ? (
+            <Button variant="outline" onClick={() => void handleCopyLobbyCode()} size="sm">
+              {copiedLobbyCode ? <Check className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
+              <span className="hidden sm:inline">Copy</span>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto px-2 sm:px-4 pb-4">

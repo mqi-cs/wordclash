@@ -176,9 +176,8 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete this game?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          {game.gameType === "challenge"
-                            ? "This will cancel the waiting challenge and remove it from your active games."
-                            : "This will close the waiting lobby and remove it from your active games."}
+                          This will permanently remove this {game.gameType} match for every player involved,
+                          including all guesses and lobby state.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

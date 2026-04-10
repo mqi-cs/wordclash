@@ -154,19 +154,26 @@ const captureGameAbandoned = async (
   ctx: MutationCtx,
   game: GameDoc,
   abandonReason: string,
+  extraProperties?: Record<string, string | number | boolean | null | undefined>,
 ) => {
-  await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
-    distinctId: game.player1Id,
-    event: "game_abandoned",
-    properties: {
-      game_id: game._id,
-      game_type: game.gameType,
-      mode: game.mode ?? "classic",
-      status: game.status,
-      player_count: getPlayerCount(game),
-      abandon_reason: abandonReason,
-    },
-  });
+  const playerIds = getGamePlayerIds(game);
+  await Promise.all(
+    playerIds.map((playerId) =>
+      ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+        distinctId: playerId,
+        event: "game_abandoned",
+        properties: {
+          game_id: game._id,
+          game_type: game.gameType,
+          mode: game.mode ?? "classic",
+          status: game.status,
+          player_count: getPlayerCount(game),
+          abandon_reason: abandonReason,
+          ...extraProperties,
+        },
+      }),
+    ),
+  );
 };
 
 const captureGameStartedForParticipants = async (
@@ -266,8 +273,7 @@ const joinGameById = async (
 };
 
 const canDeleteGame = (game: GameDoc, userId: Id<"users">) =>
-  game.player1Id === userId &&
-  game.status === "waiting" &&
+  isParticipant(game, userId) &&
   (game.gameType === "challenge" || game.gameType === "multiplayer");
 
 // Get active games for the current user
@@ -329,6 +335,7 @@ export const getGame = query({
       playerCount: getPlayerCount(game),
       players: await buildPlayerSummaries(ctx, game),
       lobbyCode: game.lobbyCode ?? null,
+      canDelete: canDeleteGame(game, userId),
     };
   },
 });
@@ -722,10 +729,19 @@ export const deleteGame = mutation({
       throw new Error("Game expired");
     }
     if (!canDeleteGame(game, userId)) {
-      throw new Error("Only the host can delete waiting challenges or waiting lobbies.");
+      throw new Error("Only players involved in this challenge or multiplayer match can delete it.");
     }
 
-    await captureGameAbandoned(ctx, game, "host_deleted_waiting_game");
+    const deletingPlayerRole = userId === game.player1Id ? "host" : "participant";
+    await captureGameAbandoned(
+      ctx,
+      game,
+      `${game.status}_game_deleted_by_player`,
+      {
+        deleted_by_user_id: userId,
+        deleted_by_role: deletingPlayerRole,
+      },
+    );
     await deleteGameWithArtifacts(ctx, game._id);
 
     return { success: true };

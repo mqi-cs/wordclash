@@ -1,5 +1,11 @@
-import { query, mutation, internalMutation, type MutationCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import {
+  query,
+  mutation,
+  internalMutation,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
@@ -59,6 +65,7 @@ const DEFAULT_DAILY_QUESTS: QuestTemplate[] = [
   PLAY_ALL_MODES_QUEST,
   AUTH_QUEST,
 ];
+const CURRENT_QUEST_VERSION = 2;
 
 // ── Cosmetic Catalog ─────────────────────────────────────────────────
 
@@ -201,6 +208,22 @@ const areQuestSlotsEqual = (left: readonly QuestSlot[], right: readonly QuestSlo
   });
 };
 
+const getLatestQuestDocForUser = async (
+  ctx: QueryCtx | MutationCtx,
+  userId: Id<"users">,
+): Promise<Doc<"quests"> | null> => {
+  const questDocs = await ctx.db
+    .query("quests")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .take(30);
+
+  if (questDocs.length === 0) {
+    return null;
+  }
+
+  return questDocs.sort((a, b) => b._creationTime - a._creationTime)[0] ?? null;
+};
+
 const ensureTodayQuestDoc = async (
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -211,19 +234,37 @@ const ensureTodayQuestDoc = async (
     .withIndex("by_user_and_day", (q) => q.eq("userId", userId).eq("dayKey", dayKey))
     .unique();
 
-  const nextSlots = mergeQuestSlots(existing?.questSlots, true);
-
   if (existing) {
-    if (!areQuestSlotsEqual(existing.questSlots, nextSlots)) {
-      await ctx.db.patch(existing._id, { questSlots: nextSlots });
+    const shouldResetToCurrentQuestSet =
+      existing.questVersion !== CURRENT_QUEST_VERSION;
+    const nextSlots = shouldResetToCurrentQuestSet
+      ? buildDefaultQuestSlots(true)
+      : mergeQuestSlots(existing.questSlots, true);
+
+    if (
+      shouldResetToCurrentQuestSet ||
+      !areQuestSlotsEqual(existing.questSlots, nextSlots)
+    ) {
+      await ctx.db.patch(existing._id, {
+        questVersion: CURRENT_QUEST_VERSION,
+        questSlots: nextSlots,
+      });
     }
 
     return { questId: existing._id, questSlots: nextSlots };
   }
 
+  const latestQuestDoc = await getLatestQuestDocForUser(ctx, userId);
+  const shouldResetToCurrentQuestSet =
+    !latestQuestDoc || latestQuestDoc.questVersion !== CURRENT_QUEST_VERSION;
+  const nextSlots = shouldResetToCurrentQuestSet
+    ? buildDefaultQuestSlots(true)
+    : mergeQuestSlots(latestQuestDoc.questSlots, true);
+
   const questId = await ctx.db.insert("quests", {
     userId,
     dayKey,
+    questVersion: CURRENT_QUEST_VERSION,
     questSlots: nextSlots,
   });
 
@@ -295,17 +336,29 @@ export const getMyQuests = query({
       .unique();
 
     if (existing) {
+      const questSlots = existing.questVersion === CURRENT_QUEST_VERSION
+        ? mergeQuestSlots(existing.questSlots, true)
+        : buildDefaultQuestSlots(true);
+
       return {
         ...existing,
-        questSlots: mergeQuestSlots(existing.questSlots, true),
+        questVersion: CURRENT_QUEST_VERSION,
+        questSlots,
       };
     }
+
+    const latestQuestDoc = await getLatestQuestDocForUser(ctx, userId);
+    const questSlots =
+      latestQuestDoc && latestQuestDoc.questVersion === CURRENT_QUEST_VERSION
+        ? mergeQuestSlots(latestQuestDoc.questSlots, true)
+        : buildDefaultQuestSlots(true);
 
     return {
       _id: null as unknown,
       userId,
       dayKey,
-      questSlots: buildDefaultQuestSlots(true),
+      questVersion: CURRENT_QUEST_VERSION,
+      questSlots,
     };
   },
 });
