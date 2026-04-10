@@ -575,11 +575,11 @@ export const equipCosmetic = mutation({
       throw new Error("Cosmetic not owned");
     }
 
-    const equipped = { ...wallet.equippedCosmetics };
+    const equipped: Record<string, string> = { ...wallet.equippedCosmetics };
     const slotKey = "theme";
 
     if (equipped[slotKey] === item.id) {
-      equipped[slotKey] = undefined;
+      delete equipped[slotKey];
     } else {
       equipped[slotKey] = item.id;
     }
