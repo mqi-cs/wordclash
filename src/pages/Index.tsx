@@ -14,7 +14,14 @@ import { getInitialBotState, updateBotState, getBotNextGuess, BotState, BotDiffi
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
-import { incrementGuestGameCount } from "@/lib/guestLimits";
+import {
+  consumeGuestDailyRound,
+  DAILY_MODE_ROUND_LIMIT,
+  getGuestDailyModeLimits,
+  subscribeToGuestDailyModeLimits,
+  type DailyModeLimits,
+  type LimitedGameMode,
+} from "@/lib/guestLimits";
 import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { GuidedTour, hasSeenTour } from "@/components/GuidedTour";
@@ -214,9 +221,12 @@ const Index = () => {
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
+  const consumeDailyRound = useMutation(api.dailyLimits.consumeDailyRound);
   const { trackGame } = usePostHog();
   const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
+  const signedInDailyModeLimits = useQuery(api.dailyLimits.getMyDailyRoundLimits, user ? {} : "skip");
   const [guestCosmeticsState, setGuestCosmeticsState] = useState(getGuestCosmeticsState);
+  const [guestDailyModeLimits, setGuestDailyModeLimits] = useState<DailyModeLimits>(getGuestDailyModeLimits);
   const equippedCosmetics = user ? wallet?.equippedCosmetics : guestCosmeticsState.equippedCosmetics;
   const cosmeticThemeClassName = getEquippedCosmeticThemeClassName(equippedCosmetics);
 
@@ -284,6 +294,14 @@ const Index = () => {
     setGuestCosmeticsState(getGuestCosmeticsState());
     return subscribeToGuestCosmetics(() => {
       setGuestCosmeticsState(getGuestCosmeticsState());
+    });
+  }, [user]);
+
+  useEffect(() => {
+    if (user) return;
+    setGuestDailyModeLimits(getGuestDailyModeLimits());
+    return subscribeToGuestDailyModeLimits(() => {
+      setGuestDailyModeLimits(getGuestDailyModeLimits());
     });
   }, [user]);
 
@@ -576,8 +594,20 @@ const Index = () => {
     handleEnterRef.current = handleEnter;
   }, [handleEnter]);
 
-  const handlePlayAgain = () => {
-    if (gameMode) {
+  const handlePlayAgain = async () => {
+    if (gameMode && gameMode !== "multiplayer") {
+      try {
+        if (user) {
+          await consumeDailyRound({ mode: gameMode });
+        } else {
+          consumeGuestDailyRound(gameMode);
+          setGuestDailyModeLimits(getGuestDailyModeLimits());
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Daily limit reached for this mode.");
+        return;
+      }
+
       trackGame("game_started", {
         mode: gameMode,
         game_type: botActive ? "bot" : "solo",
@@ -766,17 +796,27 @@ const Index = () => {
     void performHintReveal(true);
   };
 
-  const handleSelectMode = (mode: GameMode, isBot: boolean = false) => {
+  const handleSelectMode = async (mode: GameMode, isBot: boolean = false) => {
+    if (mode !== "multiplayer") {
+      try {
+        if (user) {
+          await consumeDailyRound({ mode });
+        } else {
+          consumeGuestDailyRound(mode);
+          setGuestDailyModeLimits(getGuestDailyModeLimits());
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Daily limit reached for this mode.");
+        return;
+      }
+    }
+
     trackGame("mode_selected", { mode, game_type: isBot ? "bot" : "solo" });
     trackGame("game_started", {
       mode,
       game_type: isBot ? "bot" : "solo",
       start_source: "mode_selected",
     });
-
-    if (!user && !isBot && mode !== "multiplayer") {
-      incrementGuestGameCount(mode);
-    }
 
     setGameMode(mode);
     setTargetWord(getRandomWord());
@@ -965,6 +1005,17 @@ const Index = () => {
           onResumeGame={handleResumeGame}
           onShowHelp={() => setShowHelpSlides(true)}
           themeClassName={cosmeticThemeClassName}
+          dailyModeLimits={
+            signedInDailyModeLimits ?? guestDailyModeLimits ?? {
+              dayKey: "",
+              limit: DAILY_MODE_ROUND_LIMIT,
+              modes: {
+                classic: { played: 0, remaining: DAILY_MODE_ROUND_LIMIT, reached: false },
+                hard: { played: 0, remaining: DAILY_MODE_ROUND_LIMIT, reached: false },
+                timed: { played: 0, remaining: DAILY_MODE_ROUND_LIMIT, reached: false },
+              },
+            }
+          }
         />
         <Leaderboard open={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       </>

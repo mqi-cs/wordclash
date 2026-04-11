@@ -13,14 +13,17 @@ import { IncomingChallenges } from "./IncomingChallenges";
 import { OpenGames } from "./OpenGames";
 import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { isModeLimitedForGuest } from "@/lib/guestLimits";
+import { DAILY_MODE_ROUND_LIMIT, type DailyModeLimits, type LimitedGameMode } from "@/lib/guestLimits";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   FeatureDiscoveryHalo,
   FeatureWalkthroughDialog,
   WalkthroughSlide,
 } from "@/components/FeatureWalkthrough";
+import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
@@ -221,14 +224,22 @@ const persistWalkthroughState = (state: Record<WalkthroughKey, boolean>) => {
 };
 
 interface GameMenuProps {
-  onSelectMode: (mode: GameMode, isBot?: boolean) => void;
+  onSelectMode: (mode: GameMode, isBot?: boolean) => void | Promise<void>;
   onShowLeaderboard: () => void;
   onResumeGame?: (gameId: string) => void;
   onShowHelp?: () => void;
   themeClassName?: string;
+  dailyModeLimits: DailyModeLimits;
 }
 
-export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShowHelp, themeClassName }: GameMenuProps) => {
+export const GameMenu = ({
+  onSelectMode,
+  onShowLeaderboard,
+  onResumeGame,
+  onShowHelp,
+  themeClassName,
+  dailyModeLimits,
+}: GameMenuProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [friendsKey, setFriendsKey] = useState(0);
@@ -238,6 +249,14 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
   const [activeWalkthrough, setActiveWalkthrough] = useState<WalkthroughKey | null>(null);
   const pendingActionRef = useRef<(() => void) | null>(null);
   const hasBackgroundTheme = themeClassName?.includes("theme-bg-") ?? false;
+  const heartbeatPresence = useMutation(api.matchmaking.presenceHeartbeat);
+  const acceptRandomMatch = useMutation(api.matchmaking.acceptRandomMatchmaking);
+  const declineRandomMatch = useMutation(api.matchmaking.declineRandomMatchmaking);
+  const incomingRandomMatchRequest = useQuery(
+    api.matchmaking.getIncomingRandomMatchRequest,
+    user ? {} : "skip",
+  );
+  const [processingRandomRequest, setProcessingRandomRequest] = useState(false);
   const activeConfig = useMemo(
     () => (activeWalkthrough ? WALKTHROUGH_CONFIG[activeWalkthrough] : null),
     [activeWalkthrough],
@@ -250,6 +269,30 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
 
   const refreshFriends = () => {
     setFriendsKey(prev => prev + 1);
+  };
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    void heartbeatPresence({ availableForRandomMatch: true }).catch(() => null);
+    const intervalId = window.setInterval(() => {
+      void heartbeatPresence({ availableForRandomMatch: true }).catch(() => null);
+    }, 12_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      void heartbeatPresence({ availableForRandomMatch: false }).catch(() => null);
+    };
+  }, [heartbeatPresence, user]);
+
+  const getModeLimitStatus = (mode: LimitedGameMode) => dailyModeLimits.modes[mode];
+  const getModeLimitLabel = (mode: LimitedGameMode) => {
+    const status = getModeLimitStatus(mode);
+    return status.reached
+      ? `${status.played}/${DAILY_MODE_ROUND_LIMIT} rounds used today`
+      : `${status.remaining}/${DAILY_MODE_ROUND_LIMIT} rounds left today`;
   };
 
   const markWalkthroughSeen = (key: WalkthroughKey) => {
@@ -304,9 +347,13 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
         toast.error("Please sign in or create an account to play Multiplayer modes!");
         return;
       }
-      
-      const isBot = !user && mode === "classic" && isModeLimitedForGuest("classic", !!user);
-      onSelectMode(mode, isBot);
+
+      if (mode !== "multiplayer" && getModeLimitStatus(mode).reached) {
+        toast.error(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
+        return;
+      }
+
+      void onSelectMode(mode, false);
     };
 
     if (!seenWalkthroughs[walkthroughKey]) {
@@ -329,6 +376,38 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
     }
 
     continueToAuth();
+  };
+
+  const handleAcceptRandomRequest = async () => {
+    if (!incomingRandomMatchRequest) return;
+
+    setProcessingRandomRequest(true);
+    try {
+      const result = await acceptRandomMatch({
+        matchmakingId: incomingRandomMatchRequest.matchmakingId,
+      });
+      navigate(`/?mode=multiplayer&game=${result.gameId}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to accept random match");
+    } finally {
+      setProcessingRandomRequest(false);
+    }
+  };
+
+  const handleDeclineRandomRequest = async () => {
+    if (!incomingRandomMatchRequest) return;
+
+    setProcessingRandomRequest(true);
+    try {
+      await declineRandomMatch({
+        matchmakingId: incomingRandomMatchRequest.matchmakingId,
+      });
+      toast.info("Random match request declined");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to decline random match");
+    } finally {
+      setProcessingRandomRequest(false);
+    }
   };
 
   return (
@@ -462,7 +541,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                 id="tour-classic"
                 className={cn(
                   "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]",
-                  !user && isModeLimitedForGuest("classic", !!user) && "border-amber-500/40"
+                  getModeLimitStatus("classic").reached && "grayscale opacity-80"
                 )}
                 onClick={(event) => handleModeSelection("classic", "classic", event)}
               >
@@ -503,18 +582,19 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                   <Button
                     className={cn(
                       "w-full font-semibold uppercase tracking-[0.18em] text-white",
-                      !user && isModeLimitedForGuest("classic", !!user)
-                        ? "bg-amber-600 hover:bg-amber-700"
+                      getModeLimitStatus("classic").reached
+                        ? "bg-muted text-muted-foreground hover:bg-muted"
                         : "bg-[hsl(var(--menu-classic))] hover:bg-[hsl(var(--menu-classic))]/90"
                     )}
                     size="lg"
                     onClick={(event) => handleModeSelection("classic", "classic", event)}
+                    disabled={getModeLimitStatus("classic").reached}
                   >
-                    {!user && isModeLimitedForGuest("classic", !!user) ? "Bot Practice" : "Start Classic"}
+                    {getModeLimitStatus("classic").reached ? "Daily Limit Reached" : "Start Classic"}
                   </Button>
-                  {!user && isModeLimitedForGuest("classic", !!user) && (
-                    <p className="text-[10px] text-center text-amber-500/80 font-medium">Solo sessions used up. Bot Practice remains free!</p>
-                  )}
+                  <p className="text-[10px] text-center font-medium tracking-tight text-muted-foreground">
+                    {getModeLimitLabel("classic")}
+                  </p>
                 </div>
               </Card>
 
@@ -523,7 +603,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                 id="tour-hard"
                 className={cn(
                   "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]",
-                  !user && isModeLimitedForGuest("hard", !!user) && "grayscale opacity-80"
+                  getModeLimitStatus("hard").reached && "grayscale opacity-80"
                 )}
                 onClick={(event) => handleModeSelection("hard", "hard", event)}
               >
@@ -565,13 +645,13 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                     className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
                     onClick={(event) => handleModeSelection("hard", "hard", event)}
-                    disabled={!user && isModeLimitedForGuest("hard", !!user)}
+                    disabled={getModeLimitStatus("hard").reached}
                   >
-                    {!user && isModeLimitedForGuest("hard", !!user) ? "Limit Reached" : "Start Hard Mode"}
+                    {getModeLimitStatus("hard").reached ? "Daily Limit Reached" : "Start Hard Mode"}
                   </Button>
-                  {!user && isModeLimitedForGuest("hard", !!user) && (
-                    <p className="text-[10px] text-center text-red-500/80 font-medium tracking-tight">Sign in to unlock unlimited sessions</p>
-                  )}
+                  <p className="text-[10px] text-center font-medium tracking-tight text-muted-foreground">
+                    {getModeLimitLabel("hard")}
+                  </p>
                 </div>
               </Card>
 
@@ -580,7 +660,7 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                 id="tour-timed"
                 className={cn(
                   "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]",
-                  !user && isModeLimitedForGuest("timed", !!user) && "grayscale opacity-80"
+                  getModeLimitStatus("timed").reached && "grayscale opacity-80"
                 )}
                 onClick={(event) => handleModeSelection("timed", "timed", event)}
               >
@@ -622,13 +702,13 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
                     className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
                     onClick={(event) => handleModeSelection("timed", "timed", event)}
-                    disabled={!user && isModeLimitedForGuest("timed", !!user)}
+                    disabled={getModeLimitStatus("timed").reached}
                   >
-                    {!user && isModeLimitedForGuest("timed", !!user) ? "Limit Reached" : "Start Timed"}
+                    {getModeLimitStatus("timed").reached ? "Daily Limit Reached" : "Start Timed"}
                   </Button>
-                  {!user && isModeLimitedForGuest("timed", !!user) && (
-                    <p className="text-[10px] text-center text-red-500/80 font-medium tracking-tight">Sign in to unlock unlimited sessions</p>
-                  )}
+                  <p className="text-[10px] text-center font-medium tracking-tight text-muted-foreground">
+                    {getModeLimitLabel("timed")}
+                  </p>
                 </div>
               </Card>
             </div>
@@ -701,6 +781,15 @@ export const GameMenu = ({ onSelectMode, onShowLeaderboard, onResumeGame, onShow
         </div>
       </div>
       </div>
+
+      {incomingRandomMatchRequest && (
+        <RandomMatchRequestPrompt
+          requesterUsername={incomingRandomMatchRequest.requesterUsername}
+          processing={processingRandomRequest}
+          onAccept={() => void handleAcceptRandomRequest()}
+          onDecline={() => void handleDeclineRandomRequest()}
+        />
+      )}
 
       {activeConfig && (
         <FeatureWalkthroughDialog

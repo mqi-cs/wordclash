@@ -21,6 +21,7 @@ import { usePostHog } from "@/contexts/PostHogContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { recordGuestQuestProgress } from "@/lib/guestCosmetics";
+import { getRandomFallbackOpponentName } from "@/lib/fakeOpponent";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -32,13 +33,25 @@ interface BotGameProps {
   gameMode: "classic" | "hard" | "timed";
   botDifficulty: BotDifficulty;
   themeClassName?: string;
+  opponentPresentation?: "bot" | "random_match_fallback";
+  opponentDisplayName?: string;
 }
 
-export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName }: BotGameProps) => {
+export const BotGame = ({
+  onBackToMenu,
+  gameMode,
+  botDifficulty,
+  themeClassName,
+  opponentPresentation = "bot",
+  opponentDisplayName,
+}: BotGameProps) => {
   const { trackGame } = usePostHog();
   const { user } = useAuth();
   const { updateStats } = useStatsUpdate();
   const [targetWord, setTargetWord] = useState(() => getRandomWord());
+  const displayedOpponentName =
+    opponentDisplayName ?? getRandomFallbackOpponentName();
+  const isDisguisedFallback = opponentPresentation === "random_match_fallback";
 
   // Timed mode state
   const [playerWordsCompleted, setPlayerWordsCompleted] = useState(0);
@@ -563,17 +576,27 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
         </Button>
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-primary" />
-            <span className="font-bold capitalize">{gameMode} vs Bot</span>
-            <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", diffCfg.bg, diffCfg.color)}>
-              {diffCfg.label}
+            {isDisguisedFallback ? (
+              <User className="w-5 h-5 text-primary" />
+            ) : (
+              <Bot className="w-5 h-5 text-primary" />
+            )}
+            <span className="font-bold capitalize">
+              {gameMode} vs {isDisguisedFallback ? displayedOpponentName : "Bot"}
             </span>
+            {!isDisguisedFallback && (
+              <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", diffCfg.bg, diffCfg.color)}>
+                {diffCfg.label}
+              </span>
+            )}
           </div>
           {gameMode === "timed" && (
             <div className="flex items-center gap-3 text-xs mt-1">
               <span className="font-bold">You: {playerWordsCompleted}</span>
               <span>|</span>
-              <span className="font-bold">Bot: {botWordsCompleted}</span>
+              <span className="font-bold">
+                {isDisguisedFallback ? displayedOpponentName : "Bot"}: {botWordsCompleted}
+              </span>
               <span>|</span>
               <span className={`font-bold ${timeLeft <= 10 ? "text-destructive" : ""}`}>
                 {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}
@@ -601,7 +624,9 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
               <span className="text-sm md:text-base font-bold">You</span>
             </div>
             {waitingForBot && (
-              <span className="text-xs text-muted-foreground animate-pulse">Bot is thinking...</span>
+              <span className="text-xs text-muted-foreground animate-pulse">
+                {isDisguisedFallback ? `${displayedOpponentName} is thinking...` : "Bot is thinking..."}
+              </span>
             )}
           </div>
           <GameGrid
@@ -634,11 +659,15 @@ export const BotGame = ({ onBackToMenu, gameMode, botDifficulty, themeClassName 
             <div className="flex items-center gap-2">
               {botWon && !isDraw && <Crown className="w-5 h-5 text-yellow-500" />}
               {isDraw && <Handshake className="w-5 h-5 text-amber-400" />}
-              <Bot className="w-4 h-4" />
-              <span className="text-sm md:text-base font-bold">Bot</span>
-              <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded", diffCfg.bg, diffCfg.color)}>
-                {diffCfg.label}
+              {isDisguisedFallback ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+              <span className="text-sm md:text-base font-bold">
+                {isDisguisedFallback ? displayedOpponentName : "Bot"}
               </span>
+              {!isDisguisedFallback && (
+                <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded", diffCfg.bg, diffCfg.color)}>
+                  {diffCfg.label}
+                </span>
+              )}
               {botThinking && <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />}
             </div>
             {/* Keeping the empty spacer to match player side height where waiting text might be */}

@@ -68,6 +68,34 @@ export default defineSchema({
     .index("by_user2", ["user2Id"])
     .index("by_users", ["user1Id", "user2Id"]),
 
+  onlinePresence: defineTable({
+    userId: v.id("users"),
+    availableForRandomMatch: v.boolean(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_available_for_random_match", ["availableForRandomMatch"]),
+
+  randomMatchmaking: defineTable({
+    requesterId: v.id("users"),
+    targetUserId: v.optional(v.id("users")),
+    gameId: v.optional(v.id("games")),
+    mode: v.literal("classic"),
+    status: v.union(
+      v.literal("searching"),
+      v.literal("pending_accept"),
+      v.literal("matched"),
+      v.literal("declined"),
+      v.literal("bot_fallback"),
+      v.literal("cancelled"),
+    ),
+    expiresAt: v.number(),
+    botOpponentName: v.optional(v.string()),
+  })
+    .index("by_requester", ["requesterId"])
+    .index("by_targetUserId_and_status", ["targetUserId", "status"])
+    .index("by_status", ["status"]),
+
   // Multiplayer Lobbies / Games
   games: defineTable({
     player1Id: v.id("users"),

@@ -26,6 +26,9 @@ import { Id } from "../../convex/_generated/dataModel";
 import { getEquippedCosmeticThemeClassName } from "@/lib/cosmetics";
 import { usePostHog } from "@/contexts/PostHogContext";
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
+import { BotGame } from "@/components/BotGame";
+import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
+import { getRandomFallbackOpponentName } from "@/lib/fakeOpponent";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -39,6 +42,10 @@ interface MultiplayerGameProps {
 }
 
 type EntryMode = "select" | "join" | null;
+
+type RandomFallbackProfile = {
+  opponentDisplayName: string;
+};
 
 type PlayerBoard = {
   id: string;
@@ -81,8 +88,22 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const [gameTimeLeft, setGameTimeLeft] = useState(0);
   const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reportedStatsKeyRef = useRef<string | null>(null);
+  const randomFallbackFinalizeTimerRef = useRef<number | null>(null);
+  const [randomMatchmakingId, setRandomMatchmakingId] =
+    useState<Id<"randomMatchmaking"> | null>(null);
+  const [randomFallbackProfile, setRandomFallbackProfile] =
+    useState<RandomFallbackProfile | null>(null);
+  const [processingRandomRequest, setProcessingRandomRequest] = useState(false);
 
   const game = useQuery(api.games.getGame, gameId ? { gameId } : "skip");
+  const randomMatchmakingStatus = useQuery(
+    api.matchmaking.getMyRandomMatchmakingStatus,
+    randomMatchmakingId ? { matchmakingId: randomMatchmakingId } : "skip",
+  );
+  const incomingRandomMatchRequest = useQuery(
+    api.matchmaking.getIncomingRandomMatchRequest,
+    user && (entryMode !== null || !gameId) ? {} : "skip",
+  );
   const shouldFetchGuesses =
     !!gameId &&
     game !== undefined &&
@@ -106,6 +127,14 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const submitGuessMut = useMutation(api.guesses.submitGuess);
   const deleteGameMut = useMutation(api.games.deleteGame);
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
+  const heartbeatPresence = useMutation(api.matchmaking.presenceHeartbeat);
+  const startRandomMatchmakingMut = useMutation(api.matchmaking.startRandomMatchmaking);
+  const acceptRandomMatchmakingMut = useMutation(api.matchmaking.acceptRandomMatchmaking);
+  const declineRandomMatchmakingMut = useMutation(api.matchmaking.declineRandomMatchmaking);
+  const cancelRandomMatchmakingMut = useMutation(api.matchmaking.cancelRandomMatchmaking);
+  const finalizeRandomMatchmakingFallbackMut = useMutation(
+    api.matchmaking.finalizeRandomMatchmakingFallback,
+  );
   const [deletingGame, setDeletingGame] = useState(false);
 
   const players = game?.players ?? [];
@@ -238,6 +267,99 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   }, [handleJoinByCode, loading, navigate, resolveRequestedGame, user]);
 
   useEffect(() => {
+    if (!user || !(entryMode !== null || !gameId)) {
+      return;
+    }
+
+    void heartbeatPresence({ availableForRandomMatch: true }).catch(() => null);
+    const intervalId = window.setInterval(() => {
+      void heartbeatPresence({ availableForRandomMatch: true }).catch(() => null);
+    }, 12_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      void heartbeatPresence({ availableForRandomMatch: false }).catch(() => null);
+    };
+  }, [entryMode, gameId, heartbeatPresence, user]);
+
+  useEffect(() => {
+    if (!randomMatchmakingId || !randomMatchmakingStatus) {
+      return;
+    }
+
+    if (randomMatchmakingStatus.status === "matched" && randomMatchmakingStatus.gameId) {
+      setRandomMatchmakingId(null);
+      setGameId(randomMatchmakingStatus.gameId);
+      setEntryMode(null);
+      syncMultiplayerUrl(randomMatchmakingStatus.gameId);
+      toast.success("Opponent found!");
+      return;
+    }
+
+    if (randomMatchmakingStatus.status === "declined") {
+      void finalizeRandomMatchmakingFallbackMut({ matchmakingId: randomMatchmakingId })
+        .then((result) => {
+          if (result.status === "bot_fallback") {
+            setRandomFallbackProfile({
+              opponentDisplayName:
+                result.opponentDisplayName ?? getRandomFallbackOpponentName(),
+            });
+            setRandomMatchmakingId(null);
+          }
+        })
+        .catch(() => null);
+    }
+  }, [
+    finalizeRandomMatchmakingFallbackMut,
+    randomMatchmakingId,
+    randomMatchmakingStatus,
+  ]);
+
+  useEffect(() => {
+    if (!randomMatchmakingId || !randomMatchmakingStatus) {
+      return;
+    }
+
+    if (
+      randomMatchmakingStatus.status === "matched" ||
+      randomMatchmakingStatus.status === "bot_fallback" ||
+      randomMatchmakingStatus.status === "cancelled"
+    ) {
+      return;
+    }
+
+    if (randomFallbackFinalizeTimerRef.current) {
+      window.clearTimeout(randomFallbackFinalizeTimerRef.current);
+    }
+
+    const delay = Math.max(0, randomMatchmakingStatus.expiresAt - Date.now());
+    randomFallbackFinalizeTimerRef.current = window.setTimeout(() => {
+      void finalizeRandomMatchmakingFallbackMut({ matchmakingId: randomMatchmakingId })
+        .then((result) => {
+          if (result.status === "bot_fallback") {
+            setRandomFallbackProfile({
+              opponentDisplayName:
+                result.opponentDisplayName ?? getRandomFallbackOpponentName(),
+            });
+            setRandomMatchmakingId(null);
+          }
+        })
+        .catch(() => null);
+    }, delay);
+
+    return () => {
+      if (randomFallbackFinalizeTimerRef.current) {
+        window.clearTimeout(randomFallbackFinalizeTimerRef.current);
+        randomFallbackFinalizeTimerRef.current = null;
+      }
+    };
+  }, [
+    finalizeRandomMatchmakingFallbackMut,
+    randomMatchmakingId,
+    randomMatchmakingStatus,
+  ]);
+
+  useEffect(() => {
     if (!myBoard) {
       setMyLetterStatus({});
       return;
@@ -355,6 +477,72 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     }
   };
 
+  const handleFindRandomOpponent = async () => {
+    try {
+      const result = await startRandomMatchmakingMut({ mode: "classic" });
+      setRandomFallbackProfile(null);
+      setRandomMatchmakingId(result.matchmakingId);
+      setEntryMode("select");
+      toast.success("Searching for a random opponent...");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to find a random opponent";
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleCancelRandomOpponent = async () => {
+    if (!randomMatchmakingId) return;
+
+    try {
+      await cancelRandomMatchmakingMut({ matchmakingId: randomMatchmakingId });
+      setRandomMatchmakingId(null);
+      toast.info("Random matchmaking cancelled");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to cancel matchmaking";
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleAcceptRandomRequest = async () => {
+    if (!incomingRandomMatchRequest) return;
+
+    setProcessingRandomRequest(true);
+    try {
+      const result = await acceptRandomMatchmakingMut({
+        matchmakingId: incomingRandomMatchRequest.matchmakingId,
+      });
+      setGameId(result.gameId);
+      setEntryMode(null);
+      syncMultiplayerUrl(result.gameId);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to accept random match";
+      toast.error(errorMessage);
+    } finally {
+      setProcessingRandomRequest(false);
+    }
+  };
+
+  const handleDeclineRandomRequest = async () => {
+    if (!incomingRandomMatchRequest) return;
+
+    setProcessingRandomRequest(true);
+    try {
+      await declineRandomMatchmakingMut({
+        matchmakingId: incomingRandomMatchRequest.matchmakingId,
+      });
+      toast.info("Random match request declined");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to decline random match";
+      toast.error(errorMessage);
+    } finally {
+      setProcessingRandomRequest(false);
+    }
+  };
+
   const handleResumeGame = async (existingGameId: Id<"games">) => {
     try {
       const resolvedGameId = await joinGameMut({ gameId: existingGameId });
@@ -397,6 +585,16 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   };
 
   const handleBack = () => {
+    if (randomFallbackFinalizeTimerRef.current) {
+      window.clearTimeout(randomFallbackFinalizeTimerRef.current);
+      randomFallbackFinalizeTimerRef.current = null;
+    }
+
+    if (randomMatchmakingId) {
+      void cancelRandomMatchmakingMut({ matchmakingId: randomMatchmakingId }).catch(() => null);
+      setRandomMatchmakingId(null);
+    }
+
     if (gameId && game && game.status !== "finished") {
       const props = {
         game_id: gameId,
@@ -512,6 +710,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
             <Button
               className="h-16 text-lg bg-primary hover:bg-primary/90"
               onClick={handleCreateLobby}
+              disabled={!!randomMatchmakingId}
             >
               <Users className="mr-2 h-5 w-5" /> Create Lobby
             </Button>
@@ -519,10 +718,44 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
               className="h-16 text-lg"
               variant="secondary"
               onClick={() => setEntryMode("join")}
+              disabled={!!randomMatchmakingId}
             >
               Join Lobby
             </Button>
           </div>
+
+          {user && (
+            <div className="space-y-3 pt-2">
+              <Button
+                className="h-14 w-full text-base"
+                variant="outline"
+                onClick={() => void handleFindRandomOpponent()}
+                disabled={!!randomMatchmakingId}
+              >
+                Find Random Opponent
+              </Button>
+              {randomMatchmakingId && (
+                <Card className="border-primary/20 bg-primary/5 p-4 text-left">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">Searching for an opponent</p>
+                      <p className="text-xs text-muted-foreground">
+                        We&apos;ll connect you to a real player if one is available. If not, a match will begin automatically.
+                      </p>
+                    </div>
+                    <div className="h-5 w-5 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  </div>
+                  <Button
+                    className="mt-4 w-full"
+                    variant="outline"
+                    onClick={() => void handleCancelRandomOpponent()}
+                  >
+                    Cancel Search
+                  </Button>
+                </Card>
+              )}
+            </div>
+          )}
 
           {entryMode === "join" && (
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -746,6 +979,19 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     </div>
   );
 
+  if (randomFallbackProfile) {
+    return (
+      <BotGame
+        onBackToMenu={handleBack}
+        gameMode="classic"
+        botDifficulty="easy"
+        themeClassName={themeClassName}
+        opponentPresentation="random_match_fallback"
+        opponentDisplayName={randomFallbackProfile.opponentDisplayName}
+      />
+    );
+  }
+
   if (loading || (!entryMode && gameId && game === undefined)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -758,7 +1004,19 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   }
 
   if (entryMode !== null || !gameId) {
-    return renderEntryScreen();
+    return (
+      <>
+        {renderEntryScreen()}
+        {incomingRandomMatchRequest && (
+          <RandomMatchRequestPrompt
+            requesterUsername={incomingRandomMatchRequest.requesterUsername}
+            processing={processingRandomRequest}
+            onAccept={() => void handleAcceptRandomRequest()}
+            onDecline={() => void handleDeclineRandomRequest()}
+          />
+        )}
+      </>
+    );
   }
 
   if (!game) {
