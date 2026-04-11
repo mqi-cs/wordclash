@@ -29,7 +29,16 @@ const getCalloutStyle = (
 ): React.CSSProperties => {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const width = Math.min(320, viewportWidth - 32);
+  const isMobile = viewportWidth < 640;
+  const width = Math.min(isMobile ? 360 : 320, viewportWidth - 24);
+
+  if (isMobile) {
+    return {
+      width,
+      left: Math.max(12, (viewportWidth - width) / 2),
+      top: 14,
+    };
+  }
 
   if (position === "top") {
     return {
@@ -168,7 +177,7 @@ export const InteractiveFeatureCoach = ({
         </div>
       )}
 
-      <div className="fixed bottom-6 right-6 z-[123]">
+      <div className="fixed left-1/2 top-4 z-[123] -translate-x-1/2 sm:left-auto sm:right-6 sm:top-auto sm:bottom-6 sm:translate-x-0">
         <Button variant="outline" className="bg-background/95" onClick={onSkip}>
           Skip Tutorial
         </Button>

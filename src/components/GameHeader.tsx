@@ -32,7 +32,8 @@ export const GameHeader = ({
 }: GameHeaderProps) => {
   return (
     <header className="border-b border-border/80 bg-background/65 px-2 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
-      <div className="max-w-lg mx-auto grid grid-cols-[1fr_auto_1fr] items-center">
+      <div className="mx-auto max-w-3xl space-y-2">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center">
         <div className="justify-self-start">
           <Button variant="ghost" size="icon" onClick={onShowHelp} className="h-9 w-9 sm:h-10 sm:w-10">
             <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -41,49 +42,56 @@ export const GameHeader = ({
         <h1 className="bg-gradient-to-r from-foreground to-primary/75 bg-clip-text text-center text-2xl font-bold tracking-[0.24em] text-transparent sm:text-3xl">
           WORDCLASH
         </h1>
-        <div className="flex gap-0.5 sm:gap-1 items-center justify-self-end">
-          <div className="relative">
-            {highlightHints && <FeatureDiscoveryHalo accentVar="menu-timed" />}
-            <Button 
-              id="game-hint-button"
-              variant="ghost" 
-              size="icon" 
-              onClick={onHint}
-              disabled={hintsDisabled}
-              className="h-9 w-9 sm:h-10 sm:w-10"
-            >
-              <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6" />
-            </Button>
-            {!hintsDisabled && availableHints > 0 && (
-              <Badge 
-                variant="secondary" 
-                className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center border-0 bg-primary p-0 text-[10px] text-primary-foreground hover:bg-primary sm:h-5 sm:w-5 sm:text-xs"
-              >
-                {availableHints}
-              </Badge>
-            )}
-          </div>
-          <div className="relative">
-            {highlightBot && <FeatureDiscoveryHalo accentVar="menu-classic" />}
-            <Button 
-              id="game-bot-button"
-              variant={botActive ? "default" : "ghost"}
-              size="icon" 
-              onClick={onToggleBot}
-              disabled={botDisabled}
-              className={cn(
-                "h-9 w-9 sm:h-10 sm:w-10",
-                botActive && "bg-primary text-primary-foreground hover:bg-primary/90"
-              )}
-            >
-              <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
-            </Button>
-          </div>
+        <div className="flex items-center justify-self-end gap-0.5 sm:gap-1">
           <ThemeToggle className="h-9 w-9 sm:h-10 sm:w-10" />
           <Button variant="ghost" size="icon" onClick={onShowStats} className="h-9 w-9 sm:h-10 sm:w-10">
             <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />
           </Button>
         </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3">
+        <div className="relative">
+          {highlightHints && <FeatureDiscoveryHalo accentVar="menu-timed" />}
+          <Button
+            id="game-hint-button"
+            variant="outline"
+            onClick={onHint}
+            disabled={hintsDisabled}
+            className="h-11 w-full justify-start gap-2 rounded-xl border-border/70 bg-background/80 px-3 text-left sm:h-12 sm:gap-3 sm:px-4"
+          >
+            <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">Hint</span>
+          </Button>
+          {!hintsDisabled && availableHints > 0 && (
+            <Badge
+              variant="secondary"
+              className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center border-0 bg-primary px-1.5 text-[10px] text-primary-foreground hover:bg-primary sm:h-6 sm:min-w-6 sm:text-xs"
+            >
+              {availableHints}
+            </Badge>
+          )}
+        </div>
+        <div className="relative">
+          {highlightBot && <FeatureDiscoveryHalo accentVar="menu-classic" />}
+          <Button
+            id="game-bot-button"
+            variant={botActive ? "default" : "outline"}
+            onClick={onToggleBot}
+            disabled={botDisabled}
+            className={cn(
+              "h-11 w-full justify-start gap-2 rounded-xl px-3 text-left sm:h-12 sm:gap-3 sm:px-4",
+              botActive
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "border-border/70 bg-background/80"
+            )}
+          >
+            <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">
+              {botActive ? "Bot On" : "Word Bot"}
+            </span>
+          </Button>
+        </div>
+      </div>
       </div>
     </header>
   );
