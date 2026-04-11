@@ -11,7 +11,6 @@ import { ArrowLeft, Trophy, Brain, Zap, Target } from "lucide-react";
 import { Leaderboard } from "@/components/Leaderboard";
 import { saveGameResult } from "@/lib/gameHistory";
 import { getInitialBotState, updateBotState, getBotNextGuess, BotState, BotDifficulty } from "@/lib/wordClashBot";
-import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { useAuth } from "@/contexts/AuthContext";
 import { evaluateGuess } from "@/lib/gameLogic";
 import {
@@ -22,6 +21,13 @@ import {
   type DailyModeLimits,
   type LimitedGameMode,
 } from "@/lib/guestLimits";
+import {
+  abandonGuestLeaderboardRound,
+  clearGuestLeaderboardSeries,
+  finishGuestLeaderboardRound,
+  getGuestLeaderboardImportPayloads,
+  startGuestLeaderboardRound,
+} from "@/lib/guestLeaderboard";
 import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { GuidedTour, hasSeenTour } from "@/components/GuidedTour";
@@ -219,9 +225,11 @@ const persistClassicCoachSeen = () => {
 
 const Index = () => {
   const { user } = useAuth();
-  const { updateStats } = useStatsUpdate();
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
-  const consumeDailyRound = useMutation(api.dailyLimits.consumeDailyRound);
+  const startSoloRoundMut = useMutation(api.leaderboards.startSoloRound);
+  const finishSoloRoundMut = useMutation(api.leaderboards.finishSoloRound);
+  const abandonSoloRoundMut = useMutation(api.leaderboards.abandonSoloRound);
+  const importGuestDailySeriesMut = useMutation(api.leaderboards.importGuestDailySeries);
   const { trackGame } = usePostHog();
   const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
   const signedInDailyModeLimits = useQuery(api.dailyLimits.getMyDailyRoundLimits, user ? {} : "skip");
@@ -261,6 +269,8 @@ const Index = () => {
     useState<ClassicCoachPhase>("inactive");
   const [activeHint, setActiveHint] = useState<ActiveHint | null>(null);
   const [eliminatedLetters, setEliminatedLetters] = useState<string[]>([]);
+  const [currentLeaderboardSlot, setCurrentLeaderboardSlot] = useState<number | null>(null);
+  const [roundHintUses, setRoundHintUses] = useState(0);
 
   // Bot state
   const [botActive, setBotActive] = useState(false);
@@ -272,6 +282,7 @@ const Index = () => {
   const handleEnterRef = useRef<() => void>(() => {});
   const pendingGameplayActionRef = useRef<(() => void) | null>(null);
   const classicCoachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const importedGuestProgressRef = useRef<string | null>(null);
 
   // Timed mode state
   const [timeLeft, setTimeLeft] = useState(TIMED_INITIAL_SECONDS);
@@ -304,6 +315,49 @@ const Index = () => {
       setGuestDailyModeLimits(getGuestDailyModeLimits());
     });
   }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      importedGuestProgressRef.current = null;
+      return;
+    }
+
+    const payloads = getGuestLeaderboardImportPayloads();
+    if (payloads.length === 0) {
+      return;
+    }
+
+    const importKey = `${user.id}:${payloads
+      .map((payload) => `${payload.mode}:${payload.dayKey}:${payload.rounds.length}`)
+      .join("|")}`;
+    if (importedGuestProgressRef.current === importKey) {
+      return;
+    }
+    importedGuestProgressRef.current = importKey;
+
+    void (async () => {
+      let importedAny = false;
+
+      for (const payload of payloads) {
+        try {
+          const result = await importGuestDailySeriesMut(payload);
+          if (result.imported) {
+            importedAny = true;
+          }
+          if (result.imported || result.reason === "existing" || result.reason === "expired") {
+            clearGuestLeaderboardSeries(payload.mode);
+          }
+        } catch {
+          importedGuestProgressRef.current = null;
+          return;
+        }
+      }
+
+      if (importedAny) {
+        toast.success("Today's daily rank progress has been saved to your account");
+      }
+    })();
+  }, [importGuestDailySeriesMut, user]);
 
   useEffect(() => {
     if (!activeHint || activeHint.turn === currentTurn) return;
@@ -440,6 +494,86 @@ const Index = () => {
     setLetterStatus(newStatus);
   };
 
+  const startTrackedSoloRound = useCallback(
+    async (mode: LimitedGameMode) => {
+      if (user) {
+        const result = await startSoloRoundMut({ mode });
+        setCurrentLeaderboardSlot(result.slot);
+      } else {
+        consumeGuestDailyRound(mode);
+        setGuestDailyModeLimits(getGuestDailyModeLimits());
+        const slot = startGuestLeaderboardRound(mode);
+        setCurrentLeaderboardSlot(slot);
+      }
+
+      setRoundHintUses(0);
+    },
+    [startSoloRoundMut, user],
+  );
+
+  const finalizeTrackedSoloRound = useCallback(
+    (args: {
+      mode: LimitedGameMode;
+      won: boolean;
+      greenLetters: number;
+      rawGuesses?: number;
+      wordsCompleted?: number;
+    }) => {
+      if (currentLeaderboardSlot === null) {
+        return;
+      }
+
+      const slot = currentLeaderboardSlot;
+      const hintUses = args.mode === "timed" ? 0 : roundHintUses;
+
+      if (user) {
+        void finishSoloRoundMut({
+          mode: args.mode,
+          slot,
+          won: args.won,
+          greenLetters: args.greenLetters,
+          ...(typeof args.rawGuesses === "number" ? { rawGuesses: args.rawGuesses } : {}),
+          ...(typeof args.wordsCompleted === "number" ? { wordsCompleted: args.wordsCompleted } : {}),
+          ...(args.mode !== "timed" ? { hintUses } : {}),
+        }).catch(() => {
+          toast.error("We couldn't save this leaderboard result.");
+        });
+      } else {
+        finishGuestLeaderboardRound({
+          mode: args.mode,
+          slot,
+          won: args.won,
+          rawGuesses: args.rawGuesses,
+          hintUses,
+          wordsCompleted: args.wordsCompleted,
+        });
+      }
+
+      setCurrentLeaderboardSlot(null);
+      setRoundHintUses(0);
+    },
+    [currentLeaderboardSlot, finishSoloRoundMut, roundHintUses, user],
+  );
+
+  const abandonTrackedSoloRound = useCallback(
+    (mode: LimitedGameMode) => {
+      if (currentLeaderboardSlot === null) {
+        return;
+      }
+
+      const slot = currentLeaderboardSlot;
+      if (user) {
+        void abandonSoloRoundMut({ mode, slot }).catch(() => null);
+      } else {
+        abandonGuestLeaderboardRound(mode, slot);
+      }
+
+      setCurrentLeaderboardSlot(null);
+      setRoundHintUses(0);
+    },
+    [abandonSoloRoundMut, currentLeaderboardSlot, user],
+  );
+
   const handleKeyPress = useCallback(
     (key: string) => {
       if (gameOver || currentGuess.length >= WORD_LENGTH) return;
@@ -528,8 +662,19 @@ const Index = () => {
       });
 
       if (user) {
-        updateStats(gameMode!, true, greenLetters, undefined, "solo");
+        finalizeTrackedSoloRound({
+          mode: gameMode as LimitedGameMode,
+          won: true,
+          greenLetters,
+          rawGuesses: newGuesses.length,
+        });
       } else {
+        finalizeTrackedSoloRound({
+          mode: gameMode as LimitedGameMode,
+          won: true,
+          greenLetters,
+          rawGuesses: newGuesses.length,
+        });
         if (gameMode === "classic" || gameMode === "hard") {
           recordGuestQuestProgress(gameMode);
         }
@@ -568,8 +713,21 @@ const Index = () => {
       }
 
       if (user && gameMode) {
-        updateStats(gameMode, false, greenLetters, undefined, "solo");
+        finalizeTrackedSoloRound({
+          mode: gameMode as LimitedGameMode,
+          won: false,
+          greenLetters,
+          rawGuesses: newGuesses.length,
+        });
       } else {
+        if (gameMode) {
+          finalizeTrackedSoloRound({
+            mode: gameMode as LimitedGameMode,
+            won: false,
+            greenLetters,
+            rawGuesses: newGuesses.length,
+          });
+        }
         if (gameMode === "classic" || gameMode === "hard") {
           recordGuestQuestProgress(gameMode);
         }
@@ -587,7 +745,20 @@ const Index = () => {
         setShowResult(true);
       }, 1500);
     }
-  }, [currentGuess, evaluations, gameMode, gameOver, guesses, maxGuesses, targetWord]);
+  }, [
+    botActive,
+    currentGuess,
+    evaluations,
+    finalizeTrackedSoloRound,
+    gameMode,
+    gameOver,
+    guesses,
+    maxGuesses,
+    targetWord,
+    trackGame,
+    updateLetterStatus,
+    user,
+  ]);
 
   // Keep ref updated with the latest handleEnter
   useEffect(() => {
@@ -597,12 +768,7 @@ const Index = () => {
   const handlePlayAgain = async () => {
     if (gameMode && gameMode !== "multiplayer") {
       try {
-        if (user) {
-          await consumeDailyRound({ mode: gameMode });
-        } else {
-          consumeGuestDailyRound(gameMode);
-          setGuestDailyModeLimits(getGuestDailyModeLimits());
-        }
+        await startTrackedSoloRound(gameMode);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Daily limit reached for this mode.");
         return;
@@ -626,6 +792,7 @@ const Index = () => {
     setEliminatedLetters([]);
     setBotActive(false);
     setBotState(getInitialBotState());
+    setRoundHintUses(0);
     if (gameMode === "timed") {
       setTimeLeft(TIMED_INITIAL_SECONDS);
       setWordsCompleted(0);
@@ -640,8 +807,9 @@ const Index = () => {
       gameMode &&
       gameMode !== "multiplayer" &&
       !gameOver &&
-      (guesses.length > 0 || totalGuesses > 0 || botActive)
+      (guesses.length > 0 || totalGuesses > 0 || botActive || currentLeaderboardSlot !== null)
     ) {
+      abandonTrackedSoloRound(gameMode);
       if (user) {
         void captureUserEvent({
           event: "game_abandoned",
@@ -683,6 +851,8 @@ const Index = () => {
     setEliminatedLetters([]);
     setBotActive(false);
     setBotState(getInitialBotState());
+    setCurrentLeaderboardSlot(null);
+    setRoundHintUses(0);
   };
 
   const performHintReveal = (trackAnalytics: boolean) => {
@@ -728,6 +898,7 @@ const Index = () => {
           trackGame("hint_used", properties);
         }
       }
+      setRoundHintUses((prev) => prev + 1);
       toast.success("Eliminated 3 letters!");
       return true;
     }
@@ -777,6 +948,7 @@ const Index = () => {
         trackGame("hint_used", properties);
       }
     }
+    setRoundHintUses((prev) => (gameMode === "timed" ? prev : prev + 1));
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
     return true;
   };
@@ -792,14 +964,9 @@ const Index = () => {
   };
 
   const handleSelectMode = async (mode: GameMode, isBot: boolean = false) => {
-    if (mode !== "multiplayer") {
+    if (mode !== "multiplayer" && !isBot) {
       try {
-        if (user) {
-          await consumeDailyRound({ mode });
-        } else {
-          consumeGuestDailyRound(mode);
-          setGuestDailyModeLimits(getGuestDailyModeLimits());
-        }
+        await startTrackedSoloRound(mode);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Daily limit reached for this mode.");
         return;
@@ -929,8 +1096,19 @@ const Index = () => {
             });
 
             if (user) {
-              updateStats("timed", wordsCompleted > 0, greenLetters, undefined, "solo");
+              finalizeTrackedSoloRound({
+                mode: "timed",
+                won: wordsCompleted > 0,
+                greenLetters,
+                wordsCompleted,
+              });
             } else {
+              finalizeTrackedSoloRound({
+                mode: "timed",
+                won: wordsCompleted > 0,
+                greenLetters,
+                wordsCompleted,
+              });
               recordGuestQuestProgress("timed");
               trackGame("game_completed", {
                 mode: "timed",
@@ -953,7 +1131,17 @@ const Index = () => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [gameMode, timedGameActive, timeLeft, wordsCompleted]);
+  }, [
+    evaluations,
+    finalizeTrackedSoloRound,
+    gameMode,
+    timedGameActive,
+    timeLeft,
+    totalGuesses,
+    trackGame,
+    user,
+    wordsCompleted,
+  ]);
 
   // Handle keyboard events
   useEffect(() => {

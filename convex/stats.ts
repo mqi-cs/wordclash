@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { MutationCtx, mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { auth } from "./auth";
@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
 
 type GameDoc = Doc<"games">;
-type GameMode = "classic" | "hard" | "timed" | "multiplayer";
+export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 type UserStatsDoc = Doc<"userStats">;
 
 const VALID_MODES: GameMode[] = ["classic", "hard", "timed", "multiplayer"];
@@ -40,6 +40,214 @@ const getPlayedCount = (stats: UserStatsDoc, mode: GameMode) => {
     case "multiplayer":
       return stats.multiplayer_played;
   }
+};
+
+type StatsUpdateInput = {
+  userId: Id<"users">;
+  mode: GameMode;
+  won: boolean;
+  greenLetters: number;
+  gameId?: Id<"games">;
+  gameType?: "solo" | "bot" | "multiplayer";
+};
+
+export const applyStatsUpdate = async (
+  ctx: MutationCtx,
+  args: StatsUpdateInput,
+) => {
+  const userId = args.userId;
+  let won = args.won;
+  let greenLetters = args.greenLetters;
+
+  // For multiplayer, verify the result from actual game data
+  if (args.mode === "multiplayer" && args.gameId) {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "finished") {
+      throw new Error("Game is not finished");
+    }
+    if (!getGamePlayerIds(game).includes(userId)) {
+      throw new Error("You are not part of this game");
+    }
+    // Derive the actual result from the game, not from client claims
+    won = game.winnerId === userId;
+
+    // Count actual green letters from guesses
+    const myGuesses = await ctx.db
+      .query("guesses")
+      .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId!).eq("playerId", userId))
+      .collect();
+    greenLetters = myGuesses.reduce((total, g) => {
+      return total + g.evaluation.filter(e => e === "correct").length;
+    }, 0);
+  }
+
+  // Clamp greenLetters to reasonable bounds for single-player modes
+  greenLetters = Math.min(Math.max(greenLetters, 0), 30);
+
+  const existingStats = await ctx.db
+    .query("userStats")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+
+  let nextStats: Omit<UserStatsDoc, "_id" | "_creationTime">;
+
+  if (!existingStats) {
+    nextStats = {
+      userId,
+      classic_played: args.mode === "classic" ? 1 : 0,
+      classic_won: args.mode === "classic" && won ? 1 : 0,
+      hard_played: args.mode === "hard" ? 1 : 0,
+      hard_won: args.mode === "hard" && won ? 1 : 0,
+      timed_played: args.mode === "timed" ? 1 : 0,
+      timed_won: args.mode === "timed" && won ? 1 : 0,
+      multiplayer_played: args.mode === "multiplayer" ? 1 : 0,
+      multiplayer_won: args.mode === "multiplayer" && won ? 1 : 0,
+      current_streak: won ? 1 : 0,
+      best_streak: won ? 1 : 0,
+      total_green_letters: greenLetters,
+    };
+    await ctx.db.insert("userStats", nextStats);
+  } else {
+    const newCurrentStreak = won ? (existingStats.current_streak || 0) + 1 : 0;
+    const newBestStreak = Math.max(newCurrentStreak, existingStats.best_streak || 0);
+    const baseUpdates = {
+      current_streak: newCurrentStreak,
+      best_streak: newBestStreak,
+      total_green_letters: (existingStats.total_green_letters || 0) + greenLetters,
+    };
+
+    switch (args.mode) {
+      case "classic":
+        nextStats = {
+          ...existingStats,
+          ...baseUpdates,
+          classic_played: existingStats.classic_played + 1,
+          classic_won: existingStats.classic_won + (won ? 1 : 0),
+        };
+        break;
+      case "hard":
+        nextStats = {
+          ...existingStats,
+          ...baseUpdates,
+          hard_played: existingStats.hard_played + 1,
+          hard_won: existingStats.hard_won + (won ? 1 : 0),
+        };
+        break;
+      case "timed":
+        nextStats = {
+          ...existingStats,
+          ...baseUpdates,
+          timed_played: existingStats.timed_played + 1,
+          timed_won: existingStats.timed_won + (won ? 1 : 0),
+        };
+        break;
+      case "multiplayer":
+        nextStats = {
+          ...existingStats,
+          ...baseUpdates,
+          multiplayer_played: existingStats.multiplayer_played + 1,
+          multiplayer_won: existingStats.multiplayer_won + (won ? 1 : 0),
+        };
+        break;
+    }
+
+    await ctx.db.patch(existingStats._id, {
+      classic_played: nextStats.classic_played,
+      classic_won: nextStats.classic_won,
+      hard_played: nextStats.hard_played,
+      hard_won: nextStats.hard_won,
+      timed_played: nextStats.timed_played,
+      timed_won: nextStats.timed_won,
+      multiplayer_played: nextStats.multiplayer_played,
+      multiplayer_won: nextStats.multiplayer_won,
+      current_streak: nextStats.current_streak,
+      best_streak: nextStats.best_streak,
+      total_green_letters: nextStats.total_green_letters,
+    });
+  }
+
+  // Also progress daily quests
+  await ctx.runMutation(internal.cosmetics.internalRecordQuestProgress, {
+    userId,
+    mode: args.mode,
+    won,
+    greenLetters,
+  });
+
+  const completedMetrics = await incrementMetric(
+    ctx,
+    ANALYTICS_METRICS.gamesCompleted,
+    userId,
+  );
+
+  const analyticsProperties = {
+    metric_day: completedMetrics.dayKey,
+    games_completed_total: completedMetrics.totalCount,
+    games_completed_today_total: completedMetrics.todayTotalCount,
+    games_completed_by_user_total: completedMetrics.userTotalCount,
+    games_completed_by_user_today: completedMetrics.userTodayCount,
+  };
+
+  const totalGamesPlayed =
+    nextStats.classic_played +
+    nextStats.hard_played +
+    nextStats.timed_played +
+    nextStats.multiplayer_played;
+
+  const userProperties = {
+    total_games_played: totalGamesPlayed,
+    total_games_completed: totalGamesPlayed,
+    games_played_today: completedMetrics.userTodayCount,
+    games_completed_today: completedMetrics.userTodayCount,
+    classic_games_played: nextStats.classic_played,
+    hard_games_played: nextStats.hard_played,
+    timed_games_played: nextStats.timed_played,
+    multiplayer_games_played: nextStats.multiplayer_played,
+    current_streak: nextStats.current_streak,
+    highest_streak: nextStats.best_streak,
+    total_green_letters: nextStats.total_green_letters,
+    last_game_mode: args.mode,
+    last_game_type:
+      args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
+    last_game_completed_at: Date.now(),
+    has_signed_up: true,
+  };
+
+  ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    distinctId: userId,
+    event: "game_completed",
+    properties: {
+      mode: args.mode,
+      game_type:
+        args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
+      won,
+      green_letters: greenLetters,
+      game_id: args.gameId,
+      ...analyticsProperties,
+    },
+    personProperties: userProperties,
+  });
+
+  ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    distinctId: userId,
+    event: "stats_updated",
+    properties: {
+      mode: args.mode,
+      game_type:
+        args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
+      won,
+      green_letters: greenLetters,
+      game_id: args.gameId,
+      ...analyticsProperties,
+    },
+    personProperties: userProperties,
+  });
+
+  return {
+    won,
+    greenLetters,
+    nextStats,
+  };
 };
 
 // Fetch leaderboard — bounded scan with take()
@@ -102,192 +310,13 @@ export const updateStats = mutation({
     if (!userId) {
       throw new Error("Must be logged in to update stats");
     }
-
-    let won = args.won;
-    let greenLetters = args.greenLetters;
-
-    // For multiplayer, verify the result from actual game data
-    if (args.mode === "multiplayer" && args.gameId) {
-      const game = await ctx.db.get(args.gameId);
-      if (!game || game.status !== "finished") {
-        throw new Error("Game is not finished");
-      }
-      if (!getGamePlayerIds(game).includes(userId)) {
-        throw new Error("You are not part of this game");
-      }
-      // Derive the actual result from the game, not from client claims
-      won = game.winnerId === userId;
-
-      // Count actual green letters from guesses
-      const myGuesses = await ctx.db
-        .query("guesses")
-        .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId!).eq("playerId", userId))
-        .collect();
-      greenLetters = myGuesses.reduce((total, g) => {
-        return total + g.evaluation.filter(e => e === "correct").length;
-      }, 0);
-    }
-
-    // Clamp greenLetters to reasonable bounds for single-player modes
-    greenLetters = Math.min(Math.max(greenLetters, 0), 30);
-
-    const existingStats = await ctx.db
-      .query("userStats")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-
-    let nextStats: Omit<UserStatsDoc, "_id" | "_creationTime">;
-
-    if (!existingStats) {
-      nextStats = {
-        userId,
-        classic_played: args.mode === "classic" ? 1 : 0,
-        classic_won: args.mode === "classic" && won ? 1 : 0,
-        hard_played: args.mode === "hard" ? 1 : 0,
-        hard_won: args.mode === "hard" && won ? 1 : 0,
-        timed_played: args.mode === "timed" ? 1 : 0,
-        timed_won: args.mode === "timed" && won ? 1 : 0,
-        multiplayer_played: args.mode === "multiplayer" ? 1 : 0,
-        multiplayer_won: args.mode === "multiplayer" && won ? 1 : 0,
-        current_streak: won ? 1 : 0,
-        best_streak: won ? 1 : 0,
-        total_green_letters: greenLetters,
-      };
-      await ctx.db.insert("userStats", nextStats);
-    } else {
-      const newCurrentStreak = won ? (existingStats.current_streak || 0) + 1 : 0;
-      const newBestStreak = Math.max(newCurrentStreak, existingStats.best_streak || 0);
-      const baseUpdates = {
-        current_streak: newCurrentStreak,
-        best_streak: newBestStreak,
-        total_green_letters: (existingStats.total_green_letters || 0) + greenLetters,
-      };
-
-      switch (args.mode) {
-        case "classic":
-          nextStats = {
-            ...existingStats,
-            ...baseUpdates,
-            classic_played: existingStats.classic_played + 1,
-            classic_won: existingStats.classic_won + (won ? 1 : 0),
-          };
-          break;
-        case "hard":
-          nextStats = {
-            ...existingStats,
-            ...baseUpdates,
-            hard_played: existingStats.hard_played + 1,
-            hard_won: existingStats.hard_won + (won ? 1 : 0),
-          };
-          break;
-        case "timed":
-          nextStats = {
-            ...existingStats,
-            ...baseUpdates,
-            timed_played: existingStats.timed_played + 1,
-            timed_won: existingStats.timed_won + (won ? 1 : 0),
-          };
-          break;
-        case "multiplayer":
-          nextStats = {
-            ...existingStats,
-            ...baseUpdates,
-            multiplayer_played: existingStats.multiplayer_played + 1,
-            multiplayer_won: existingStats.multiplayer_won + (won ? 1 : 0),
-          };
-          break;
-      }
-
-      await ctx.db.patch(existingStats._id, {
-        classic_played: nextStats.classic_played,
-        classic_won: nextStats.classic_won,
-        hard_played: nextStats.hard_played,
-        hard_won: nextStats.hard_won,
-        timed_played: nextStats.timed_played,
-        timed_won: nextStats.timed_won,
-        multiplayer_played: nextStats.multiplayer_played,
-        multiplayer_won: nextStats.multiplayer_won,
-        current_streak: nextStats.current_streak,
-        best_streak: nextStats.best_streak,
-        total_green_letters: nextStats.total_green_letters,
-      });
-    }
-
-    // Also progress daily quests
-    await ctx.runMutation(internal.cosmetics.internalRecordQuestProgress, {
+    await applyStatsUpdate(ctx, {
       userId,
       mode: args.mode,
-      won,
-      greenLetters,
-    });
-
-    const completedMetrics = await incrementMetric(
-      ctx,
-      ANALYTICS_METRICS.gamesCompleted,
-      userId,
-    );
-
-    const analyticsProperties = {
-      metric_day: completedMetrics.dayKey,
-      games_completed_total: completedMetrics.totalCount,
-      games_completed_today_total: completedMetrics.todayTotalCount,
-      games_completed_by_user_total: completedMetrics.userTotalCount,
-      games_completed_by_user_today: completedMetrics.userTodayCount,
-    };
-
-    const totalGamesPlayed =
-      nextStats.classic_played +
-      nextStats.hard_played +
-      nextStats.timed_played +
-      nextStats.multiplayer_played;
-
-    const userProperties = {
-      total_games_played: totalGamesPlayed,
-      total_games_completed: totalGamesPlayed,
-      games_played_today: completedMetrics.userTodayCount,
-      games_completed_today: completedMetrics.userTodayCount,
-      classic_games_played: nextStats.classic_played,
-      hard_games_played: nextStats.hard_played,
-      timed_games_played: nextStats.timed_played,
-      multiplayer_games_played: nextStats.multiplayer_played,
-      current_streak: nextStats.current_streak,
-      highest_streak: nextStats.best_streak,
-      total_green_letters: nextStats.total_green_letters,
-      last_game_mode: args.mode,
-      last_game_type:
-        args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
-      last_game_completed_at: Date.now(),
-      has_signed_up: true,
-    };
-
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
-      distinctId: userId,
-      event: "game_completed",
-      properties: {
-        mode: args.mode,
-        game_type:
-          args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
-        won,
-        green_letters: greenLetters,
-        game_id: args.gameId,
-        ...analyticsProperties,
-      },
-      personProperties: userProperties,
-    });
-
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
-      distinctId: userId,
-      event: "stats_updated",
-      properties: {
-        mode: args.mode,
-        game_type:
-          args.gameType ?? (args.mode === "multiplayer" ? "multiplayer" : "solo"),
-        won,
-        green_letters: greenLetters,
-        game_id: args.gameId,
-        ...analyticsProperties,
-      },
-      personProperties: userProperties,
+      won: args.won,
+      greenLetters: args.greenLetters,
+      gameId: args.gameId,
+      gameType: args.gameType,
     });
   },
 });

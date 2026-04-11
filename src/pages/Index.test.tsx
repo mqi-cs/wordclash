@@ -20,8 +20,20 @@ vi.mock("@/contexts/AuthContext", () => ({
     useAuth: vi.fn(),
 }));
 
-vi.mock("@/hooks/useStatsUpdate", () => ({
-    useStatsUpdate: () => ({ updateStats: vi.fn() }),
+vi.mock("convex/react", () => ({
+    useMutation: () =>
+        vi.fn(async () => ({
+            slot: 1,
+            imported: false,
+            reason: "existing",
+        })),
+    useQuery: () => undefined,
+}));
+
+vi.mock("@/contexts/PostHogContext", () => ({
+    usePostHog: () => ({
+        trackGame: vi.fn(),
+    }),
 }));
 
 vi.mock("@/components/OpenGames", () => ({ OpenGames: () => <div>Mock OpenGames</div> }));

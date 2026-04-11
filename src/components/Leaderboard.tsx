@@ -1,140 +1,340 @@
-import { GameMode } from "./GameMenu";
-import { getGameHistory, GameResult } from "@/lib/gameHistory";
+import { useEffect, useMemo, useState } from "react";
+import { Trophy } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  getGuestLeaderboardSeries,
+  subscribeToGuestLeaderboard,
+  type GuestLeaderboardMode,
+  type GuestLeaderboardRound,
+  type GuestLeaderboardSeries,
+} from "@/lib/guestLeaderboard";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Trophy, Target } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type LeaderboardMode = GuestLeaderboardMode;
+type LeaderboardPeriod = "daily" | "weekly";
+
+type Cell =
+  | { kind: "score"; value: number }
+  | { kind: "failed" }
+  | { kind: "empty" };
+
+type LeaderboardRow = {
+  rank?: number;
+  username: string;
+  status: "qualified" | "in_progress" | "disqualified";
+  cells: [Cell, Cell, Cell];
+  total: Cell;
+  sourceDayKey?: string;
+};
+
+type LeaderboardRowLike = Omit<LeaderboardRow, "cells"> & {
+  cells: Cell[];
+};
+
+type DisplayRow = LeaderboardRow & {
+  key: string;
+  isGuestPreview?: boolean;
+  isViewerRow?: boolean;
+};
 
 interface LeaderboardProps {
   open: boolean;
   onClose: () => void;
 }
 
-const formatDate = (timestamp: number) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-  
-  if (diffInMinutes < 1) return "Just now";
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-  return date.toLocaleDateString();
+const getModeHintCopy = (mode: LeaderboardMode) =>
+  mode === "timed"
+    ? "Timed totals are the total words completed across 3 sessions."
+    : "Classic and Hard totals include a +1 guess penalty for every hint used.";
+
+const cellToText = (cell: Cell) => {
+  if (cell.kind === "score") return String(cell.value);
+  if (cell.kind === "failed") return "×";
+  return "—";
 };
 
-const GameResultRow = ({ result, index }: { result: GameResult; index: number }) => {
-  return (
-    <div className="flex items-center justify-between rounded-[1.35rem] border border-border/70 bg-background/55 p-4 transition-colors hover:bg-accent/70">
-      <div className="flex items-center gap-4">
-        <span className="text-sm font-medium text-muted-foreground w-6">#{index + 1}</span>
-        {result.won ? (
-          <CheckCircle className="w-5 h-5 text-[hsl(var(--menu-classic))]" />
-        ) : (
-          <XCircle className="w-5 h-5 text-destructive" />
-        )}
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">
-            {result.won ? "Won" : "Lost"}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {formatDate(result.timestamp)}
-          </span>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-4">
-        {result.mode === "timed" ? (
-          <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="text-sm font-bold">{result.wordsCompleted || 0}</span>
-            <span className="text-xs text-muted-foreground">words</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-primary" />
-            <span className="text-sm font-bold">{result.guesses}</span>
-            <span className="text-xs text-muted-foreground">guesses</span>
-          </div>
-        )}
-        
-        <div className="flex items-center gap-2 min-w-[80px] justify-end">
-          <div className="w-4 h-4 rounded-sm bg-[hsl(var(--menu-classic))]" />
-          <span className="text-sm font-bold">{result.greenLetters}</span>
-        </div>
-      </div>
-    </div>
-  );
+const toGuestCell = (mode: LeaderboardMode, round: GuestLeaderboardRound | undefined): Cell => {
+  if (!round || round.status === "in_progress") {
+    return { kind: "empty" };
+  }
+
+  if (mode === "timed") {
+    if (round.status === "abandoned") {
+      return { kind: "failed" };
+    }
+    return {
+      kind: "score",
+      value: round.wordsCompleted ?? round.adjustedScore ?? 0,
+    };
+  }
+
+  if (round.status === "won") {
+    return {
+      kind: "score",
+      value: round.adjustedScore ?? 0,
+    };
+  }
+
+  return { kind: "failed" };
 };
 
-const ModeLeaderboard = ({ mode }: { mode: GameMode }) => {
-  const history = getGameHistory();
-  const modeHistory = history[mode] || [];
+const toGuestRow = (
+  series: GuestLeaderboardSeries,
+  rank?: number,
+): DisplayRow => {
+  const rounds = [...series.rounds].sort((a, b) => a.slot - b.slot);
+  const cells = [1, 2, 3].map((slot) => toGuestCell(series.mode, rounds.find((round) => round.slot === slot))) as [
+    Cell,
+    Cell,
+    Cell,
+  ];
 
-  if (modeHistory.length === 0) {
+  return {
+    key: `guest-${series.mode}-${series.dayKey}`,
+    username: "You (guest)",
+    ...(typeof rank === "number" ? { rank } : {}),
+    status: series.rankingStatus,
+    cells,
+    total:
+      series.rankingStatus === "qualified" && typeof series.totalScore === "number"
+        ? { kind: "score", value: series.totalScore }
+        : series.rankingStatus === "disqualified"
+          ? { kind: "failed" }
+          : { kind: "empty" },
+    isGuestPreview: true,
+    sourceDayKey: series.dayKey,
+  };
+};
+
+const buildDisplayRows = (
+  rankedRows: LeaderboardRowLike[],
+  viewerRow: LeaderboardRowLike | null | undefined,
+  guestSeries: GuestLeaderboardSeries | null,
+  projectedGuestRank: number | null | undefined,
+  showGuestProjection: boolean,
+): DisplayRow[] => {
+  const baseRows: DisplayRow[] = rankedRows.map((row, index) => ({
+    ...row,
+    cells: row.cells as [Cell, Cell, Cell],
+    rank: index + 1,
+    key: `ranked-${row.username}-${index}`,
+  }));
+
+  if (showGuestProjection && guestSeries) {
+    if (
+      guestSeries.rankingStatus === "qualified" &&
+      typeof projectedGuestRank === "number" &&
+      projectedGuestRank <= 10
+    ) {
+      const guestRow = toGuestRow(guestSeries, projectedGuestRank);
+      const withGuest = [...baseRows];
+      withGuest.splice(projectedGuestRank - 1, 0, guestRow);
+
+      return withGuest.slice(0, 10).map((row, index) => ({
+        ...row,
+        ...(row.status === "qualified" ? { rank: index + 1 } : {}),
+      }));
+    }
+
+    const guestRow = toGuestRow(
+      guestSeries,
+      guestSeries.rankingStatus === "qualified" ? projectedGuestRank ?? undefined : undefined,
+    );
+    return [...baseRows, guestRow];
+  }
+
+  if (viewerRow) {
+    return [
+      ...baseRows,
+      {
+        ...viewerRow,
+        cells: viewerRow.cells as [Cell, Cell, Cell],
+        key: `viewer-${viewerRow.username}-${viewerRow.sourceDayKey ?? "current"}`,
+        isViewerRow: true,
+      },
+    ];
+  }
+
+  return baseRows;
+};
+
+const LeaderboardTable = ({ rows }: { rows: DisplayRow[] }) => {
+  if (rows.length === 0) {
     return (
-      <div className="text-center py-12">
-        <Trophy className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-        <p className="text-muted-foreground">No games played yet in {mode} mode</p>
-        <p className="text-sm text-muted-foreground mt-2">Start playing to see your history!</p>
+      <div className="rounded-[1.4rem] border border-dashed border-border/70 bg-background/50 px-6 py-12 text-center">
+        <Trophy className="mx-auto mb-4 h-10 w-10 text-muted-foreground/60" />
+        <p className="text-sm font-medium text-muted-foreground">
+          No ranked runs yet for this filter.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {modeHistory.map((result, index) => (
-        <GameResultRow key={result.timestamp} result={result} index={index} />
-      ))}
+    <div className="overflow-x-auto rounded-[1.4rem] border border-border/70 bg-background/45">
+      <table className="w-full min-w-[680px] border-collapse text-left">
+        <thead>
+          <tr className="border-b border-border/70 bg-background/70 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <th className="px-4 py-3 font-semibold">Rank</th>
+            <th className="px-4 py-3 font-semibold">Player</th>
+            <th className="px-4 py-3 text-center font-semibold">First</th>
+            <th className="px-4 py-3 text-center font-semibold">Second</th>
+            <th className="px-4 py-3 text-center font-semibold">Third</th>
+            <th className="px-4 py-3 text-center font-semibold">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.key}
+              className={cn(
+                "border-b border-border/60 last:border-b-0",
+                row.isGuestPreview && "bg-primary/5",
+                row.isViewerRow && "bg-amber-400/6",
+              )}
+            >
+              <td className="px-4 py-4 text-sm font-semibold text-foreground">
+                {typeof row.rank === "number" ? `#${row.rank}` : "—"}
+              </td>
+              <td className="px-4 py-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground">{row.username}</span>
+                  {row.isGuestPreview && (
+                    <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[11px]">
+                      Preview
+                    </Badge>
+                  )}
+                  {row.isViewerRow && (
+                    <Badge variant="outline" className="border-amber-400/40 bg-amber-400/10 text-[11px]">
+                      You
+                    </Badge>
+                  )}
+                  {row.status === "disqualified" && (
+                    <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-[11px]">
+                      Disqualified
+                    </Badge>
+                  )}
+                  {row.status === "in_progress" && (
+                    <Badge variant="outline" className="border-border/70 bg-background/70 text-[11px]">
+                      In Progress
+                    </Badge>
+                  )}
+                </div>
+                {row.sourceDayKey && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {row.isGuestPreview ? "Today only" : `Source day: ${row.sourceDayKey}`}
+                  </p>
+                )}
+              </td>
+              {row.cells.map((cell, index) => (
+                <td key={`${row.key}-cell-${index}`} className="px-4 py-4 text-center text-sm font-semibold text-foreground">
+                  {cellToText(cell)}
+                </td>
+              ))}
+              <td className="px-4 py-4 text-center text-sm font-bold text-foreground">
+                {cellToText(row.total)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
 
 export const Leaderboard = ({ open, onClose }: LeaderboardProps) => {
+  const { user } = useAuth();
+  const [mode, setMode] = useState<LeaderboardMode>("classic");
+  const [period, setPeriod] = useState<LeaderboardPeriod>("daily");
+  const [guestSeries, setGuestSeries] = useState<GuestLeaderboardSeries | null>(() =>
+    getGuestLeaderboardSeries("classic"),
+  );
+
+  const leaderboard = useQuery(api.leaderboards.getLeaderboard, { mode, period });
+  const projectedGuestRank = useQuery(
+    api.leaderboards.getGuestProjectedRank,
+    !user && period === "daily" && guestSeries
+      ? {
+          mode,
+          rankingStatus: guestSeries.rankingStatus,
+          totalHintsUsed: guestSeries.totalHintsUsed,
+          ...(typeof guestSeries.totalScore === "number" ? { totalScore: guestSeries.totalScore } : {}),
+          ...(typeof guestSeries.completedAt === "number" ? { completedAt: guestSeries.completedAt } : {}),
+        }
+      : "skip",
+  );
+
+  useEffect(() => {
+    setGuestSeries(getGuestLeaderboardSeries(mode));
+    return subscribeToGuestLeaderboard(() => {
+      setGuestSeries(getGuestLeaderboardSeries(mode));
+    });
+  }, [mode]);
+
+  const rows = useMemo(() => {
+    const rankedRows = (leaderboard?.rankedRows ?? []) as LeaderboardRowLike[];
+    const viewerRow = (leaderboard?.viewerRow ?? null) as LeaderboardRowLike | null;
+
+    return buildDisplayRows(
+      rankedRows,
+      viewerRow,
+      guestSeries,
+      projectedGuestRank?.rank ?? null,
+      !user && period === "daily",
+    );
+  }, [guestSeries, leaderboard?.rankedRows, leaderboard?.viewerRow, period, projectedGuestRank?.rank, user]);
+
+  const helperCopy = useMemo(() => {
+    if (!user && period === "daily") {
+      return "This is your projected rank for today only. Sign in to save this ranking.";
+    }
+    return getModeHintCopy(mode);
+  }, [mode, period, user]);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto border-border/70 bg-card/90">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-400" />
-            Game History
+      <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto border-border/70 bg-card/92">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center gap-2 text-2xl">
+            <Trophy className="h-5 w-5 text-amber-400" />
+            Ranked Leaderboards
           </DialogTitle>
+          <p className="text-sm leading-6 text-muted-foreground">{helperCopy}</p>
         </DialogHeader>
-        
+
         <div className="space-y-4">
-          <div className="flex gap-4 text-xs text-muted-foreground justify-end px-4">
-            <span className="flex items-center gap-1">
-              <Target className="w-3 h-3" />
-              Guesses/Words
-            </span>
-            <span className="flex items-center gap-1 min-w-[80px] justify-end">
-              <div className="w-3 h-3 rounded-sm bg-[hsl(var(--menu-classic))]" />
-              Green Letters
-            </span>
-          </div>
-          
-          <Tabs defaultValue="classic" className="w-full">
+          <Tabs value={period} onValueChange={(value) => setPeriod(value as LeaderboardPeriod)}>
+            <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-border/70 bg-background/60 p-1">
+              <TabsTrigger value="daily">Daily</TabsTrigger>
+              <TabsTrigger value="weekly">Weekly</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <Tabs value={mode} onValueChange={(value) => setMode(value as LeaderboardMode)}>
             <TabsList className="grid w-full grid-cols-3 rounded-2xl border border-border/70 bg-background/60 p-1">
               <TabsTrigger value="classic">Classic</TabsTrigger>
               <TabsTrigger value="hard">Hard</TabsTrigger>
               <TabsTrigger value="timed">Timed</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="classic" className="mt-4">
-              <ModeLeaderboard mode="classic" />
-            </TabsContent>
-            
-            <TabsContent value="hard" className="mt-4">
-              <ModeLeaderboard mode="hard" />
-            </TabsContent>
-            
-            <TabsContent value="timed" className="mt-4">
-              <ModeLeaderboard mode="timed" />
-            </TabsContent>
           </Tabs>
+
+          {leaderboard === undefined ? (
+            <div className="rounded-[1.4rem] border border-border/70 bg-background/50 px-6 py-12 text-center text-sm text-muted-foreground">
+              Loading rankings...
+            </div>
+          ) : (
+            <LeaderboardTable rows={rows} />
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -4,6 +4,29 @@ import { v } from "convex/values";
 
 const { users: _authUsers, ...restAuthTables } = authTables;
 
+const leaderboardModeValidator = v.union(
+  v.literal("classic"),
+  v.literal("hard"),
+  v.literal("timed"),
+);
+
+const leaderboardRoundValidator = v.object({
+  slot: v.number(),
+  status: v.union(
+    v.literal("in_progress"),
+    v.literal("won"),
+    v.literal("lost"),
+    v.literal("abandoned"),
+  ),
+  rawGuesses: v.optional(v.number()),
+  hintUses: v.optional(v.number()),
+  adjustedScore: v.optional(v.number()),
+  wordsCompleted: v.optional(v.number()),
+  startedAt: v.number(),
+  finishedAt: v.optional(v.number()),
+  importedFromGuest: v.optional(v.boolean()),
+});
+
 export default defineSchema({
   ...restAuthTables,
 
@@ -55,6 +78,59 @@ export default defineSchema({
     .index("by_metric_and_user", ["metric", "userId"])
     .index("by_metric_and_day", ["metric", "dayKey"])
     .index("by_metric_user_and_day", ["metric", "userId", "dayKey"]),
+
+  leaderboardSeries: defineTable({
+    userId: v.id("users"),
+    mode: leaderboardModeValidator,
+    dayKey: v.string(),
+    weekKey: v.string(),
+    rankingStatus: v.union(
+      v.literal("in_progress"),
+      v.literal("qualified"),
+      v.literal("disqualified"),
+    ),
+    totalScore: v.optional(v.number()),
+    sortScore: v.optional(v.number()),
+    totalHintsUsed: v.number(),
+    completedAt: v.optional(v.number()),
+    displayName: v.string(),
+    usernameLower: v.string(),
+    rounds: v.array(leaderboardRoundValidator),
+  })
+    .index("by_user_mode_day", ["userId", "mode", "dayKey"])
+    .index("by_mode_day_status_sort_hints_done_name", [
+      "mode",
+      "dayKey",
+      "rankingStatus",
+      "sortScore",
+      "totalHintsUsed",
+      "completedAt",
+      "usernameLower",
+    ]),
+
+  leaderboardWeeklyBest: defineTable({
+    userId: v.id("users"),
+    mode: leaderboardModeValidator,
+    weekKey: v.string(),
+    sourceSeriesId: v.id("leaderboardSeries"),
+    sourceDayKey: v.string(),
+    totalScore: v.number(),
+    sortScore: v.number(),
+    totalHintsUsed: v.number(),
+    completedAt: v.number(),
+    displayName: v.string(),
+    usernameLower: v.string(),
+    rounds: v.array(leaderboardRoundValidator),
+  })
+    .index("by_user_mode_week", ["userId", "mode", "weekKey"])
+    .index("by_mode_week_sort_hints_done_name", [
+      "mode",
+      "weekKey",
+      "sortScore",
+      "totalHintsUsed",
+      "completedAt",
+      "usernameLower",
+    ]),
 
   // Friendships
   friendships: defineTable({

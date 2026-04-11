@@ -18,6 +18,7 @@ import type * as friends from "../friends.js";
 import type * as games from "../games.js";
 import type * as guesses from "../guesses.js";
 import type * as http from "../http.js";
+import type * as leaderboards from "../leaderboards.js";
 import type * as matchmaking from "../matchmaking.js";
 import type * as passwordSignup from "../passwordSignup.js";
 import type * as posthog from "../posthog.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   games: typeof games;
   guesses: typeof guesses;
   http: typeof http;
+  leaderboards: typeof leaderboards;
   matchmaking: typeof matchmaking;
   passwordSignup: typeof passwordSignup;
   posthog: typeof posthog;

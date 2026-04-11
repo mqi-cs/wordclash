@@ -1,12 +1,13 @@
-import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+import { MutationCtx, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
 
-const DAILY_MODE_ROUND_LIMIT = 3;
-const LIMITED_MODES = ["classic", "hard", "timed"] as const;
-type LimitedMode = (typeof LIMITED_MODES)[number];
+export const DAILY_MODE_ROUND_LIMIT = 3;
+export const LIMITED_MODES = ["classic", "hard", "timed"] as const;
+export type LimitedMode = (typeof LIMITED_MODES)[number];
 
-const getTodayKey = () => {
+export const getTodayKey = () => {
   const now = new Date();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(
     now.getUTCDate(),
@@ -15,11 +16,96 @@ const getTodayKey = () => {
 
 const getMetricForMode = (mode: LimitedMode) => `daily_rounds_${mode}`;
 
-const buildModeStatus = (played: number) => ({
+export const buildModeStatus = (played: number) => ({
   played,
   remaining: Math.max(0, DAILY_MODE_ROUND_LIMIT - played),
   reached: played >= DAILY_MODE_ROUND_LIMIT,
 });
+
+const getExistingCounter = async (
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  mode: LimitedMode,
+  dayKey: string,
+) =>
+  await ctx.db
+    .query("analyticsCounters")
+    .withIndex("by_metric_user_and_day", (q) =>
+      q.eq("metric", getMetricForMode(mode)).eq("userId", userId).eq("dayKey", dayKey),
+    )
+    .unique();
+
+export const consumeDailyRoundForUser = async (
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  mode: LimitedMode,
+) => {
+  const dayKey = getTodayKey();
+  const existing = await getExistingCounter(ctx, userId, mode, dayKey);
+  const currentPlayed = existing?.value ?? 0;
+
+  if (currentPlayed >= DAILY_MODE_ROUND_LIMIT) {
+    throw new Error(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
+  }
+
+  const nextPlayed = currentPlayed + 1;
+
+  if (existing) {
+    await ctx.db.patch(existing._id, { value: nextPlayed });
+  } else {
+    await ctx.db.insert("analyticsCounters", {
+      metric: getMetricForMode(mode),
+      userId,
+      dayKey,
+      value: nextPlayed,
+    });
+  }
+
+  return {
+    mode,
+    ...buildModeStatus(nextPlayed),
+    limit: DAILY_MODE_ROUND_LIMIT,
+    dayKey,
+  };
+};
+
+export const syncDailyRoundUsageForUser = async (
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  mode: LimitedMode,
+  usedRounds: number,
+) => {
+  const clampedUsedRounds = Math.min(Math.max(usedRounds, 0), DAILY_MODE_ROUND_LIMIT);
+  const dayKey = getTodayKey();
+  const existing = await getExistingCounter(ctx, userId, mode, dayKey);
+
+  if (existing) {
+    if (existing.value >= clampedUsedRounds) {
+      return {
+        mode,
+        ...buildModeStatus(existing.value),
+        limit: DAILY_MODE_ROUND_LIMIT,
+        dayKey,
+      };
+    }
+
+    await ctx.db.patch(existing._id, { value: clampedUsedRounds });
+  } else {
+    await ctx.db.insert("analyticsCounters", {
+      metric: getMetricForMode(mode),
+      userId,
+      dayKey,
+      value: clampedUsedRounds,
+    });
+  }
+
+  return {
+    mode,
+    ...buildModeStatus(clampedUsedRounds),
+    limit: DAILY_MODE_ROUND_LIMIT,
+    dayKey,
+  };
+};
 
 export const getMyDailyRoundLimits = query({
   args: {},
@@ -78,38 +164,6 @@ export const consumeDailyRound = mutation({
       throw new Error("Must be logged in");
     }
 
-    const dayKey = getTodayKey();
-    const metric = getMetricForMode(args.mode);
-    const existing = await ctx.db
-      .query("analyticsCounters")
-      .withIndex("by_metric_user_and_day", (q) =>
-        q.eq("metric", metric).eq("userId", userId).eq("dayKey", dayKey),
-      )
-      .unique();
-
-    const currentPlayed = existing?.value ?? 0;
-    if (currentPlayed >= DAILY_MODE_ROUND_LIMIT) {
-      throw new Error(`Daily limit reached for ${args.mode} mode. Come back tomorrow.`);
-    }
-
-    const nextPlayed = currentPlayed + 1;
-
-    if (existing) {
-      await ctx.db.patch(existing._id, { value: nextPlayed });
-    } else {
-      await ctx.db.insert("analyticsCounters", {
-        metric,
-        userId,
-        dayKey,
-        value: nextPlayed,
-      });
-    }
-
-    return {
-      mode: args.mode,
-      ...buildModeStatus(nextPlayed),
-      limit: DAILY_MODE_ROUND_LIMIT,
-      dayKey,
-    };
+    return await consumeDailyRoundForUser(ctx, userId, args.mode);
   },
 });
