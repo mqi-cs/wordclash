@@ -57,9 +57,9 @@ export const GameHeader = ({
             variant="outline"
             onClick={onHint}
             disabled={hintsDisabled}
-            className="h-11 w-full justify-start gap-2 rounded-xl border-border/70 bg-background/80 px-3 text-left sm:h-12 sm:gap-3 sm:px-4"
+            className="h-11 w-full justify-start gap-2 rounded-xl border-purple-500/30 bg-purple-500/10 px-3 text-left text-purple-200 hover:bg-purple-500/15 hover:text-purple-100 sm:h-12 sm:gap-3 sm:px-4"
           >
-            <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Lightbulb className="h-4 w-4 text-purple-300 sm:h-5 sm:w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">Hint</span>
           </Button>
           {!hintsDisabled && availableHints > 0 && (
@@ -81,11 +81,11 @@ export const GameHeader = ({
             className={cn(
               "h-11 w-full justify-start gap-2 rounded-xl px-3 text-left sm:h-12 sm:gap-3 sm:px-4",
               botActive
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                : "border-border/70 bg-background/80"
+                ? "bg-red-600 text-white hover:bg-red-600/90"
+                : "border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/15 hover:text-red-100"
             )}
           >
-            <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Bot className="h-4 w-4 text-red-300 sm:h-5 sm:w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">
               {botActive ? "Bot On" : "Word Bot"}
             </span>

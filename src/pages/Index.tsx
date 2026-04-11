@@ -1086,8 +1086,8 @@ const Index = () => {
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col items-center justify-center gap-2 sm:gap-4 py-1 sm:py-2 px-2 sm:px-4 min-h-0 overflow-hidden">
-        <div className="w-full flex items-center justify-center min-h-0 overflow-hidden">
+      <main className="flex-1 flex min-h-0 flex-col items-center justify-start gap-2 overflow-y-auto px-2 py-2 sm:justify-center sm:gap-4 sm:overflow-hidden sm:px-4 sm:py-2">
+        <div className="flex w-full min-h-0 items-start justify-center overflow-visible pt-1 sm:items-center sm:overflow-hidden sm:pt-0">
           <GameGrid
             guesses={guesses}
             currentGuess={currentGuess}
@@ -1101,7 +1101,7 @@ const Index = () => {
           />
         </div>
 
-        <div className="flex-shrink-0 w-full flex justify-center pb-1">
+        <div className="flex w-full flex-shrink-0 justify-center pb-1 pt-1 sm:pt-0">
           <Keyboard
             onKeyPress={handleKeyPress}
             onEnter={handleEnter}
