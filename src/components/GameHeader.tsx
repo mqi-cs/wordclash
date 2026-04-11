@@ -54,6 +54,7 @@ export const GameHeader = ({
           {highlightHints && <FeatureDiscoveryHalo accentVar="menu-timed" />}
           <Button
             id="game-hint-button"
+            type="button"
             variant="outline"
             onClick={onHint}
             disabled={hintsDisabled}
@@ -75,6 +76,7 @@ export const GameHeader = ({
           {highlightBot && <FeatureDiscoveryHalo accentVar="menu-classic" />}
           <Button
             id="game-bot-button"
+            type="button"
             variant={botActive ? "default" : "outline"}
             onClick={onToggleBot}
             disabled={botDisabled}

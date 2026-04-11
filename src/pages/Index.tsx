@@ -828,6 +828,7 @@ const Index = () => {
 
   const openBotDifficultyPicker = () => {
     setShowBotDifficultyModal(true);
+    toast.info("Choose a bot difficulty");
   };
 
   const handleToggleBot = () => {
