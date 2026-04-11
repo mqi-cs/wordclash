@@ -31,8 +31,8 @@ export const GameHeader = ({
   highlightBot = false,
 }: GameHeaderProps) => {
   return (
-    <header className="border-b border-border/80 bg-background/65 px-2 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
-      <div className="mx-auto max-w-3xl space-y-2">
+    <header className="relative z-20 border-b border-border/80 bg-background/65 px-2 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
+      <div className="relative mx-auto max-w-3xl space-y-2">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center">
         <div className="justify-self-start">
           <Button variant="ghost" size="icon" onClick={onShowHelp} className="h-9 w-9 sm:h-10 sm:w-10">
@@ -49,7 +49,7 @@ export const GameHeader = ({
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3">
+      <div className="relative z-20 grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3">
         <div className="relative">
           {highlightHints && <FeatureDiscoveryHalo accentVar="menu-timed" />}
           <Button
@@ -57,7 +57,7 @@ export const GameHeader = ({
             type="button"
             variant="outline"
             onClick={onHint}
-            disabled={hintsDisabled}
+            aria-disabled={hintsDisabled}
             className="h-11 w-full justify-start gap-2 rounded-xl border-purple-400/70 bg-purple-100 px-3 text-left text-purple-950 hover:bg-purple-200 hover:text-purple-950 disabled:opacity-100 disabled:text-purple-950 sm:h-12 sm:gap-3 sm:px-4"
           >
             <Lightbulb className="h-4 w-4 text-purple-800 sm:h-5 sm:w-5" />
@@ -79,12 +79,13 @@ export const GameHeader = ({
             type="button"
             variant={botActive ? "default" : "outline"}
             onClick={onToggleBot}
-            disabled={botDisabled}
+            aria-disabled={botDisabled}
             className={cn(
               "h-11 w-full justify-start gap-2 rounded-xl px-3 text-left sm:h-12 sm:gap-3 sm:px-4",
               botActive
                 ? "bg-red-700 text-white hover:bg-red-700/90"
-                : "border-red-400/70 bg-red-100 text-red-950 hover:bg-red-200 hover:text-red-950 disabled:opacity-100 disabled:text-red-950"
+                : "border-red-400/70 bg-red-100 text-red-950 hover:bg-red-200 hover:text-red-950",
+              botDisabled && !botActive && "opacity-80"
             )}
           >
             <Bot className={cn("h-4 w-4 sm:h-5 sm:w-5", botActive ? "text-red-100" : "text-red-800")} />
