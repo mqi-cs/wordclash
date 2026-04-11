@@ -48,30 +48,30 @@ export const UserStats = () => {
   return (
     <div className="space-y-4">
       <Card className="border-border/70 bg-card/70">
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl tracking-tight">{playerName}'s Stats</CardTitle>
+        <CardHeader className="space-y-2 p-4 sm:p-6">
+          <CardTitle className="text-xl tracking-tight sm:text-2xl">{playerName}'s Stats</CardTitle>
           <p className="text-sm text-muted-foreground">
             {stats === null
               ? "No stats yet, but your profile is ready for the first win."
               : "Your win rates across every WordClash queue."}
           </p>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+        <CardContent className="grid grid-cols-2 gap-3 px-4 pb-4 sm:gap-4 sm:px-6 sm:pb-6 lg:grid-cols-4">
           {modes.map((mode) => {
             const percentage = mode.played > 0 ? Math.round((mode.won / mode.played) * 100) : 0;
 
             return (
-              <div key={mode.label} className="rounded-[1.35rem] border border-border/70 bg-background/55 p-4">
-                <div className="mb-4 flex items-center justify-between">
+              <div key={mode.label} className="rounded-[1.1rem] border border-border/70 bg-background/55 p-3 sm:rounded-[1.35rem] sm:p-4">
+                <div className="mb-3 flex items-center justify-between sm:mb-4">
                   <div className="flex items-center gap-3">
                     <span className={`h-3 w-3 rounded-full ${mode.accent}`} />
-                    <span className="font-semibold">{mode.label}</span>
+                    <span className="text-sm font-semibold sm:text-base">{mode.label}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">{mode.won}/{mode.played}</span>
+                  <span className="text-xs text-muted-foreground sm:text-sm">{mode.won}/{mode.played}</span>
                 </div>
-                <div className="mb-3 flex items-end justify-between">
-                  <span className="text-3xl font-black tracking-tight">{percentage}%</span>
-                  <span className="text-sm text-muted-foreground">win rate</span>
+                <div className="mb-3 flex items-end justify-between gap-2">
+                  <span className="text-2xl font-black tracking-tight sm:text-3xl">{percentage}%</span>
+                  <span className="text-[11px] text-muted-foreground sm:text-sm">win rate</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div className={`h-full rounded-full ${mode.accent}`} style={{ width: `${percentage}%` }} />

@@ -20,11 +20,11 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
 
   if (!user || friends === undefined) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Friends</CardTitle>
+      <Card className="border-border/70 bg-card/70">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">Friends</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           <p className="text-muted-foreground">Loading friends...</p>
         </CardContent>
       </Card>
@@ -33,11 +33,11 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
 
   if (friends.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Friends</CardTitle>
+      <Card className="border-border/70 bg-card/70">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">Friends</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           <p className="text-muted-foreground">No friends yet. Search for users to add friends!</p>
         </CardContent>
       </Card>
@@ -65,19 +65,19 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Friends</CardTitle>
+    <Card className="border-border/70 bg-card/70">
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="text-lg sm:text-xl">Friends</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="space-y-3 sm:space-y-4">
           {friends.map((friend) => (
             <div
               key={friend.friendshipId}
-              className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-muted/50 rounded-lg gap-4"
+              className="flex flex-col gap-3 rounded-xl bg-muted/50 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4"
             >
               <div className="flex-1 min-w-0 w-full">
-                <p className="font-semibold text-lg truncate">
+                <p className="truncate text-base font-semibold sm:text-lg">
                   {friend.friendUsername}
                 </p>
                 {friend.stats && (
@@ -100,14 +100,14 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
                   </div>
                 )}
               </div>
-              <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
-                <div className="flex bg-muted rounded-md p-1">
+              <div className="w-full shrink-0 sm:w-auto sm:min-w-[210px]">
+                <div className="flex rounded-md bg-muted p-1">
                     {(["classic", "hard", "timed"] as const).map((m) => (
                         <button
                             key={m}
                             onClick={() => setChallengeMode(m)}
                             className={cn(
-                                "px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
+                                "flex-1 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
                                 challengeMode === m ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
@@ -120,7 +120,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
                     disabled={sendingChallenge === friend.friendId}
                     variant="secondary"
                     size="sm"
-                    className="w-full"
+                    className="mt-2 h-9 w-full"
                 >
                     <Swords className="h-4 w-4 mr-2" />
                     {sendingChallenge === friend.friendId

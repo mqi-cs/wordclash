@@ -74,11 +74,11 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
 
   if (!user || games === undefined) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Active Games</CardTitle>
+      <Card className="border-border/70 bg-card/70">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">Your Active Games</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
@@ -89,13 +89,13 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
 
   if (games.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Active Games</CardTitle>
+      <Card className="border-border/70 bg-card/70">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">Your Active Games</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-center p-8 text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
-            <Clock className="h-12 w-12 mx-auto mb-3 opacity-20" />
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="rounded-xl border border-dashed bg-muted/30 p-6 text-center text-muted-foreground sm:p-8">
+            <Clock className="mx-auto mb-3 h-10 w-10 opacity-20 sm:h-12 sm:w-12" />
             <p>No active games right now.</p>
             <p className="text-sm mt-1">Start a new match or challenge a friend to get playing!</p>
           </div>
@@ -105,25 +105,25 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Your Active Games</CardTitle>
+    <Card className="border-border/70 bg-card/70">
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="text-lg sm:text-xl">Your Active Games</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid gap-4 md:grid-cols-2">
+      <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
           {games.map((game) => (
-            <Card key={game._id} className="bg-muted/30 border-primary/10 overflow-hidden">
+            <Card key={game._id} className="overflow-hidden rounded-[1.4rem] border-primary/10 bg-muted/30">
               <div className="h-1 w-full bg-primary/20" />
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-4">
+              <CardContent className="p-3.5 sm:p-4">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
                         {game.gameType === "challenge" ? (
                           <Crown className="h-4 w-4 text-primary" />
                         ) : (
                           <Users className="h-4 w-4 text-primary" />
                         )}
-                        <h3 className="font-semibold text-lg capitalize">{game.gameType} Match</h3>
+                        <h3 className="text-base font-semibold capitalize sm:text-lg">{game.gameType} Match</h3>
                         {game.mode && (
                           <span className="ml-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase tracking-wider">
                             {game.mode}
@@ -143,14 +143,14 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                       </div>
                     )}
                   </div>
-                  <div className="px-2 py-1 bg-secondary rounded text-xs font-medium capitalize">
+                  <div className="w-fit rounded bg-secondary px-2 py-1 text-xs font-medium capitalize">
                     {game.status.replace("_", " ")}
                   </div>
                 </div>
 
                 <Button 
                   onClick={() => handleResume(game._id)}
-                  className="w-full mt-2"
+                  className="mt-2 h-10 w-full"
                   variant={game.status === "in_progress" ? "default" : "secondary"}
                 >
                   <Play className="h-4 w-4 mr-2" />
@@ -164,7 +164,7 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="w-full mt-2 text-destructive hover:text-destructive"
+                      className="mt-2 h-10 w-full text-destructive hover:text-destructive"
                       disabled={deletingGameId === game._id}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />

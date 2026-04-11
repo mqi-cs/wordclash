@@ -693,29 +693,29 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   }, [handleDelete, handleEnter, handleKeyPress]);
 
   const renderEntryScreen = () => (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <Button variant="ghost" className="self-start -ml-4" onClick={handleBack}>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-6 px-3 animate-in fade-in slide-in-from-bottom-4 duration-500 sm:space-y-8 sm:px-0">
+      <Button variant="ghost" className="self-start sm:-ml-4" onClick={handleBack}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
-      <div className="flex flex-col items-center max-w-xl w-full gap-6">
-        <Card className="w-full p-8 space-y-6 text-center border-primary/15">
+      <div className="flex w-full max-w-xl flex-col items-center gap-6">
+        <Card className="w-full space-y-5 border-primary/15 p-5 text-center sm:space-y-6 sm:p-8">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold">Multiplayer Lobby</h2>
+            <h2 className="text-2xl font-bold sm:text-3xl">Multiplayer Lobby</h2>
             <p className="text-muted-foreground">
               Create a lobby for up to 4 players or join one with a 6-character code.
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
             <Button
-              className="h-16 text-lg bg-primary hover:bg-primary/90"
+              className="h-14 bg-primary text-base hover:bg-primary/90 sm:h-16 sm:text-lg"
               onClick={handleCreateLobby}
               disabled={!!randomMatchmakingId}
             >
               <Users className="mr-2 h-5 w-5" /> Create Lobby
             </Button>
             <Button
-              className="h-16 text-lg"
+              className="h-14 text-base sm:h-16 sm:text-lg"
               variant="secondary"
               onClick={() => setEntryMode("join")}
               disabled={!!randomMatchmakingId}
@@ -727,7 +727,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           {user && (
             <div className="space-y-3 pt-2">
               <Button
-                className="h-14 w-full text-base"
+                className="h-12 w-full text-sm sm:h-14 sm:text-base"
                 variant="outline"
                 onClick={() => void handleFindRandomOpponent()}
                 disabled={!!randomMatchmakingId}
@@ -735,8 +735,8 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
                 Find Random Opponent
               </Button>
               {randomMatchmakingId && (
-                <Card className="border-primary/20 bg-primary/5 p-4 text-left">
-                  <div className="flex items-start justify-between gap-4">
+                <Card className="border-primary/20 bg-primary/5 p-3.5 text-left sm:p-4">
+                  <div className="flex items-start justify-between gap-3 sm:gap-4">
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-foreground">Searching for an opponent</p>
                       <p className="text-xs text-muted-foreground">
@@ -758,12 +758,12 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
           )}
 
           {entryMode === "join" && (
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
               <Input
                 value={joinCode}
                 onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
                 placeholder="Enter lobby code"
-                className="h-12 text-center text-lg tracking-[0.35em] uppercase"
+                className="h-12 text-center text-base uppercase tracking-[0.25em] sm:text-lg sm:tracking-[0.35em]"
                 maxLength={6}
               />
               <Button
@@ -781,21 +781,21 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   );
 
   const renderLobby = () => (
-    <div className="flex flex-col items-center max-w-3xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <div className="w-full flex justify-between items-center">
+    <div className="mx-auto flex max-w-3xl flex-col items-center space-y-5 px-3 animate-in fade-in duration-500 sm:space-y-6 sm:px-0">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="ghost" onClick={handleBack}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Exit
         </Button>
-        <div className="flex items-center gap-2 bg-secondary/60 px-3 py-1.5 rounded-full text-sm font-medium">
+        <div className="flex w-fit items-center gap-2 rounded-full bg-secondary/60 px-3 py-1.5 text-sm font-medium">
           <Users className="h-4 w-4 text-primary" /> {game?.playerCount ?? 0}/{MAX_MULTIPLAYER_PLAYERS} Players
         </div>
       </div>
 
-      <Card className="w-full p-8 space-y-6 border-primary/15">
+      <Card className="w-full space-y-5 border-primary/15 p-5 sm:space-y-6 sm:p-8">
         <div className="text-center space-y-3">
           <p className="text-sm uppercase tracking-[0.25em] text-muted-foreground">Lobby Code</p>
-          <div className="flex items-center justify-center gap-3">
-            <div className="text-4xl font-black tracking-[0.3em]">{game?.lobbyCode ?? "------"}</div>
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="break-all text-center text-3xl font-black tracking-[0.22em] sm:text-4xl sm:tracking-[0.3em]">{game?.lobbyCode ?? "------"}</div>
             <Button variant="outline" size="icon" onClick={() => void handleCopyLobbyCode()}>
               {copiedLobbyCode ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </Button>
@@ -814,7 +814,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
                 variant={isHost ? (subMode === m ? "default" : "outline") : (game?.mode === m ? "default" : "outline")}
                 onClick={() => isHost && setSubMode(m)}
                 disabled={!isHost}
-                className="capitalize h-10"
+                className="h-10 capitalize sm:h-11"
               >
                 {m}
               </Button>
@@ -828,7 +828,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
             {players.map((player) => (
               <div
                 key={player.id}
-                className="flex items-center justify-between rounded-xl border bg-muted/30 px-4 py-3"
+                className="flex items-center justify-between rounded-xl border bg-muted/30 px-3.5 py-3 sm:px-4"
               >
                 <div className="flex items-center gap-2">
                   {player.isHost && <Crown className="h-4 w-4 text-primary" />}
@@ -865,55 +865,59 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     const opponentBoard = challengeOpponent;
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-        <div className="flex flex-col items-center">
+      <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <div className="order-2 flex flex-col items-center lg:order-1">
           <h2
             className={cn(
-              "text-xl font-bold tracking-tight mb-4 transition-colors",
+              "mb-4 text-lg font-bold tracking-tight transition-colors sm:text-xl",
               !isMyTurn && gameStarted ? "text-primary" : "text-muted-foreground",
             )}
           >
             {opponentBoard?.username ?? "Opponent"}
           </h2>
-          <div
-            className={cn(
-              "multiplayer-board-theme scale-75 origin-top rounded-3xl border border-primary/10 p-4 md:scale-90 opacity-80",
-              opponentBoard?.themeClassName,
-            )}
-          >
-            <GameGrid
-              guesses={opponentBoard?.guesses ?? []}
-              currentGuess=""
-              evaluations={opponentBoard?.evaluations ?? []}
-              shake={false}
-              isOpponent={true}
-              blurCompletedGuesses={hideOpponentLetters}
-            />
+          <div className="w-full overflow-x-auto pb-1">
+            <div
+              className={cn(
+                "multiplayer-board-theme mx-auto w-max scale-[0.68] origin-top rounded-3xl border border-primary/10 p-4 opacity-80 sm:scale-75 md:scale-90",
+                opponentBoard?.themeClassName,
+              )}
+            >
+              <GameGrid
+                guesses={opponentBoard?.guesses ?? []}
+                currentGuess=""
+                evaluations={opponentBoard?.evaluations ?? []}
+                shake={false}
+                isOpponent={true}
+                blurCompletedGuesses={hideOpponentLetters}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-center">
+        <div className="order-1 flex flex-col items-center lg:order-2">
           <h2
             className={cn(
-              "text-xl font-bold tracking-tight mb-4 transition-colors",
+              "mb-4 text-lg font-bold tracking-tight transition-colors sm:text-xl",
               isMyTurn && gameStarted ? "text-primary" : "",
             )}
           >
             You
           </h2>
-          <div
-            className={cn(
-              "multiplayer-board-theme rounded-3xl border border-primary/10 p-4",
-              myBoard?.themeClassName,
-            )}
-          >
-            <GameGrid
-              guesses={myBoard?.guesses ?? []}
-              currentGuess={myCurrentGuess}
-              evaluations={myBoard?.evaluations ?? []}
-              shake={shake}
-              isOpponent={false}
-            />
+          <div className="w-full overflow-x-auto pb-1">
+            <div
+              className={cn(
+                "multiplayer-board-theme mx-auto w-max rounded-3xl border border-primary/10 p-4",
+                myBoard?.themeClassName,
+              )}
+            >
+              <GameGrid
+                guesses={myBoard?.guesses ?? []}
+                currentGuess={myCurrentGuess}
+                evaluations={myBoard?.evaluations ?? []}
+                shake={shake}
+                isOpponent={false}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -921,29 +925,31 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   };
 
   const renderMultiplayerBoards = () => (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-6 sm:space-y-8">
         <div className="flex flex-col items-center gap-4">
-          <h2 className="text-2xl font-bold">{user?.username ?? "You"}</h2>
-          <div
-            className={cn(
-              "multiplayer-board-theme rounded-3xl border border-primary/10 p-4",
-              myBoard?.themeClassName,
-            )}
-          >
-            <GameGrid
-              guesses={myBoard?.guesses ?? []}
-              currentGuess={myCurrentGuess}
-              evaluations={myBoard?.evaluations ?? []}
-              maxGuesses={maxGuesses}
-              shake={shake}
-              isOpponent={false}
-            />
+          <h2 className="text-xl font-bold sm:text-2xl">{user?.username ?? "You"}</h2>
+          <div className="w-full overflow-x-auto pb-1">
+            <div
+              className={cn(
+                "multiplayer-board-theme mx-auto w-max rounded-3xl border border-primary/10 p-4",
+                myBoard?.themeClassName,
+              )}
+            >
+              <GameGrid
+                guesses={myBoard?.guesses ?? []}
+                currentGuess={myCurrentGuess}
+                evaluations={myBoard?.evaluations ?? []}
+                maxGuesses={maxGuesses}
+                shake={shake}
+                isOpponent={false}
+              />
+            </div>
           </div>
         </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-center">Other Players</h3>
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <h3 className="text-center text-base font-semibold sm:text-lg">Other Players</h3>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 sm:gap-6">
           {otherBoards.map((board) => (
             <Card
               key={board.id}
@@ -961,16 +967,18 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
                     <span className="text-xs font-bold text-primary">{board.solvedCount} words</span>
                 )}
               </div>
-              <div className="scale-[0.82] origin-top">
-                <GameGrid
-                  guesses={board.guesses}
-                  currentGuess=""
-                  evaluations={board.evaluations}
-                  maxGuesses={maxGuesses}
-                  shake={false}
-                  isOpponent={true}
-                  blurCompletedGuesses={hideOpponentLetters}
-                />
+              <div className="overflow-x-auto pb-1">
+                <div className="mx-auto w-max scale-[0.74] origin-top sm:scale-[0.82]">
+                  <GameGrid
+                    guesses={board.guesses}
+                    currentGuess=""
+                    evaluations={board.evaluations}
+                    maxGuesses={maxGuesses}
+                    shake={false}
+                    isOpponent={true}
+                    blurCompletedGuesses={hideOpponentLetters}
+                  />
+                </div>
               </div>
             </Card>
           ))}
@@ -1033,81 +1041,88 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   }
 
   return (
-    <div className={cn("flex flex-col h-[100dvh] bg-background w-full max-w-6xl mx-auto animate-in fade-in duration-500 overflow-hidden", pageThemeClassName)}>
-      <div className="w-full flex justify-between items-center p-2 sm:p-4 flex-shrink-0">
-        <Button variant="ghost" onClick={handleBack} size="sm">
-          <ArrowLeft className="mr-1 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exit</span>
-        </Button>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-1 sm:gap-2 bg-secondary/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium">
-            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-primary" /> {game.playerCount}/{isChallenge ? 2 : MAX_MULTIPLAYER_PLAYERS}
+    <div className={cn("mx-auto flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-background animate-in fade-in duration-500", pageThemeClassName)}>
+      <div className="w-full flex-shrink-0 border-b border-border/60 bg-background/80 px-3 py-3 backdrop-blur sm:px-4 sm:py-4">
+        <div className="flex items-center justify-between gap-2">
+          <Button variant="ghost" onClick={handleBack} size="sm">
+            <ArrowLeft className="mr-1 h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Exit</span>
+          </Button>
+          <div className="flex items-center gap-2">
+            {game.lobbyCode ? (
+              <Button variant="outline" onClick={() => void handleCopyLobbyCode()} size="sm">
+                {copiedLobbyCode ? <Check className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
+                <span className="hidden sm:inline">Copy</span>
+              </Button>
+            ) : null}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={deletingGame}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">
+                    {deletingGame ? "Deleting..." : "Delete"}
+                  </span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this match?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove this {game.gameType} match for every player involved,
+                    including all guesses and lobby state.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => void handleDeleteMatch()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete Match
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 rounded-full bg-secondary/50 px-2.5 py-1.5 text-xs font-medium sm:gap-2 sm:px-3 sm:text-sm">
+            <Users className="h-3 w-3 text-primary sm:h-4 sm:w-4" /> {game.playerCount}/{isChallenge ? 2 : MAX_MULTIPLAYER_PLAYERS}
+          </div>
+          {game.lobbyCode && (
+            <div className="rounded-full bg-muted px-2.5 py-1.5 text-xs font-medium tracking-[0.18em] text-muted-foreground sm:px-3 sm:text-sm">
+              {game.lobbyCode}
+            </div>
+          )}
           {mode === "timed" && gameStarted && (
             <div
                 className={cn(
-                    "flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors",
+                    "rounded-full px-2.5 py-1.5 text-xs font-bold transition-colors sm:px-3 sm:text-sm",
                     gameTimeLeft <= 10 ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-primary text-primary-foreground",
                 )}
             >
-                {gameTimeLeft}s | {myBoard?.solvedCount ?? 0} words
+                {gameTimeLeft}s · {myBoard?.solvedCount ?? 0} words
             </div>
           )}
           {isChallenge && gameStarted && mode !== "timed" && (
             <div
               className={cn(
-                "flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors",
+                "rounded-full px-2.5 py-1.5 text-xs font-bold transition-colors sm:px-3 sm:text-sm",
                 isMyTurn ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
               )}
             >
-              {isMyTurn ? `${turnTimer}s` : "Opponent's Turn"}
+              {isMyTurn ? `${turnTimer}s left` : "Opponent's turn"}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={deletingGame}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                <span className="hidden sm:inline">
-                  {deletingGame ? "Deleting..." : "Delete"}
-                </span>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this match?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently remove this {game.gameType} match for every player involved,
-                  including all guesses and lobby state.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Keep</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => void handleDeleteMatch()}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete Match
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          {game.lobbyCode ? (
-            <Button variant="outline" onClick={() => void handleCopyLobbyCode()} size="sm">
-              {copiedLobbyCode ? <Check className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
-              <span className="hidden sm:inline">Copy</span>
-            </Button>
-          ) : null}
-        </div>
       </div>
 
-      <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto px-2 sm:px-4 pb-4">
-        <div className="flex flex-col items-center w-full max-w-4xl mx-auto space-y-6 my-auto">
+      <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto px-3 sm:px-4 pb-3 sm:pb-4">
+        <div className="flex flex-col items-center w-full max-w-4xl mx-auto space-y-5 sm:space-y-6 py-4 my-auto">
           {isChallenge ? renderChallengeBoard() : renderMultiplayerBoards()}
 
           {game.status === "finished" && (
@@ -1168,8 +1183,8 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       </div>
 
       {gameStarted && !myGameOver && (
-        <div className="w-full flex-shrink-0 flex justify-center pb-2 sm:pb-4 px-2">
-          <div className="w-full sm:w-[500px]">
+        <div className="w-full flex-shrink-0 flex justify-center px-2 pb-2 sm:px-2 sm:pb-4">
+          <div className="w-full rounded-t-3xl bg-gradient-to-t from-background via-background/95 to-transparent pt-2 sm:w-[500px]">
             <Keyboard
               onKeyPress={handleKeyPress}
               onDelete={handleDelete}

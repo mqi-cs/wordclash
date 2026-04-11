@@ -412,7 +412,7 @@ export const GameMenu = ({
 
   return (
     <>
-      <div className={cn("relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:py-10", themeClassName)}>
+      <div className={cn("relative min-h-screen overflow-hidden bg-background px-3 py-4 sm:px-4 sm:py-10", themeClassName)}>
       {!hasBackgroundTheme && (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_30%)]" />
@@ -422,34 +422,34 @@ export const GameMenu = ({
         </>
       )}
 
-      <div className="absolute right-4 top-4 flex items-center gap-2">
+      <div className="absolute inset-x-3 top-3 flex items-center justify-end gap-2 sm:inset-x-auto sm:right-4 sm:top-4">
         {onShowHelp && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onShowHelp}
-            className="h-10 w-10 rounded-full border border-border/60 bg-background/70 text-muted-foreground backdrop-blur hover:text-foreground"
+            className="h-9 w-9 rounded-full border border-border/60 bg-background/70 text-muted-foreground backdrop-blur hover:text-foreground sm:h-10 sm:w-10"
             id="tour-help-btn"
           >
             <HelpCircle className="w-5 h-5" />
           </Button>
         )}
         <ThemeToggle />
-        <span className="rounded-full border border-border/80 bg-background/70 px-3 py-1 text-sm font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 backdrop-blur">
+        <span className="rounded-full border border-border/80 bg-background/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80 backdrop-blur sm:px-3 sm:text-sm sm:tracking-[0.28em]">
           V1.0
         </span>
       </div>
 
-      <div className="relative mx-auto max-w-[1360px] space-y-10">
+      <div className="relative mx-auto max-w-[1360px] space-y-8 pt-12 sm:space-y-10 sm:pt-0">
         {/* Header */}
-        <div id="tour-header" className="space-y-5 text-center animate-fade-in">
-          <div className="mb-2 flex items-center justify-center gap-3">
-            <div className="rounded-full border border-border/80 bg-card/50 p-4 backdrop-blur">
-              <Trophy className="h-10 w-10 text-primary animate-pulse" />
+        <div id="tour-header" className="space-y-4 text-center animate-fade-in sm:space-y-5">
+          <div className="mb-1 flex items-center justify-center gap-3 sm:mb-2">
+            <div className="rounded-full border border-border/80 bg-card/50 p-3 backdrop-blur sm:p-4">
+              <Trophy className="h-9 w-9 text-primary animate-pulse sm:h-10 sm:w-10" />
             </div>
           </div>
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <h1 className="bg-gradient-to-r from-foreground via-foreground to-primary/70 bg-clip-text text-center text-6xl font-black tracking-[-0.1em] text-transparent sm:text-7xl md:text-8xl">
+            <h1 className="bg-gradient-to-r from-foreground via-foreground to-primary/70 bg-clip-text text-center text-[3.45rem] font-black leading-none tracking-[-0.1em] text-transparent sm:text-7xl md:text-8xl">
               WORDCLASH
             </h1>
             <Button
@@ -462,12 +462,12 @@ export const GameMenu = ({
               <Award className="w-5 h-5" />
             </Button>
           </div>
-          <p className="mx-auto max-w-2xl text-base font-medium leading-7 text-muted-foreground sm:text-lg">
+          <p className="mx-auto max-w-2xl text-sm font-medium leading-6 text-muted-foreground sm:text-lg sm:leading-7">
             Tactical word battles in a neon-lit arena. Sharpen your guesses, challenge your friends, and chase perfect runs.
           </p>
 
           {/* Auth Status */}
-          <div id="tour-auth" className="flex items-center justify-center gap-3 pt-2">
+          <div id="tour-auth" className="flex flex-wrap items-center justify-center gap-3 pt-1 sm:pt-2">
             {user ? (
               <Button variant="outline" onClick={handleSignOut} size="sm" className="bg-background/50">
                 <LogOut className="w-4 h-4 mr-2" />
@@ -487,7 +487,7 @@ export const GameMenu = ({
           </div>
         </div>
 
-        <div className="grid items-start gap-8 xl:grid-cols-[20rem_minmax(0,1fr)]">
+        <div className="grid items-start gap-6 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-8">
           <aside className="order-2 xl:order-1 xl:sticky xl:top-8">
             <div
               className="relative rounded-[2rem]"
@@ -500,7 +500,7 @@ export const GameMenu = ({
             </div>
           </aside>
 
-          <div className="order-1 space-y-10 xl:order-2">
+          <div className="order-1 space-y-8 xl:order-2 xl:space-y-10">
             {/* User Stats */}
             {user && (
               <div className="animate-fade-in">
@@ -517,12 +517,12 @@ export const GameMenu = ({
                 {!seenWalkthroughs.social && (
                   <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.social.slides[0].accentVar} />
                 )}
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <OpenGames onResumeGame={(gameId) => onResumeGame?.(gameId)} />
                   <IncomingChallenges />
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-6">
-                      <Card className="border-border/70 bg-card/60 p-6">
+                  <div className="grid gap-4 md:grid-cols-2 sm:gap-6">
+                    <div className="space-y-4 sm:space-y-6">
+                      <Card className="border-border/70 bg-card/60 p-4 sm:p-6">
                         <h3 className="mb-4 text-xl font-bold tracking-tight">Add Friends</h3>
                         <FriendSearch onRequestSent={refreshFriends} />
                       </Card>
@@ -544,24 +544,24 @@ export const GameMenu = ({
                 <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.multiplayer.slides[0].accentVar} />
               )}
               <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-              <div className="relative p-6 md:p-8">
+              <div className="relative p-5 sm:p-6 md:p-8">
                 <div className="max-w-4xl mx-auto space-y-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-multiplayer))]/30 bg-[hsl(var(--menu-multiplayer))]/12 transition-colors group-hover:bg-[hsl(var(--menu-multiplayer))]/18">
-                        <Zap className="w-8 h-8 text-[hsl(var(--menu-multiplayer))]" />
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.25rem] border border-[hsl(var(--menu-multiplayer))]/30 bg-[hsl(var(--menu-multiplayer))]/12 transition-colors group-hover:bg-[hsl(var(--menu-multiplayer))]/18 sm:h-16 sm:w-16 sm:rounded-[1.4rem]">
+                        <Zap className="h-7 w-7 text-[hsl(var(--menu-multiplayer))] sm:h-8 sm:w-8" />
                       </div>
                       <div className="space-y-1">
-                        <h3 className="text-3xl font-bold tracking-tight text-foreground">Multiplayer Mode</h3>
+                        <h3 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Multiplayer Mode</h3>
                         <p className="text-sm text-muted-foreground">
                           Create or join a lobby and play with up to four people
                         </p>
                       </div>
                     </div>
-                    <Badge className="border-0 bg-[hsl(var(--menu-multiplayer))] text-xs text-[hsl(var(--primary-foreground))]">New</Badge>
+                    <Badge className="w-fit border-0 bg-[hsl(var(--menu-multiplayer))] text-xs text-[hsl(var(--primary-foreground))]">New</Badge>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
                     <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
                       <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
                       <p className="text-sm text-muted-foreground">Host a lobby with a shareable code</p>
@@ -577,7 +577,7 @@ export const GameMenu = ({
                   </div>
 
                   <Button
-                    className="w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:w-auto"
+                    className="h-11 w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:h-12 md:w-auto"
                     size="lg"
                     onClick={(e) => {
                       handleModeSelection("multiplayer", "multiplayer", e);
@@ -590,7 +590,7 @@ export const GameMenu = ({
             </Card>
 
             {/* Game Mode Cards */}
-            <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
+            <div className="grid gap-4 animate-scale-in md:grid-cols-3 md:gap-6">
               {/* Classic Mode */}
               <Card
                 id="tour-classic"
@@ -604,22 +604,22 @@ export const GameMenu = ({
                   <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.classic.slides[0].accentVar} />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-classic))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="relative p-6 space-y-6">
+                <div className="relative space-y-5 p-5 sm:space-y-6 sm:p-6">
                   <div className="flex items-start justify-between">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-classic))]/30 bg-[hsl(var(--menu-classic))]/12 transition-colors group-hover:bg-[hsl(var(--menu-classic))]/18">
-                      <Target className="w-8 h-8 text-[hsl(var(--menu-classic))]" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] border border-[hsl(var(--menu-classic))]/30 bg-[hsl(var(--menu-classic))]/12 transition-colors group-hover:bg-[hsl(var(--menu-classic))]/18 sm:h-16 sm:w-16 sm:rounded-[1.4rem]">
+                      <Target className="h-7 w-7 text-[hsl(var(--menu-classic))] sm:h-8 sm:w-8" />
                     </div>
                     <Badge variant="secondary" className="border border-border/70 bg-secondary/80 text-xs text-foreground">Popular</Badge>
                   </div>
 
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold tracking-tight text-foreground">Classic</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Classic</h3>
+                    <p className="text-[13px] text-muted-foreground sm:text-sm">
                       The original WordClash experience with 6 attempts to guess the word
                     </p>
                   </div>
 
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <ul className="space-y-2 text-[13px] text-muted-foreground sm:text-sm">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-classic))]" />
                       6 guesses maximum
@@ -636,7 +636,7 @@ export const GameMenu = ({
 
                   <Button
                     className={cn(
-                      "w-full font-semibold uppercase tracking-[0.18em] text-white",
+                      "h-11 w-full font-semibold uppercase tracking-[0.18em] text-white sm:h-12",
                       getModeLimitStatus("classic").reached
                         ? "bg-muted text-muted-foreground hover:bg-muted"
                         : "bg-[hsl(var(--menu-classic))] hover:bg-[hsl(var(--menu-classic))]/90"
@@ -666,22 +666,22 @@ export const GameMenu = ({
                   <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.hard.slides[0].accentVar} />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-hard))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="relative p-6 space-y-6">
+                <div className="relative space-y-5 p-5 sm:space-y-6 sm:p-6">
                   <div className="flex items-start justify-between">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-hard))]/30 bg-[hsl(var(--menu-hard))]/12 transition-colors group-hover:bg-[hsl(var(--menu-hard))]/18">
-                      <Flame className="w-8 h-8 text-[hsl(var(--menu-hard))]" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] border border-[hsl(var(--menu-hard))]/30 bg-[hsl(var(--menu-hard))]/12 transition-colors group-hover:bg-[hsl(var(--menu-hard))]/18 sm:h-16 sm:w-16 sm:rounded-[1.4rem]">
+                      <Flame className="h-7 w-7 text-[hsl(var(--menu-hard))] sm:h-8 sm:w-8" />
                     </div>
                     <Badge className="border-0 bg-[hsl(var(--menu-hard))] text-xs text-white">Challenge</Badge>
                   </div>
 
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold tracking-tight text-foreground">Hard Mode</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Hard Mode</h3>
+                    <p className="text-[13px] text-muted-foreground sm:text-sm">
                       No yellow hints! Pure skill mode for word masters
                     </p>
                   </div>
 
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <ul className="space-y-2 text-[13px] text-muted-foreground sm:text-sm">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-hard))]" />
                       10 guesses maximum
@@ -697,7 +697,7 @@ export const GameMenu = ({
                   </ul>
 
                   <Button
-                    className="w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-11 w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90 disabled:opacity-50 disabled:cursor-not-allowed sm:h-12"
                     size="lg"
                     onClick={(event) => handleModeSelection("hard", "hard", event)}
                     disabled={getModeLimitStatus("hard").reached}
@@ -723,22 +723,22 @@ export const GameMenu = ({
                   <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.timed.slides[0].accentVar} />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-timed))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="relative p-6 space-y-6">
+                <div className="relative space-y-5 p-5 sm:space-y-6 sm:p-6">
                   <div className="flex items-start justify-between">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-timed))]/30 bg-[hsl(var(--menu-timed))]/12 transition-colors group-hover:bg-[hsl(var(--menu-timed))]/18">
-                      <Timer className="w-8 h-8 text-[hsl(var(--menu-timed))]" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] border border-[hsl(var(--menu-timed))]/30 bg-[hsl(var(--menu-timed))]/12 transition-colors group-hover:bg-[hsl(var(--menu-timed))]/18 sm:h-16 sm:w-16 sm:rounded-[1.4rem]">
+                      <Timer className="h-7 w-7 text-[hsl(var(--menu-timed))] sm:h-8 sm:w-8" />
                     </div>
                     <Badge className="border-0 bg-[hsl(var(--menu-timed))] text-xs text-white">Fast</Badge>
                   </div>
 
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold tracking-tight text-foreground">Timed Mode</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Timed Mode</h3>
+                    <p className="text-[13px] text-muted-foreground sm:text-sm">
                       Race against the clock! Solve as many as you can
                     </p>
                   </div>
 
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <ul className="space-y-2 text-[13px] text-muted-foreground sm:text-sm">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
                       60 seconds to start
@@ -754,7 +754,7 @@ export const GameMenu = ({
                   </ul>
 
                   <Button
-                    className="w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-11 w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90 disabled:opacity-50 disabled:cursor-not-allowed sm:h-12"
                     size="lg"
                     onClick={(event) => handleModeSelection("timed", "timed", event)}
                     disabled={getModeLimitStatus("timed").reached}
