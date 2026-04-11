@@ -534,6 +534,61 @@ export const GameMenu = ({
               </div>
             )}
 
+            {/* Multiplayer Mode - Full Width */}
+            <Card
+              id="tour-multiplayer"
+              className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] animate-scale-in"
+              onClick={(event) => handleModeSelection("multiplayer", "multiplayer", event)}
+            >
+              {!seenWalkthroughs.multiplayer && (
+                <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.multiplayer.slides[0].accentVar} />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="relative p-6 md:p-8">
+                <div className="max-w-4xl mx-auto space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-multiplayer))]/30 bg-[hsl(var(--menu-multiplayer))]/12 transition-colors group-hover:bg-[hsl(var(--menu-multiplayer))]/18">
+                        <Zap className="w-8 h-8 text-[hsl(var(--menu-multiplayer))]" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-3xl font-bold tracking-tight text-foreground">Multiplayer Mode</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Create or join a lobby and play with up to four people
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="border-0 bg-[hsl(var(--menu-multiplayer))] text-xs text-[hsl(var(--primary-foreground))]">New</Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
+                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                      <p className="text-sm text-muted-foreground">Host a lobby with a shareable code</p>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
+                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                      <p className="text-sm text-muted-foreground">Start once everyone is ready</p>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
+                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
+                      <p className="text-sm text-muted-foreground">Up to 4 players, first solver wins</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:w-auto"
+                    size="lg"
+                    onClick={(e) => {
+                      handleModeSelection("multiplayer", "multiplayer", e);
+                    }}
+                  >
+                    Open Multiplayer Lobby
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
             {/* Game Mode Cards */}
             <div className="grid gap-6 md:grid-cols-3 animate-scale-in">
               {/* Classic Mode */}
@@ -712,61 +767,6 @@ export const GameMenu = ({
                 </div>
               </Card>
             </div>
-
-            {/* Multiplayer Mode - Full Width */}
-            <Card
-              id="tour-multiplayer"
-              className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] animate-scale-in"
-              onClick={(event) => handleModeSelection("multiplayer", "multiplayer", event)}
-            >
-              {!seenWalkthroughs.multiplayer && (
-                <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.multiplayer.slides[0].accentVar} />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-              <div className="relative p-6 md:p-8">
-                <div className="max-w-4xl mx-auto space-y-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[hsl(var(--menu-multiplayer))]/30 bg-[hsl(var(--menu-multiplayer))]/12 transition-colors group-hover:bg-[hsl(var(--menu-multiplayer))]/18">
-                        <Zap className="w-8 h-8 text-[hsl(var(--menu-multiplayer))]" />
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="text-3xl font-bold tracking-tight text-foreground">Multiplayer Mode</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Create or join a lobby and play with up to four people
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className="border-0 bg-[hsl(var(--menu-multiplayer))] text-xs text-[hsl(var(--primary-foreground))]">New</Badge>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
-                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                      <p className="text-sm text-muted-foreground">Host a lobby with a shareable code</p>
-                    </div>
-                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
-                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                      <p className="text-sm text-muted-foreground">Start once everyone is ready</p>
-                    </div>
-                    <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/55 p-4">
-                      <div className="w-2 h-2 rounded-full bg-[hsl(var(--menu-multiplayer))]" />
-                      <p className="text-sm text-muted-foreground">Up to 4 players, first solver wins</p>
-                    </div>
-                  </div>
-
-                  <Button
-                    className="w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:w-auto"
-                    size="lg"
-                    onClick={(e) => {
-                      handleModeSelection("multiplayer", "multiplayer", e);
-                    }}
-                  >
-                    Open Multiplayer Lobby
-                  </Button>
-                </div>
-              </div>
-            </Card>
 
             <div
               className="relative rounded-[2rem]"

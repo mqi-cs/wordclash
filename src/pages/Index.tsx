@@ -788,11 +788,6 @@ const Index = () => {
       e.currentTarget.blur();
     }
 
-    if (!seenGameplayWalkthroughs.hints) {
-      openGameplayWalkthrough("hints", () => handleHint());
-      return;
-    }
-
     void performHintReveal(true);
   };
 
@@ -836,11 +831,6 @@ const Index = () => {
   };
 
   const handleToggleBot = () => {
-    if (!seenGameplayWalkthroughs.wordBot && gameMode === "classic" && !gameOver) {
-      openGameplayWalkthrough("wordBot", handleToggleBot);
-      return;
-    }
-
     if (gameMode === "hard" || gameMode === "timed") {
       toast.error(`Bot cannot be used in ${gameMode} mode!`);
       return;
