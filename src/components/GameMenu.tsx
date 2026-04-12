@@ -251,13 +251,13 @@ const ExpandableMenuSection = ({
     <CollapsibleTrigger asChild>
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-4 rounded-[1.5rem] border border-border/70 bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card/70 sm:px-5"
+        className="flex w-full flex-col items-start gap-2.5 rounded-[1.5rem] border border-border/70 bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card/70 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
       >
-        <div className="space-y-1">
+        <div className="min-w-0 w-full space-y-1">
           <h2 className="text-base font-bold tracking-tight text-foreground sm:text-lg">{title}</h2>
-          <p className="text-xs leading-5 text-muted-foreground sm:text-sm">{subtitle}</p>
+          <p className="max-w-full text-xs leading-5 text-muted-foreground sm:text-sm">{subtitle}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-background/65 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <div className="flex shrink-0 self-end items-center gap-1.5 rounded-full border border-border/70 bg-background/65 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:self-auto sm:gap-2 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]">
           {open ? "Hide" : "Show"}
           <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")} />
         </div>
