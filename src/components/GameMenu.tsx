@@ -442,7 +442,7 @@ export const GameMenu = ({
         </span>
       </div>
 
-      <div className="relative mx-auto max-w-[1360px] space-y-8 pt-12 sm:space-y-10 sm:pt-0">
+      <div className="relative mx-auto max-w-[1776px] space-y-8 pt-12 sm:space-y-10 sm:pt-0">
         {/* Header */}
         <div id="tour-header" className="space-y-4 text-center animate-fade-in sm:space-y-5">
           <div className="mb-1 flex items-center justify-center gap-3 sm:mb-2">
@@ -489,20 +489,21 @@ export const GameMenu = ({
           </div>
         </div>
 
-        <div className="grid items-start gap-6 xl:grid-cols-[20rem_minmax(0,1fr)_24rem] xl:gap-8">
-          <aside className="order-2 xl:order-1 xl:sticky xl:top-8">
-            <div
-              className="relative rounded-[2rem]"
-              onClickCapture={interceptFeatureClick("quests")}
-            >
-              {!seenWalkthroughs.quests && (
-                <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.quests.slides[0].accentVar} />
-              )}
-              <DailyQuestsSidebar />
-            </div>
-          </aside>
+        <div className="relative xl:pr-[26rem]">
+          <div className="grid items-start gap-6 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-8">
+            <aside className="order-2 xl:order-1 xl:sticky xl:top-8">
+              <div
+                className="relative rounded-[2rem]"
+                onClickCapture={interceptFeatureClick("quests")}
+              >
+                {!seenWalkthroughs.quests && (
+                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.quests.slides[0].accentVar} />
+                )}
+                <DailyQuestsSidebar />
+              </div>
+            </aside>
 
-          <div className="order-1 space-y-8 xl:order-2 xl:space-y-10">
+            <div className="order-1 space-y-8 xl:order-2 xl:space-y-10">
             {/* User Stats */}
             {user && (
               <div className="animate-fade-in">
@@ -774,25 +775,28 @@ export const GameMenu = ({
               </Card>
             </div>
 
-            <Card className="border-border/70 bg-card/60 p-5 xl:hidden sm:p-6">
-              <Leaderboard variant="embedded" />
-            </Card>
+              <Card className="border-border/70 bg-card/60 p-5 xl:hidden sm:p-6">
+                <Leaderboard variant="embedded" />
+              </Card>
 
-            <div
-              className="relative rounded-[2rem]"
-              onClickCapture={interceptFeatureClick("cosmetics")}
-            >
-              {!seenWalkthroughs.cosmetics && (
-                <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.cosmetics.slides[0].accentVar} />
-              )}
-              <CosmeticsStore />
+              <div
+                className="relative rounded-[2rem]"
+                onClickCapture={interceptFeatureClick("cosmetics")}
+              >
+                {!seenWalkthroughs.cosmetics && (
+                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.cosmetics.slides[0].accentVar} />
+                )}
+                <CosmeticsStore />
+              </div>
             </div>
           </div>
 
-          <aside className="order-3 hidden xl:sticky xl:top-8 xl:block">
-            <Card className="border-border/70 bg-card/60 p-6">
-              <Leaderboard variant="embedded" />
-            </Card>
+          <aside className="hidden xl:absolute xl:right-0 xl:top-0 xl:block xl:w-[24rem]">
+            <div className="xl:sticky xl:top-8">
+              <Card className="border-border/70 bg-card/60 p-6">
+                <Leaderboard variant="embedded" />
+              </Card>
+            </div>
           </aside>
         </div>
       </div>
