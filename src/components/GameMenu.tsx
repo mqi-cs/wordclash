@@ -24,6 +24,7 @@ import {
   WalkthroughSlide,
 } from "@/components/FeatureWalkthrough";
 import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
+import { Leaderboard } from "@/components/Leaderboard";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
@@ -488,7 +489,7 @@ export const GameMenu = ({
           </div>
         </div>
 
-        <div className="grid items-start gap-6 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-8">
+        <div className="grid items-start gap-6 xl:grid-cols-[20rem_minmax(0,1fr)_24rem] xl:gap-8">
           <aside className="order-2 xl:order-1 xl:sticky xl:top-8">
             <div
               className="relative rounded-[2rem]"
@@ -773,6 +774,10 @@ export const GameMenu = ({
               </Card>
             </div>
 
+            <Card className="border-border/70 bg-card/60 p-5 xl:hidden sm:p-6">
+              <Leaderboard variant="embedded" />
+            </Card>
+
             <div
               className="relative rounded-[2rem]"
               onClickCapture={interceptFeatureClick("cosmetics")}
@@ -783,6 +788,12 @@ export const GameMenu = ({
               <CosmeticsStore />
             </div>
           </div>
+
+          <aside className="order-3 hidden xl:sticky xl:top-8 xl:block">
+            <Card className="border-border/70 bg-card/60 p-6">
+              <Leaderboard variant="embedded" />
+            </Card>
+          </aside>
         </div>
       </div>
       </div>

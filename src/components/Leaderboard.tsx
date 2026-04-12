@@ -48,9 +48,22 @@ type DisplayRow = LeaderboardRow & {
 };
 
 interface LeaderboardProps {
-  open: boolean;
-  onClose: () => void;
+  open?: boolean;
+  onClose?: (open: boolean) => void;
+  variant?: "dialog" | "embedded";
+  className?: string;
 }
+
+type LeaderboardPanelProps = {
+  helperCopy: string;
+  period: LeaderboardPeriod;
+  mode: LeaderboardMode;
+  rows: DisplayRow[];
+  leaderboardLoaded: boolean;
+  onPeriodChange: (value: string) => void;
+  onModeChange: (value: string) => void;
+  className?: string;
+};
 
 const getModeHintCopy = (mode: LeaderboardMode) =>
   mode === "timed"
@@ -252,7 +265,56 @@ const LeaderboardTable = ({ rows }: { rows: DisplayRow[] }) => {
   );
 };
 
-export const Leaderboard = ({ open, onClose }: LeaderboardProps) => {
+const LeaderboardPanel = ({
+  helperCopy,
+  period,
+  mode,
+  rows,
+  leaderboardLoaded,
+  onPeriodChange,
+  onModeChange,
+  className,
+}: LeaderboardPanelProps) => (
+  <div className={cn("space-y-4", className)}>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-2xl font-semibold">
+        <Trophy className="h-5 w-5 text-amber-400" />
+        <h2>Ranked Leaderboards</h2>
+      </div>
+      <p className="text-sm leading-6 text-muted-foreground">{helperCopy}</p>
+    </div>
+
+    <Tabs value={period} onValueChange={onPeriodChange}>
+      <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-border/70 bg-background/60 p-1">
+        <TabsTrigger value="daily">Daily</TabsTrigger>
+        <TabsTrigger value="weekly">Weekly</TabsTrigger>
+      </TabsList>
+    </Tabs>
+
+    <Tabs value={mode} onValueChange={onModeChange}>
+      <TabsList className="grid w-full grid-cols-3 rounded-2xl border border-border/70 bg-background/60 p-1">
+        <TabsTrigger value="classic">Classic</TabsTrigger>
+        <TabsTrigger value="hard">Hard</TabsTrigger>
+        <TabsTrigger value="timed">Timed</TabsTrigger>
+      </TabsList>
+    </Tabs>
+
+    {leaderboardLoaded ? (
+      <LeaderboardTable rows={rows} />
+    ) : (
+      <div className="rounded-[1.4rem] border border-border/70 bg-background/50 px-6 py-12 text-center text-sm text-muted-foreground">
+        Loading rankings...
+      </div>
+    )}
+  </div>
+);
+
+export const Leaderboard = ({
+  open = false,
+  onClose,
+  variant = "dialog",
+  className,
+}: LeaderboardProps) => {
   const { user } = useAuth();
   const [mode, setMode] = useState<LeaderboardMode>("classic");
   const [period, setPeriod] = useState<LeaderboardPeriod>("daily");
@@ -301,41 +363,30 @@ export const Leaderboard = ({ open, onClose }: LeaderboardProps) => {
     return getModeHintCopy(mode);
   }, [mode, period, user]);
 
+  const panel = (
+    <LeaderboardPanel
+      helperCopy={helperCopy}
+      period={period}
+      mode={mode}
+      rows={rows}
+      leaderboardLoaded={leaderboard !== undefined}
+      onPeriodChange={(value) => setPeriod(value as LeaderboardPeriod)}
+      onModeChange={(value) => setMode(value as LeaderboardMode)}
+      className={className}
+    />
+  );
+
+  if (variant === "embedded") {
+    return panel;
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto border-border/70 bg-card/92">
-        <DialogHeader className="space-y-3">
-          <DialogTitle className="flex items-center gap-2 text-2xl">
-            <Trophy className="h-5 w-5 text-amber-400" />
-            Ranked Leaderboards
-          </DialogTitle>
-          <p className="text-sm leading-6 text-muted-foreground">{helperCopy}</p>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Ranked Leaderboards</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-4">
-          <Tabs value={period} onValueChange={(value) => setPeriod(value as LeaderboardPeriod)}>
-            <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-border/70 bg-background/60 p-1">
-              <TabsTrigger value="daily">Daily</TabsTrigger>
-              <TabsTrigger value="weekly">Weekly</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          <Tabs value={mode} onValueChange={(value) => setMode(value as LeaderboardMode)}>
-            <TabsList className="grid w-full grid-cols-3 rounded-2xl border border-border/70 bg-background/60 p-1">
-              <TabsTrigger value="classic">Classic</TabsTrigger>
-              <TabsTrigger value="hard">Hard</TabsTrigger>
-              <TabsTrigger value="timed">Timed</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {leaderboard === undefined ? (
-            <div className="rounded-[1.4rem] border border-border/70 bg-background/50 px-6 py-12 text-center text-sm text-muted-foreground">
-              Loading rankings...
-            </div>
-          ) : (
-            <LeaderboardTable rows={rows} />
-          )}
-        </div>
+        {panel}
       </DialogContent>
     </Dialog>
   );
