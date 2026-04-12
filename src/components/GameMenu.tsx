@@ -13,218 +13,16 @@ import { IncomingChallenges } from "./IncomingChallenges";
 import { OpenGames } from "./OpenGames";
 import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { DAILY_MODE_ROUND_LIMIT, type DailyModeLimits, type LimitedGameMode } from "@/lib/guestLimits";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import {
-  FeatureDiscoveryHalo,
-  FeatureWalkthroughDialog,
-  WalkthroughSlide,
-} from "@/components/FeatureWalkthrough";
 import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
 import { Leaderboard } from "@/components/Leaderboard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
-
-type WalkthroughKey =
-  | "classic"
-  | "hard"
-  | "timed"
-  | "multiplayer"
-  | "signup"
-  | "quests"
-  | "social"
-  | "cosmetics";
-
-type WalkthroughConfig = {
-  slides: WalkthroughSlide[];
-  actionLabel?: string;
-};
-
-const WALKTHROUGH_STORAGE_KEY = "wordclash_menu_walkthroughs_v2";
-
-const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
-  classic: {
-    slides: [
-      {
-        title: "Classic Mode",
-        subtitle: "The best place to start",
-        description:
-          "Classic is the main WordClash ruleset and the easiest way to learn the game.",
-        bullets: [
-          "You have 6 guesses to find the secret 5-letter word.",
-          "Every guess teaches you more about the answer.",
-          "This mode is ideal for first-time players.",
-        ],
-        accentVar: "menu-classic",
-      },
-    ],
-    actionLabel: "Start Classic",
-  },
-  hard: {
-    slides: [
-      {
-        title: "Hard Mode",
-        subtitle: "Less feedback, more pressure",
-        description:
-          "Hard Mode strips out yellow clues and makes every guess a sharper logic test.",
-        bullets: [
-          "You get 10 guesses instead of 6.",
-          "Only green and grey feedback appears.",
-          "This mode rewards memory and discipline.",
-        ],
-        accentVar: "menu-hard",
-      },
-    ],
-    actionLabel: "Start Hard Mode",
-  },
-  timed: {
-    slides: [
-      {
-        title: "Timed Mode",
-        subtitle: "Chain words under pressure",
-        description:
-          "Timed Mode is about momentum. One solved word buys you time for the next one.",
-        bullets: [
-          "You begin with 75 seconds on the clock.",
-          "There is no fixed guess cap per word.",
-          "Each solved word adds 25 seconds.",
-          "Each hint costs 10 seconds.",
-        ],
-        accentVar: "menu-timed",
-      },
-    ],
-    actionLabel: "Start Timed",
-  },
-  multiplayer: {
-    slides: [
-      {
-        title: "Multiplayer Mode",
-        subtitle: "Lobbies, races, and challenges",
-        description:
-          "Multiplayer lets you host a lobby, share a code, and race other players on the same word.",
-        bullets: [
-          "Create a lobby and invite people with a code.",
-          "Up to 4 players can join one match.",
-          "The fastest solve wins the round.",
-        ],
-        accentVar: "menu-multiplayer",
-      },
-    ],
-    actionLabel: "Open Multiplayer",
-  },
-  signup: {
-    slides: [
-      {
-        title: "Sign In / Sign Up",
-        subtitle: "Unlock the full game",
-        description:
-          "An account turns WordClash from a solo toy into a persistent profile with progression and social features.",
-        bullets: [
-          "Save your stats and streaks.",
-          "Add friends and send direct challenges.",
-          "Earn shards and unlock cosmetics over time.",
-        ],
-        accentVar: "primary",
-      },
-    ],
-    actionLabel: "Go to Sign In",
-  },
-  quests: {
-    slides: [
-      {
-        title: "Daily Quests",
-        subtitle: "Your daily progression loop",
-        description:
-          "Daily quests give you a reason to try different modes and reward you with shards.",
-        bullets: [
-          "Quest progress updates as you finish games.",
-          "Completed quests can be claimed for shards.",
-          "The timer shows when tomorrow's quests arrive.",
-        ],
-        accentVar: "menu-timed",
-      },
-    ],
-    actionLabel: "Got it",
-  },
-  social: {
-    slides: [
-      {
-        title: "Friends and Challenges",
-        subtitle: "Your social control center",
-        description:
-          "This whole section is where your ongoing multiplayer life lives.",
-        bullets: [
-          "Resume active games from one place.",
-          "Accept incoming challenges and friend requests.",
-          "Search for friends and start direct matches.",
-        ],
-        accentVar: "menu-multiplayer",
-      },
-    ],
-    actionLabel: "Got it",
-  },
-  cosmetics: {
-    slides: [
-      {
-        title: "Cosmetics Store",
-        subtitle: "Unlock and equip your style",
-        description:
-          "Cosmetics let you personalize boards, letters, backgrounds, and reveal effects.",
-        bullets: [
-          "Shards come from daily quest rewards.",
-          "Owned items can be equipped instantly.",
-          "Themes affect how your board looks in game.",
-        ],
-        accentVar: "primary",
-      },
-    ],
-    actionLabel: "Got it",
-  },
-};
-
-const DEFAULT_WALKTHROUGH_STATE: Record<WalkthroughKey, boolean> = {
-  classic: false,
-  hard: false,
-  timed: false,
-  multiplayer: false,
-  signup: false,
-  quests: false,
-  social: false,
-  cosmetics: false,
-};
-
-const loadWalkthroughState = (): Record<WalkthroughKey, boolean> => {
-  if (typeof window === "undefined") {
-    return DEFAULT_WALKTHROUGH_STATE;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(WALKTHROUGH_STORAGE_KEY);
-    if (!raw) {
-      return DEFAULT_WALKTHROUGH_STATE;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<Record<WalkthroughKey, boolean>>;
-    return {
-      ...DEFAULT_WALKTHROUGH_STATE,
-      ...parsed,
-    };
-  } catch {
-    return DEFAULT_WALKTHROUGH_STATE;
-  }
-};
-
-const persistWalkthroughState = (state: Record<WalkthroughKey, boolean>) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(WALKTHROUGH_STORAGE_KEY, JSON.stringify(state));
-};
 
 type MenuSectionKey = "stats" | "quests" | "social" | "leaderboard" | "cosmetics";
 
@@ -289,9 +87,6 @@ export const GameMenu = ({
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [friendsKey, setFriendsKey] = useState(0);
-  const [seenWalkthroughs, setSeenWalkthroughs] = useState<Record<WalkthroughKey, boolean>>(
-    loadWalkthroughState,
-  );
   const [sectionOpen, setSectionOpen] = useState<Record<MenuSectionKey, boolean>>({
     stats: false,
     quests: false,
@@ -299,8 +94,6 @@ export const GameMenu = ({
     leaderboard: true,
     cosmetics: false,
   });
-  const [activeWalkthrough, setActiveWalkthrough] = useState<WalkthroughKey | null>(null);
-  const pendingActionRef = useRef<(() => void) | null>(null);
   const hasBackgroundTheme = themeClassName?.includes("theme-bg-") ?? false;
   const heartbeatPresence = useMutation(api.matchmaking.presenceHeartbeat);
   const acceptRandomMatch = useMutation(api.matchmaking.acceptRandomMatchmaking);
@@ -310,10 +103,6 @@ export const GameMenu = ({
     user ? {} : "skip",
   );
   const [processingRandomRequest, setProcessingRandomRequest] = useState(false);
-  const activeConfig = useMemo(
-    () => (activeWalkthrough ? WALKTHROUGH_CONFIG[activeWalkthrough] : null),
-    [activeWalkthrough],
-  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -348,48 +137,8 @@ export const GameMenu = ({
       : `${status.remaining}/${DAILY_MODE_ROUND_LIMIT} rounds left today`;
   };
 
-  const markWalkthroughSeen = (key: WalkthroughKey) => {
-    setSeenWalkthroughs((prev) => {
-      if (prev[key]) {
-        return prev;
-      }
-      const next = { ...prev, [key]: true };
-      persistWalkthroughState(next);
-      return next;
-    });
-  };
-
-  const openWalkthrough = (key: WalkthroughKey, action?: () => void) => {
-    markWalkthroughSeen(key);
-    pendingActionRef.current = action ?? null;
-    setActiveWalkthrough(key);
-  };
-
-  const closeWalkthrough = () => {
-    pendingActionRef.current = null;
-    setActiveWalkthrough(null);
-  };
-
-  const handleWalkthroughPrimary = () => {
-    const nextAction = pendingActionRef.current;
-    closeWalkthrough();
-    nextAction?.();
-  };
-
-  const interceptFeatureClick =
-    (key: WalkthroughKey) => (event: React.MouseEvent<HTMLDivElement>) => {
-      if (seenWalkthroughs[key]) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      openWalkthrough(key);
-    };
-
   const handleModeSelection = (
     mode: GameMode,
-    walkthroughKey: Extract<WalkthroughKey, "classic" | "hard" | "timed" | "multiplayer">,
     event?: React.MouseEvent,
   ) => {
     event?.preventDefault();
@@ -409,26 +158,13 @@ export const GameMenu = ({
       void onSelectMode(mode, false);
     };
 
-    if (!seenWalkthroughs[walkthroughKey]) {
-      openWalkthrough(walkthroughKey, startMode);
-      return;
-    }
-
     startMode();
   };
 
   const handleSignupClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-
-    const continueToAuth = () => navigate("/auth");
-
-    if (!seenWalkthroughs.signup) {
-      openWalkthrough("signup", continueToAuth);
-      return;
-    }
-
-    continueToAuth();
+    navigate("/auth");
   };
 
   const handleAcceptRandomRequest = async () => {
@@ -531,15 +267,10 @@ export const GameMenu = ({
                 Sign Out
               </Button>
             ) : (
-              <div className="relative rounded-full">
-                {!seenWalkthroughs.signup && (
-                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.signup.slides[0].accentVar} />
-                )}
-                <Button variant="default" onClick={handleSignupClick} size="sm" className="px-5 relative">
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Sign In / Sign Up
-                </Button>
-              </div>
+              <Button variant="default" onClick={handleSignupClick} size="sm" className="px-5">
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In / Sign Up
+              </Button>
             )}
           </div>
         </div>
@@ -547,13 +278,7 @@ export const GameMenu = ({
         <div className="relative xl:pr-[26rem]">
           <div className="grid min-w-0 items-start gap-4 sm:gap-6 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-8">
             <aside className="order-2 min-w-0 xl:order-1 xl:sticky xl:top-8">
-              <div
-                className="relative rounded-[2rem]"
-                onClickCapture={interceptFeatureClick("quests")}
-              >
-                {!seenWalkthroughs.quests && (
-                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.quests.slides[0].accentVar} />
-                )}
+              <div className="rounded-[2rem]">
                 <ExpandableMenuSection
                   title="Daily Quests"
                   subtitle="Keep rewards and refresh timers tucked away until you need them."
@@ -582,13 +307,7 @@ export const GameMenu = ({
 
             {/* Friends Section */}
             {user && (
-              <div
-                className="relative min-w-0 rounded-[2rem] animate-fade-in"
-                onClickCapture={interceptFeatureClick("social")}
-              >
-                {!seenWalkthroughs.social && (
-                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.social.slides[0].accentVar} />
-                )}
+              <div className="relative min-w-0 rounded-[2rem] animate-fade-in">
                 <ExpandableMenuSection
                   title="Social Hub"
                   subtitle="Challenges, active games, friend requests, and your friend list live here."
@@ -617,11 +336,8 @@ export const GameMenu = ({
             <Card
               id="tour-multiplayer"
               className="group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-multiplayer))] animate-scale-in"
-              onClick={(event) => handleModeSelection("multiplayer", "multiplayer", event)}
+              onClick={(event) => handleModeSelection("multiplayer", event)}
             >
-              {!seenWalkthroughs.multiplayer && (
-                <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.multiplayer.slides[0].accentVar} />
-              )}
               <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-multiplayer))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative p-4 sm:p-6 md:p-8">
                 <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
@@ -659,7 +375,7 @@ export const GameMenu = ({
                     className="h-11 w-full bg-[hsl(var(--menu-multiplayer))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-multiplayer))]/90 md:h-12 md:w-auto"
                     size="lg"
                     onClick={(e) => {
-                      handleModeSelection("multiplayer", "multiplayer", e);
+                      handleModeSelection("multiplayer", e);
                     }}
                   >
                     Open Multiplayer Lobby
@@ -677,11 +393,8 @@ export const GameMenu = ({
                   "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-classic))]",
                   getModeLimitStatus("classic").reached && "grayscale opacity-80"
                 )}
-                onClick={(event) => handleModeSelection("classic", "classic", event)}
+                onClick={(event) => handleModeSelection("classic", event)}
               >
-                {!seenWalkthroughs.classic && (
-                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.classic.slides[0].accentVar} />
-                )}
                 <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-classic))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative space-y-4 p-4 sm:space-y-6 sm:p-6">
                   <div className="flex items-start justify-between">
@@ -721,7 +434,7 @@ export const GameMenu = ({
                         : "bg-[hsl(var(--menu-classic))] hover:bg-[hsl(var(--menu-classic))]/90"
                     )}
                     size="lg"
-                    onClick={(event) => handleModeSelection("classic", "classic", event)}
+                    onClick={(event) => handleModeSelection("classic", event)}
                     disabled={getModeLimitStatus("classic").reached}
                   >
                     {getModeLimitStatus("classic").reached ? "Daily Limit Reached" : "Start Classic"}
@@ -739,11 +452,8 @@ export const GameMenu = ({
                   "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-hard))]",
                   getModeLimitStatus("hard").reached && "grayscale opacity-80"
                 )}
-                onClick={(event) => handleModeSelection("hard", "hard", event)}
+                onClick={(event) => handleModeSelection("hard", event)}
               >
-                {!seenWalkthroughs.hard && (
-                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.hard.slides[0].accentVar} />
-                )}
                 <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-hard))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative space-y-4 p-4 sm:space-y-6 sm:p-6">
                   <div className="flex items-start justify-between">
@@ -778,7 +488,7 @@ export const GameMenu = ({
                   <Button
                     className="h-11 w-full bg-[hsl(var(--menu-hard))] font-semibold uppercase tracking-[0.18em] text-white hover:bg-[hsl(var(--menu-hard))]/90 disabled:opacity-50 disabled:cursor-not-allowed sm:h-12"
                     size="lg"
-                    onClick={(event) => handleModeSelection("hard", "hard", event)}
+                    onClick={(event) => handleModeSelection("hard", event)}
                     disabled={getModeLimitStatus("hard").reached}
                   >
                     {getModeLimitStatus("hard").reached ? "Daily Limit Reached" : "Start Hard Mode"}
@@ -796,11 +506,8 @@ export const GameMenu = ({
                   "group relative cursor-pointer overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-2 hover:border-[hsl(var(--menu-timed))]",
                   getModeLimitStatus("timed").reached && "grayscale opacity-80"
                 )}
-                onClick={(event) => handleModeSelection("timed", "timed", event)}
+                onClick={(event) => handleModeSelection("timed", event)}
               >
-                {!seenWalkthroughs.timed && (
-                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.timed.slides[0].accentVar} />
-                )}
                 <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--menu-timed))]/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative space-y-4 p-4 sm:space-y-6 sm:p-6">
                   <div className="flex items-start justify-between">
@@ -839,7 +546,7 @@ export const GameMenu = ({
                   <Button
                     className="h-11 w-full bg-[hsl(var(--menu-timed))] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--menu-timed))]/90 disabled:opacity-50 disabled:cursor-not-allowed sm:h-12"
                     size="lg"
-                    onClick={(event) => handleModeSelection("timed", "timed", event)}
+                    onClick={(event) => handleModeSelection("timed", event)}
                     disabled={getModeLimitStatus("timed").reached}
                   >
                     {getModeLimitStatus("timed").reached ? "Daily Limit Reached" : "Start Timed"}
@@ -863,13 +570,7 @@ export const GameMenu = ({
                 </Card>
               </ExpandableMenuSection>
 
-              <div
-                className="relative min-w-0 rounded-[2rem]"
-                onClickCapture={interceptFeatureClick("cosmetics")}
-              >
-                {!seenWalkthroughs.cosmetics && (
-                  <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.cosmetics.slides[0].accentVar} />
-                )}
+              <div className="relative min-w-0 rounded-[2rem]">
                 <ExpandableMenuSection
                   title="Customization"
                   subtitle="Themes, tiles, and reveal effects are here when you want to tweak the look."
@@ -909,15 +610,6 @@ export const GameMenu = ({
         />
       )}
 
-      {activeConfig && (
-        <FeatureWalkthroughDialog
-          open={activeWalkthrough !== null}
-          slides={activeConfig.slides}
-          actionLabel={activeConfig.actionLabel}
-          onAction={handleWalkthroughPrimary}
-          onOpenChange={(open) => !open && closeWalkthrough()}
-        />
-      )}
     </>
   );
 };
