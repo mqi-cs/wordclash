@@ -186,12 +186,18 @@ const getDailySeriesForUser = async (
   mode: LeaderboardMode,
   dayKey: string,
 ) =>
-  await ctx.db
+  (await ctx.db
     .query("leaderboardSeries")
     .withIndex("by_user_mode_day", (q) =>
       q.eq("userId", userId).eq("mode", mode).eq("dayKey", dayKey),
     )
-    .unique();
+    .collect())
+    .sort((left, right) => {
+      if (left.rounds.length !== right.rounds.length) {
+        return right.rounds.length - left.rounds.length;
+      }
+      return right._creationTime - left._creationTime;
+    })[0] ?? null;
 
 const toCell = (mode: LeaderboardMode, round: LeaderboardRound | undefined) => {
   if (!round) {
@@ -304,6 +310,7 @@ export const startSoloRound = mutation({
     const weekKey = getWeekKey(now);
     const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
     const existing = await getDailySeriesForUser(ctx, userId, args.mode, dayKey);
+    await syncDailyRoundUsageForUser(ctx, userId, args.mode, existing?.rounds.length ?? 0);
 
     if (existing?.rounds.some((round) => isRoundInProgress(args.mode, round))) {
       throw new Error("Finish or abandon your current ranked round first.");

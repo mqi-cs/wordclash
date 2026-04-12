@@ -28,7 +28,6 @@ type MenuSectionKey = "stats" | "quests" | "social" | "leaderboard" | "cosmetics
 
 type ExpandableMenuSectionProps = {
   title: string;
-  subtitle: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: ReactNode;
@@ -38,7 +37,6 @@ type ExpandableMenuSectionProps = {
 
 const ExpandableMenuSection = ({
   title,
-  subtitle,
   open,
   onOpenChange,
   children,
@@ -49,13 +47,12 @@ const ExpandableMenuSection = ({
     <CollapsibleTrigger asChild>
       <button
         type="button"
-        className="flex w-full min-w-0 flex-col items-start gap-2.5 overflow-hidden rounded-[1.5rem] border border-border/70 bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card/70 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
+        className="flex w-full min-w-0 items-center justify-between gap-4 overflow-hidden rounded-[1.5rem] border border-border/70 bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card/70 sm:px-5"
       >
-        <div className="min-w-0 w-full space-y-1">
+        <div className="min-w-0 flex-1">
           <h2 className="text-base font-bold tracking-tight text-foreground sm:text-lg">{title}</h2>
-          <p className="max-w-full break-words text-xs leading-5 text-muted-foreground sm:text-sm">{subtitle}</p>
         </div>
-        <div className="flex shrink-0 self-end items-center gap-1.5 rounded-full border border-border/70 bg-background/65 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:self-auto sm:gap-2 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]">
+        <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-background/65 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:gap-2 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]">
           {open ? "Hide" : "Show"}
           <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")} />
         </div>
@@ -281,7 +278,6 @@ export const GameMenu = ({
               <div className="rounded-[2rem]">
                 <ExpandableMenuSection
                   title="Daily Quests"
-                  subtitle="Keep rewards and refresh timers tucked away until you need them."
                   open={sectionOpen.quests}
                   onOpenChange={(open) => setMenuSectionOpen("quests", open)}
                 >
@@ -296,7 +292,6 @@ export const GameMenu = ({
               <div className="min-w-0 animate-fade-in">
                 <ExpandableMenuSection
                   title="Profile Stats"
-                  subtitle="Open your win rates and mode history when you want the deeper breakdown."
                   open={sectionOpen.stats}
                   onOpenChange={(open) => setMenuSectionOpen("stats", open)}
                 >
@@ -310,7 +305,6 @@ export const GameMenu = ({
               <div className="relative min-w-0 rounded-[2rem] animate-fade-in">
                 <ExpandableMenuSection
                   title="Social Hub"
-                  subtitle="Challenges, active games, friend requests, and your friend list live here."
                   open={sectionOpen.social}
                   onOpenChange={(open) => setMenuSectionOpen("social", open)}
                 >
@@ -560,7 +554,6 @@ export const GameMenu = ({
 
               <ExpandableMenuSection
                 title="Rankings"
-                subtitle="Daily and weekly ladders stay visible, but you can collapse them when you want a cleaner menu."
                 open={sectionOpen.leaderboard}
                 onOpenChange={(open) => setMenuSectionOpen("leaderboard", open)}
                 className="xl:hidden"
@@ -573,7 +566,6 @@ export const GameMenu = ({
               <div className="relative min-w-0 rounded-[2rem]">
                 <ExpandableMenuSection
                   title="Customization"
-                  subtitle="Themes, tiles, and reveal effects are here when you want to tweak the look."
                   open={sectionOpen.cosmetics}
                   onOpenChange={(open) => setMenuSectionOpen("cosmetics", open)}
                 >
@@ -587,7 +579,6 @@ export const GameMenu = ({
             <div className="xl:sticky xl:top-8">
               <ExpandableMenuSection
                 title="Rankings"
-                subtitle="Daily and weekly ladders stay ready on the side without crowding the main menu."
                 open={sectionOpen.leaderboard}
                 onOpenChange={(open) => setMenuSectionOpen("leaderboard", open)}
               >

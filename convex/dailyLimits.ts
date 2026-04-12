@@ -33,7 +33,30 @@ const getExistingCounter = async (
     .withIndex("by_metric_user_and_day", (q) =>
       q.eq("metric", getMetricForMode(mode)).eq("userId", userId).eq("dayKey", dayKey),
     )
-    .unique();
+    .collect();
+
+const getCounterValue = (
+  counters: Array<{ value: number }>,
+) => counters.reduce((max, counter) => Math.max(max, counter.value), 0);
+
+const collapseDuplicateCounters = async (
+  ctx: MutationCtx,
+  counters: Array<{ _id: Id<"analyticsCounters">; value: number }>,
+  nextValue: number,
+) => {
+  if (counters.length === 0) {
+    return;
+  }
+
+  const [primary, ...duplicates] = [...counters].sort((left, right) =>
+    left._id < right._id ? -1 : 1,
+  );
+
+  await ctx.db.patch(primary._id, { value: nextValue });
+  for (const duplicate of duplicates) {
+    await ctx.db.delete(duplicate._id);
+  }
+};
 
 export const consumeDailyRoundForUser = async (
   ctx: MutationCtx,
@@ -42,7 +65,7 @@ export const consumeDailyRoundForUser = async (
 ) => {
   const dayKey = getTodayKey();
   const existing = await getExistingCounter(ctx, userId, mode, dayKey);
-  const currentPlayed = existing?.value ?? 0;
+  const currentPlayed = getCounterValue(existing);
 
   if (currentPlayed >= DAILY_MODE_ROUND_LIMIT) {
     throw new Error(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
@@ -50,8 +73,8 @@ export const consumeDailyRoundForUser = async (
 
   const nextPlayed = currentPlayed + 1;
 
-  if (existing) {
-    await ctx.db.patch(existing._id, { value: nextPlayed });
+  if (existing.length > 0) {
+    await collapseDuplicateCounters(ctx, existing, nextPlayed);
   } else {
     await ctx.db.insert("analyticsCounters", {
       metric: getMetricForMode(mode),
@@ -78,18 +101,22 @@ export const syncDailyRoundUsageForUser = async (
   const clampedUsedRounds = Math.min(Math.max(usedRounds, 0), DAILY_MODE_ROUND_LIMIT);
   const dayKey = getTodayKey();
   const existing = await getExistingCounter(ctx, userId, mode, dayKey);
+  const currentPlayed = getCounterValue(existing);
 
-  if (existing) {
-    if (existing.value >= clampedUsedRounds) {
+  if (existing.length > 0) {
+    if (currentPlayed >= clampedUsedRounds) {
+      if (existing.length > 1) {
+        await collapseDuplicateCounters(ctx, existing, currentPlayed);
+      }
       return {
         mode,
-        ...buildModeStatus(existing.value),
+        ...buildModeStatus(currentPlayed),
         limit: DAILY_MODE_ROUND_LIMIT,
         dayKey,
       };
     }
 
-    await ctx.db.patch(existing._id, { value: clampedUsedRounds });
+    await collapseDuplicateCounters(ctx, existing, clampedUsedRounds);
   } else {
     await ctx.db.insert("analyticsCounters", {
       metric: getMetricForMode(mode),
@@ -132,14 +159,14 @@ export const getMyDailyRoundLimits = query({
     };
 
     for (const mode of LIMITED_MODES) {
-      const counter = await ctx.db
+      const counters = await ctx.db
         .query("analyticsCounters")
         .withIndex("by_metric_user_and_day", (q) =>
           q.eq("metric", getMetricForMode(mode)).eq("userId", userId).eq("dayKey", dayKey),
         )
-        .unique();
+        .collect();
 
-      counts[mode] = counter?.value ?? 0;
+      counts[mode] = getCounterValue(counters);
     }
 
     return {
