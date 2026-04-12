@@ -10,9 +10,14 @@ import {
   syncDailyRoundUsageForUser,
 } from "./dailyLimits";
 import { applyStatsUpdate } from "./stats";
+import {
+  isRoundInProgress,
+  normalizeRoundForMode,
+  summarizeSeries,
+  type LeaderboardMode,
+  type RankingStatus,
+} from "./leaderboardScoring";
 
-type LeaderboardMode = LimitedMode;
-type RankingStatus = "in_progress" | "qualified" | "disqualified";
 type RoundStatus = "in_progress" | "won" | "lost" | "abandoned";
 type RankingPeriod = "daily" | "weekly";
 type LeaderboardSeriesDoc = Doc<"leaderboardSeries">;
@@ -91,96 +96,6 @@ const compareRankables = (left: ComparableRanking, right: ComparableRanking) => 
   }
 
   return left.usernameLower.localeCompare(right.usernameLower);
-};
-
-const normalizeRoundForMode = (
-  mode: LeaderboardMode,
-  round: {
-    slot: number;
-    status: RoundStatus;
-    rawGuesses?: number;
-    hintUses?: number;
-    adjustedScore?: number;
-    wordsCompleted?: number;
-    startedAt: number;
-    finishedAt?: number;
-    importedFromGuest?: boolean;
-  },
-): LeaderboardRound => {
-  if (mode === "timed") {
-    const wordsCompleted = Math.max(0, round.wordsCompleted ?? round.adjustedScore ?? 0);
-    return {
-      slot: round.slot,
-      status: round.status === "abandoned" ? "abandoned" : "won",
-      startedAt: round.startedAt,
-      ...(round.finishedAt ? { finishedAt: round.finishedAt } : {}),
-      ...(round.importedFromGuest ? { importedFromGuest: true } : {}),
-      wordsCompleted,
-      adjustedScore: wordsCompleted,
-      hintUses: 0,
-    };
-  }
-
-  return {
-    slot: round.slot,
-    status: round.status,
-    startedAt: round.startedAt,
-    ...(round.finishedAt ? { finishedAt: round.finishedAt } : {}),
-    ...(round.importedFromGuest ? { importedFromGuest: true } : {}),
-    ...(typeof round.rawGuesses === "number" ? { rawGuesses: round.rawGuesses } : {}),
-    ...(typeof round.hintUses === "number" ? { hintUses: round.hintUses } : {}),
-    ...(typeof round.adjustedScore === "number" ? { adjustedScore: round.adjustedScore } : {}),
-  };
-};
-
-const summarizeSeries = (
-  mode: LeaderboardMode,
-  rounds: LeaderboardRound[],
-): Pick<LeaderboardSeriesDoc, "rankingStatus" | "totalScore" | "sortScore" | "totalHintsUsed" | "completedAt"> => {
-  const sortedRounds = [...rounds].sort((a, b) => a.slot - b.slot);
-  const totalHintsUsed = sortedRounds.reduce((total, round) => total + (round.hintUses ?? 0), 0);
-  const hasInProgress = sortedRounds.some((round) => round.status === "in_progress");
-  const hasAbandoned = sortedRounds.some((round) => round.status === "abandoned");
-  const hasFailedClassicRound =
-    mode !== "timed" && sortedRounds.some((round) => round.status === "lost");
-  const isComplete = sortedRounds.length >= DAILY_MODE_ROUND_LIMIT && !hasInProgress;
-
-  if (hasAbandoned || hasFailedClassicRound) {
-    return {
-      rankingStatus: "disqualified",
-      totalHintsUsed,
-      completedAt: sortedRounds
-        .filter((round) => typeof round.finishedAt === "number")
-        .reduce((latest, round) => Math.max(latest, round.finishedAt ?? 0), 0),
-    };
-  }
-
-  if (!isComplete) {
-    return {
-      rankingStatus: "in_progress",
-      totalHintsUsed,
-    };
-  }
-
-  const totalScore = sortedRounds.reduce((total, round) => {
-    if (mode === "timed") {
-      return total + (round.wordsCompleted ?? round.adjustedScore ?? 0);
-    }
-    return total + (round.adjustedScore ?? 0);
-  }, 0);
-
-  const completedAt = sortedRounds.reduce(
-    (latest, round) => Math.max(latest, round.finishedAt ?? 0),
-    0,
-  );
-
-  return {
-    rankingStatus: "qualified",
-    totalScore,
-    sortScore: mode === "timed" ? -totalScore : totalScore,
-    totalHintsUsed,
-    completedAt,
-  };
 };
 
 const buildComparableFromSeries = (
@@ -283,7 +198,7 @@ const toCell = (mode: LeaderboardMode, round: LeaderboardRound | undefined) => {
     return { kind: "empty" as const };
   }
 
-  if (round.status === "in_progress") {
+  if (isRoundInProgress(mode, round)) {
     return { kind: "empty" as const };
   }
 
@@ -390,7 +305,7 @@ export const startSoloRound = mutation({
     const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
     const existing = await getDailySeriesForUser(ctx, userId, args.mode, dayKey);
 
-    if (existing?.rounds.some((round) => round.status === "in_progress")) {
+    if (existing?.rounds.some((round) => isRoundInProgress(args.mode, round))) {
       throw new Error("Finish or abandon your current ranked round first.");
     }
 
@@ -409,7 +324,7 @@ export const startSoloRound = mutation({
         startedAt: now,
       }),
     ];
-    const summary = summarizeSeries(args.mode, nextRounds);
+    const summary = summarizeSeries(args.mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
 
     if (!existing) {
       await ctx.db.insert("leaderboardSeries", {
@@ -470,7 +385,7 @@ export const finishSoloRound = mutation({
     }
 
     const targetRound = existing.rounds.find((round) => round.slot === args.slot);
-    if (!targetRound || targetRound.status !== "in_progress") {
+    if (!targetRound || !isRoundInProgress(args.mode, targetRound)) {
       throw new Error("Ranked round is not active");
     }
 
@@ -505,7 +420,7 @@ export const finishSoloRound = mutation({
       });
     });
 
-    const summary = summarizeSeries(args.mode, nextRounds);
+    const summary = summarizeSeries(args.mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
     const nextSeries: LeaderboardSeriesDoc = {
       ...existing,
       displayName,
@@ -566,7 +481,7 @@ export const abandonSoloRound = mutation({
     }
 
     const targetRound = existing.rounds.find((round) => round.slot === args.slot);
-    if (!targetRound || targetRound.status !== "in_progress") {
+    if (!targetRound || !isRoundInProgress(args.mode, targetRound)) {
       return { abandoned: false };
     }
 
@@ -582,7 +497,7 @@ export const abandonSoloRound = mutation({
           })
         : round,
     );
-    const summary = summarizeSeries(args.mode, nextRounds);
+    const summary = summarizeSeries(args.mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
 
     await patchSeries(ctx, existing._id, {
       displayName,
@@ -633,7 +548,7 @@ export const importGuestDailySeries = mutation({
           importedFromGuest: true,
         }),
       );
-    const summary = summarizeSeries(args.mode, sanitizedRounds);
+    const summary = summarizeSeries(args.mode, sanitizedRounds, DAILY_MODE_ROUND_LIMIT);
 
     const seriesId = await ctx.db.insert("leaderboardSeries", {
       userId,
