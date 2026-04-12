@@ -414,7 +414,7 @@ export const GameMenu = ({
 
   return (
     <>
-      <div className={cn("relative min-h-screen overflow-hidden bg-background px-3 py-4 sm:px-4 sm:py-10", themeClassName)}>
+      <div className={cn("relative min-h-screen overflow-x-hidden overflow-y-hidden bg-background px-2 py-4 sm:px-4 sm:py-10", themeClassName)}>
       {!hasBackgroundTheme && (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_30%)]" />
@@ -424,7 +424,7 @@ export const GameMenu = ({
         </>
       )}
 
-      <div className="absolute inset-x-3 top-3 flex items-center justify-end gap-2 sm:inset-x-auto sm:right-4 sm:top-4">
+      <div className="absolute inset-x-2 top-3 flex items-center justify-end gap-2 sm:inset-x-auto sm:right-4 sm:top-4">
         {onShowHelp && (
           <Button
             variant="ghost"
@@ -451,7 +451,7 @@ export const GameMenu = ({
             </div>
           </div>
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <h1 className="bg-gradient-to-r from-foreground via-foreground to-primary/70 bg-clip-text text-center text-[3rem] font-black leading-none tracking-[-0.1em] text-transparent sm:text-7xl md:text-8xl">
+            <h1 className="bg-gradient-to-r from-foreground via-foreground to-primary/70 bg-clip-text text-center text-[2.7rem] font-black leading-none tracking-[-0.08em] text-transparent sm:text-7xl md:text-8xl">
               WORDCLASH
             </h1>
             <Button

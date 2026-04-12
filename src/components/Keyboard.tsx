@@ -44,7 +44,7 @@ export const Keyboard = ({
   };
 
   return (
-    <div className="mx-auto w-full max-w-[22rem] px-1 pb-[max(0.2rem,env(safe-area-inset-bottom))] sm:max-w-sm sm:px-1">
+    <div className="mx-auto w-full max-w-[min(21rem,calc(100vw-0.5rem))] px-0.5 pb-[max(0.2rem,env(safe-area-inset-bottom))] sm:max-w-sm sm:px-1">
       {KEYBOARD_ROWS.map((row, i) => (
         <div key={i} className="mb-1 flex justify-center gap-1 sm:mb-0.5 sm:gap-1">
           {row.map((key) => {
@@ -57,10 +57,10 @@ export const Keyboard = ({
                 onClick={() => handleClick(key)}
                 disabled={disabled}
                 className={cn(
-                  "relative h-12 min-w-0 flex-1 overflow-hidden rounded-xl px-1 font-semibold text-[12px] transition-colors sm:h-11 sm:text-sm",
+                  "relative h-11 min-w-0 flex-1 overflow-hidden rounded-xl px-1 font-semibold text-[11px] transition-colors sm:h-11 sm:text-sm",
                   isActionKey
-                    ? "max-w-[4.6rem] bg-muted/85 px-1.5 text-[10px] sm:max-w-none sm:flex-[1.35] sm:px-2.5 sm:text-sm"
-                    : "max-w-[3rem] bg-game-key-bg sm:max-w-none",
+                    ? "max-w-[4.15rem] bg-muted/85 px-1.5 text-[9px] sm:max-w-none sm:flex-[1.35] sm:px-2.5 sm:text-sm"
+                    : "max-w-[2.75rem] bg-game-key-bg sm:max-w-none",
                   !status && "bg-game-key-bg text-game-text hover:bg-muted",
                   status === "correct" && "bg-game-correct text-white hover:bg-game-correct",
                   status === "present" && "bg-game-present text-white hover:bg-game-present",

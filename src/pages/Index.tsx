@@ -1292,7 +1292,7 @@ const Index = () => {
         </div>
       </div>
 
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-start gap-1 overflow-y-auto px-1.5 py-1.5 sm:justify-center sm:gap-4 sm:overflow-hidden sm:px-4 sm:py-2">
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-start gap-1 overflow-x-hidden overflow-y-auto px-1 py-1.5 sm:justify-center sm:gap-4 sm:overflow-hidden sm:px-4 sm:py-2">
         <div className="flex w-full min-h-0 items-start justify-center overflow-visible pt-0.5 sm:items-center sm:overflow-hidden sm:pt-0">
           <GameGrid
             guesses={guesses}

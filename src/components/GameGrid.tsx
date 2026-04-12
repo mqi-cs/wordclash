@@ -66,7 +66,7 @@ const Tile = ({ letter, status, animate, delay = 0, isHint, blurLetter = false }
     <div
       ref={tileRef}
       className={cn(
-        "relative aspect-square w-full overflow-hidden border-2 flex items-center justify-center text-[1.8rem] sm:text-[2.1rem] font-bold uppercase transition-all duration-100 tile",
+        "relative aspect-square w-full overflow-hidden border-2 flex items-center justify-center text-[1.72rem] sm:text-[2.1rem] font-bold uppercase transition-all duration-100 tile",
         status === "empty" && "tile-empty border-game-border bg-game-empty",
         status === "filled" && "tile-filled border-game-border-active bg-game-empty animate-bounce-in",
         !shouldAnimateReveal && status === "correct" && "tile-revealed tile-correct bg-game-correct border-game-correct text-white",
@@ -117,7 +117,7 @@ export const GameGrid = ({
   blurCurrentGuess = false,
 }: GameGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const sixRowViewportHeight = "calc(6 * min(17.8vw, 74px) + 5 * 8px)";
+  const sixRowViewportHeight = "calc(6 * min(17vw, 72px) + 5 * 8px)";
 
   // For modes with many guesses (hard=10, timed=999), we show a scrollable window.
   // We always render all rows but keep a 6-row viewport visible.
@@ -186,7 +186,7 @@ export const GameGrid = ({
     // Scrollable viewport: always reserve space for 6 visible rows.
     return (
       <div
-        className="mx-auto w-full max-w-[322px] sm:max-w-[352px]"
+        className="mx-auto w-full max-w-[min(19rem,calc(100vw-1rem))] sm:max-w-[352px]"
         style={{ minHeight: sixRowViewportHeight }}
       >
         <div
@@ -206,7 +206,7 @@ export const GameGrid = ({
   // Standard fixed grid (6 rows for classic or multiplayer)
   return (
     <div
-      className="mx-auto w-full max-w-[322px] sm:max-w-[352px]"
+      className="mx-auto w-full max-w-[min(19rem,calc(100vw-1rem))] sm:max-w-[352px]"
       style={{ minHeight: sixRowViewportHeight }}
     >
       {gridContent}
