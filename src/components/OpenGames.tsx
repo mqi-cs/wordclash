@@ -110,13 +110,13 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
         <CardTitle className="text-lg sm:text-xl">Your Active Games</CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
-        <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2 sm:gap-4">
           {games.map((game) => (
-            <Card key={game._id} className="overflow-hidden rounded-[1.4rem] border-primary/10 bg-muted/30">
+            <Card key={game._id} className="min-w-0 overflow-hidden rounded-[1.4rem] border-primary/10 bg-muted/30">
               <div className="h-1 w-full bg-primary/20" />
               <CardContent className="p-3.5 sm:p-4">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
+                  <div className="min-w-0">
                       <div className="mb-1 flex flex-wrap items-center gap-2">
                         {game.gameType === "challenge" ? (
                           <Crown className="h-4 w-4 text-primary" />
@@ -130,14 +130,16 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                           </span>
                         )}
                       </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                    <div className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      {game.startedAt
-                        ? `Started ${formatDistanceToNow(new Date(game.startedAt), { addSuffix: true })}`
-                        : "Waiting for opponent..."}
+                      <span className="truncate">
+                        {game.startedAt
+                          ? `Started ${formatDistanceToNow(new Date(game.startedAt), { addSuffix: true })}`
+                          : "Waiting for opponent..."}
+                      </span>
                     </div>
                     {game.gameType === "multiplayer" && (
-                      <div className="text-sm text-muted-foreground mt-1">
+                      <div className="mt-1 break-words text-sm text-muted-foreground">
                         {game.playerCount}/4 players
                         {game.lobbyCode ? ` • Code ${game.lobbyCode}` : ""}
                       </div>

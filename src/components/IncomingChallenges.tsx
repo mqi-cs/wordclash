@@ -61,21 +61,21 @@ export const IncomingChallenges = () => {
           {challenges.map((challenge) => (
             <div
               key={challenge._id}
-              className="flex items-center justify-between p-3 bg-background rounded-md shadow-sm border border-border"
+              className="flex flex-col gap-3 rounded-md border border-border bg-background p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="flex items-center gap-3">
-                <span className="font-semibold">{challenge.senderUsername}</span>
+              <div className="min-w-0 flex items-center gap-3">
+                <span className="truncate font-semibold">{challenge.senderUsername}</span>
                 <span className="text-xs text-muted-foreground px-2 py-1 bg-secondary rounded-full">
                   Vs Challenge
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   size="sm"
                   variant="default"
                   onClick={() => handleAccept(challenge._id)}
                   disabled={processingChallenge === challenge._id}
-                  className="bg-primary hover:bg-primary/90"
+                  className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
                 >
                   <Check className="h-4 w-4 mr-1" />
                   {processingChallenge === challenge._id ? "Processing..." : "Accept & Play"}
@@ -85,6 +85,7 @@ export const IncomingChallenges = () => {
                   variant="outline"
                   onClick={() => handleDecline(challenge._id)}
                   disabled={processingChallenge === challenge._id}
+                  className="w-full sm:w-auto"
                 >
                   <X className="h-4 w-4 mr-1" />
                   {processingChallenge === challenge._id ? "Processing..." : "Decline"}

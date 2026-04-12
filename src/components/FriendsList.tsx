@@ -74,7 +74,7 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
           {friends.map((friend) => (
             <div
               key={friend.friendshipId}
-              className="flex flex-col gap-3 rounded-xl bg-muted/50 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4"
+              className="flex min-w-0 flex-col gap-3 rounded-xl bg-muted/50 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4"
             >
               <div className="flex-1 min-w-0 w-full">
                 <p className="truncate text-base font-semibold sm:text-lg">
@@ -101,13 +101,13 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
                 )}
               </div>
               <div className="w-full shrink-0 sm:w-auto sm:min-w-[210px]">
-                <div className="flex rounded-md bg-muted p-1">
+                <div className="flex min-w-0 rounded-md bg-muted p-1">
                     {(["classic", "hard", "timed"] as const).map((m) => (
                         <button
                             key={m}
                             onClick={() => setChallengeMode(m)}
                             className={cn(
-                                "flex-1 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
+                                "min-w-0 flex-1 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
                                 challengeMode === m ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                             )}
                         >

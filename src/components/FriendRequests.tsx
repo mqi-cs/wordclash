@@ -55,15 +55,15 @@ export const FriendRequests = ({ onRequestHandled }: { onRequestHandled?: () => 
           {requests.map((request) => (
             <div
               key={request.friendshipId}
-              className="flex items-center justify-between p-3 bg-muted rounded-md"
+              className="flex flex-col gap-3 rounded-md bg-muted p-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <span className="font-semibold">{request.senderUsername}</span>
-              <div className="flex gap-2">
+              <span className="min-w-0 truncate font-semibold">{request.senderUsername}</span>
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   size="sm"
                   variant="default"
                   onClick={() => handleAccept(request.friendshipId)}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="w-full bg-green-600 text-white hover:bg-green-700 sm:w-auto"
                 >
                   <Check className="h-4 w-4 mr-1" />
                   Accept
@@ -72,6 +72,7 @@ export const FriendRequests = ({ onRequestHandled }: { onRequestHandled?: () => 
                   size="sm"
                   variant="destructive"
                   onClick={() => handleDecline(request.friendshipId)}
+                  className="w-full sm:w-auto"
                 >
                   <X className="h-4 w-4 mr-1" />
                   Decline

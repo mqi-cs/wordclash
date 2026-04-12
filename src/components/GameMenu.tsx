@@ -247,15 +247,15 @@ const ExpandableMenuSection = ({
   className,
   contentClassName,
 }: ExpandableMenuSectionProps) => (
-  <Collapsible open={open} onOpenChange={onOpenChange} className={className}>
+  <Collapsible open={open} onOpenChange={onOpenChange} className={cn("w-full min-w-0", className)}>
     <CollapsibleTrigger asChild>
       <button
         type="button"
-        className="flex w-full flex-col items-start gap-2.5 rounded-[1.5rem] border border-border/70 bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card/70 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
+        className="flex w-full min-w-0 flex-col items-start gap-2.5 overflow-hidden rounded-[1.5rem] border border-border/70 bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card/70 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
       >
         <div className="min-w-0 w-full space-y-1">
           <h2 className="text-base font-bold tracking-tight text-foreground sm:text-lg">{title}</h2>
-          <p className="max-w-full text-xs leading-5 text-muted-foreground sm:text-sm">{subtitle}</p>
+          <p className="max-w-full break-words text-xs leading-5 text-muted-foreground sm:text-sm">{subtitle}</p>
         </div>
         <div className="flex shrink-0 self-end items-center gap-1.5 rounded-full border border-border/70 bg-background/65 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:self-auto sm:gap-2 sm:px-3 sm:text-[11px] sm:tracking-[0.16em]">
           {open ? "Hide" : "Show"}
@@ -263,8 +263,8 @@ const ExpandableMenuSection = ({
         </div>
       </button>
     </CollapsibleTrigger>
-    <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-      <div className={cn("pt-3 sm:pt-4", contentClassName)}>{children}</div>
+    <CollapsibleContent className="w-full min-w-0 overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+      <div className={cn("w-full min-w-0 pt-3 sm:pt-4", contentClassName)}>{children}</div>
     </CollapsibleContent>
   </Collapsible>
 );
@@ -545,8 +545,8 @@ export const GameMenu = ({
         </div>
 
         <div className="relative xl:pr-[26rem]">
-          <div className="grid items-start gap-4 sm:gap-6 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-8">
-            <aside className="order-2 xl:order-1 xl:sticky xl:top-8">
+          <div className="grid min-w-0 items-start gap-4 sm:gap-6 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-8">
+            <aside className="order-2 min-w-0 xl:order-1 xl:sticky xl:top-8">
               <div
                 className="relative rounded-[2rem]"
                 onClickCapture={interceptFeatureClick("quests")}
@@ -565,10 +565,10 @@ export const GameMenu = ({
               </div>
             </aside>
 
-            <div className="order-1 space-y-6 xl:order-2 sm:space-y-8 xl:space-y-10">
+            <div className="order-1 min-w-0 space-y-6 xl:order-2 sm:space-y-8 xl:space-y-10">
             {/* User Stats */}
             {user && (
-              <div className="animate-fade-in">
+              <div className="min-w-0 animate-fade-in">
                 <ExpandableMenuSection
                   title="Profile Stats"
                   subtitle="Open your win rates and mode history when you want the deeper breakdown."
@@ -583,7 +583,7 @@ export const GameMenu = ({
             {/* Friends Section */}
             {user && (
               <div
-                className="relative rounded-[2rem] animate-fade-in"
+                className="relative min-w-0 rounded-[2rem] animate-fade-in"
                 onClickCapture={interceptFeatureClick("social")}
               >
                 {!seenWalkthroughs.social && (
@@ -864,7 +864,7 @@ export const GameMenu = ({
               </ExpandableMenuSection>
 
               <div
-                className="relative rounded-[2rem]"
+                className="relative min-w-0 rounded-[2rem]"
                 onClickCapture={interceptFeatureClick("cosmetics")}
               >
                 {!seenWalkthroughs.cosmetics && (
