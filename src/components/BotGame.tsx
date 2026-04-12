@@ -91,7 +91,7 @@ export const BotGame = ({
       if (user) {
         void updateStats(gameMode, won, greenLetters, undefined, "bot");
       } else {
-        recordGuestQuestProgress(gameMode);
+        recordGuestQuestProgress(gameMode, { won, greenLetters });
         trackGame("game_completed", {
           mode: gameMode,
           won,

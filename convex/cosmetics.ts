@@ -18,11 +18,14 @@ interface QuestTemplate {
   description: string;
   target: number;
   reward: number; // shards
+  kind: "play_any" | "play_mode" | "play_all_modes" | "auth" | "win_any" | "green_letters";
+  requiredMode?: TrackedMode;
 }
 
 type TrackedMode = "classic" | "hard" | "timed";
 
 type QuestSlot = {
+  slotId?: string;
   questId: string;
   title: string;
   description: string;
@@ -31,10 +34,14 @@ type QuestSlot = {
   completed: boolean;
   claimed: boolean;
   reward: number;
+  completedAt?: number;
+  refreshAfter?: number;
+  rotationCount?: number;
   modeProgress?: TrackedMode[];
 };
 
 const TRACKED_MODES: TrackedMode[] = ["classic", "hard", "timed"];
+const QUEST_REFRESH_MS = 24 * 60 * 60 * 1000;
 
 const PLAY_ONE_GAME_QUEST: QuestTemplate = {
   id: "play_any_1",
@@ -42,6 +49,7 @@ const PLAY_ONE_GAME_QUEST: QuestTemplate = {
   description: "Play 1 game in any mode",
   target: 1,
   reward: 3,
+  kind: "play_any",
 };
 
 const PLAY_ALL_MODES_QUEST: QuestTemplate = {
@@ -50,6 +58,7 @@ const PLAY_ALL_MODES_QUEST: QuestTemplate = {
   description: "Play Classic, Hard, and Timed in the same day",
   target: 3,
   reward: 3,
+  kind: "play_all_modes",
 };
 
 const AUTH_QUEST: QuestTemplate = {
@@ -58,6 +67,64 @@ const AUTH_QUEST: QuestTemplate = {
   description: "Create an account or sign in once today",
   target: 1,
   reward: 3,
+  kind: "auth",
+};
+
+const PLAY_CLASSIC_QUEST: QuestTemplate = {
+  id: "play_classic_1",
+  title: "Classic Run",
+  description: "Play 1 Classic game",
+  target: 1,
+  reward: 3,
+  kind: "play_mode",
+  requiredMode: "classic",
+};
+
+const PLAY_HARD_QUEST: QuestTemplate = {
+  id: "play_hard_1",
+  title: "Hard Run",
+  description: "Play 1 Hard game",
+  target: 1,
+  reward: 3,
+  kind: "play_mode",
+  requiredMode: "hard",
+};
+
+const PLAY_TIMED_QUEST: QuestTemplate = {
+  id: "play_timed_1",
+  title: "Timed Run",
+  description: "Play 1 Timed game",
+  target: 1,
+  reward: 3,
+  kind: "play_mode",
+  requiredMode: "timed",
+};
+
+const WIN_ANY_GAME_QUEST: QuestTemplate = {
+  id: "win_any_1",
+  title: "Win One Game",
+  description: "Win 1 game in any mode",
+  target: 1,
+  reward: 4,
+  kind: "win_any",
+};
+
+const PLAY_THREE_GAMES_QUEST: QuestTemplate = {
+  id: "play_any_3",
+  title: "Three-Round Warmup",
+  description: "Play 3 games in any mode",
+  target: 3,
+  reward: 4,
+  kind: "play_any",
+};
+
+const GREEN_LETTERS_QUEST: QuestTemplate = {
+  id: "green_letters_10",
+  title: "Green Letter Chase",
+  description: "Find 10 green letters",
+  target: 10,
+  reward: 4,
+  kind: "green_letters",
 };
 
 const DEFAULT_DAILY_QUESTS: QuestTemplate[] = [
@@ -65,7 +132,23 @@ const DEFAULT_DAILY_QUESTS: QuestTemplate[] = [
   PLAY_ALL_MODES_QUEST,
   AUTH_QUEST,
 ];
-const CURRENT_QUEST_VERSION = 2;
+const REPEATABLE_QUESTS: QuestTemplate[] = [
+  PLAY_CLASSIC_QUEST,
+  PLAY_HARD_QUEST,
+  PLAY_TIMED_QUEST,
+  WIN_ANY_GAME_QUEST,
+  PLAY_THREE_GAMES_QUEST,
+  GREEN_LETTERS_QUEST,
+];
+const QUESTS_BY_ID = new Map(
+  [...DEFAULT_DAILY_QUESTS, ...REPEATABLE_QUESTS].map((template) => [template.id, template]),
+);
+const REPEATABLE_SLOT_POOLS: readonly (readonly string[])[] = [
+  [PLAY_CLASSIC_QUEST.id, WIN_ANY_GAME_QUEST.id, GREEN_LETTERS_QUEST.id, PLAY_THREE_GAMES_QUEST.id, PLAY_TIMED_QUEST.id],
+  [PLAY_HARD_QUEST.id, GREEN_LETTERS_QUEST.id, PLAY_THREE_GAMES_QUEST.id, WIN_ANY_GAME_QUEST.id, PLAY_CLASSIC_QUEST.id],
+  [PLAY_TIMED_QUEST.id, WIN_ANY_GAME_QUEST.id, GREEN_LETTERS_QUEST.id, PLAY_HARD_QUEST.id, PLAY_THREE_GAMES_QUEST.id],
+];
+const CURRENT_QUEST_VERSION = 3;
 
 // ── Cosmetic Catalog ─────────────────────────────────────────────────
 
@@ -109,13 +192,19 @@ const normalizeModeProgress = (modes: readonly string[] | undefined): TrackedMod
 
 const buildQuestSlot = (
   template: QuestTemplate,
+  slotIndex: number,
   {
+    slotId,
     progress = 0,
     completed = false,
     claimed = false,
+    completedAt,
+    refreshAfter,
+    rotationCount = 0,
     modeProgress,
   }: Partial<QuestSlot> = {},
 ): QuestSlot => ({
+  slotId: slotId ?? `slot-${slotIndex}-${rotationCount}`,
   questId: template.id,
   title: template.title,
   description: template.description,
@@ -124,64 +213,108 @@ const buildQuestSlot = (
   completed,
   claimed,
   reward: template.reward,
+  ...(typeof completedAt === "number" ? { completedAt } : {}),
+  ...(typeof refreshAfter === "number" ? { refreshAfter } : {}),
+  ...(rotationCount > 0 ? { rotationCount } : {}),
   ...(modeProgress && modeProgress.length > 0 ? { modeProgress } : {}),
 });
 
 const buildDefaultQuestSlots = (isAuthenticated: boolean): QuestSlot[] =>
-  DEFAULT_DAILY_QUESTS.map((template) => {
+  DEFAULT_DAILY_QUESTS.map((template, slotIndex) => {
     if (template.id === AUTH_QUEST.id) {
-      return buildQuestSlot(template, {
+      const completedAt = isAuthenticated ? Date.now() : undefined;
+      return buildQuestSlot(template, slotIndex, {
         progress: isAuthenticated ? 1 : 0,
         completed: isAuthenticated,
+        ...(typeof completedAt === "number"
+          ? {
+              completedAt,
+              refreshAfter: completedAt + QUEST_REFRESH_MS,
+            }
+          : {}),
       });
     }
 
     if (template.id === PLAY_ALL_MODES_QUEST.id) {
-      return buildQuestSlot(template, { modeProgress: [] });
+      return buildQuestSlot(template, slotIndex, { modeProgress: [] });
     }
 
-    return buildQuestSlot(template);
+    return buildQuestSlot(template, slotIndex);
   });
 
-const mergeQuestSlots = (
+const getReplacementQuestTemplate = (slotIndex: number, rotationCount: number): QuestTemplate => {
+  const pool = REPEATABLE_SLOT_POOLS[slotIndex % REPEATABLE_SLOT_POOLS.length];
+  const questId = pool[(Math.max(rotationCount, 1) - 1) % pool.length];
+  return QUESTS_BY_ID.get(questId) ?? PLAY_THREE_GAMES_QUEST;
+};
+
+const normalizeQuestSlot = (
+  slotIndex: number,
+  existing: QuestSlot | undefined,
+  isAuthenticated: boolean,
+  now: number,
+): QuestSlot => {
+  const rotationCount = Math.max(existing?.rotationCount ?? 0, 0);
+  const fallbackTemplate =
+    rotationCount > 0
+      ? getReplacementQuestTemplate(slotIndex, rotationCount)
+      : DEFAULT_DAILY_QUESTS[slotIndex] ?? getReplacementQuestTemplate(slotIndex, 1);
+  const template = QUESTS_BY_ID.get(existing?.questId ?? "") ?? fallbackTemplate;
+
+  const modeProgress =
+    template.kind === "play_all_modes"
+      ? normalizeModeProgress(existing?.modeProgress)
+      : undefined;
+  const progress =
+    template.kind === "auth"
+      ? isAuthenticated
+        ? template.target
+        : 0
+      : template.kind === "play_all_modes"
+        ? Math.min(modeProgress?.length ?? 0, template.target)
+        : Math.min(Math.max(existing?.progress ?? 0, 0), template.target);
+  const completed =
+    template.kind === "auth"
+      ? isAuthenticated
+      : progress >= template.target || existing?.claimed === true;
+
+  const normalized = buildQuestSlot(template, slotIndex, {
+    slotId: existing?.slotId,
+    progress,
+    completed,
+    claimed: existing?.claimed ?? false,
+    rotationCount,
+    ...(modeProgress ? { modeProgress } : {}),
+    ...(completed
+      ? {
+          completedAt: existing?.completedAt ?? now,
+          refreshAfter: existing?.refreshAfter ?? (existing?.completedAt ?? now) + QUEST_REFRESH_MS,
+        }
+      : {}),
+  });
+
+  if (
+    normalized.completed &&
+    typeof normalized.refreshAfter === "number" &&
+    now >= normalized.refreshAfter
+  ) {
+    const nextRotationCount = rotationCount + 1;
+    return buildQuestSlot(getReplacementQuestTemplate(slotIndex, nextRotationCount), slotIndex, {
+      rotationCount: nextRotationCount,
+    });
+  }
+
+  return normalized;
+};
+
+const normalizeQuestSlots = (
   existingSlots: readonly QuestSlot[] | undefined,
   isAuthenticated: boolean,
-): QuestSlot[] => {
-  const existingById = new Map(
-    (existingSlots ?? []).map((slot) => [slot.questId, slot]),
+  now: number,
+): QuestSlot[] =>
+  Array.from({ length: DEFAULT_DAILY_QUESTS.length }, (_, slotIndex) =>
+    normalizeQuestSlot(slotIndex, existingSlots?.[slotIndex], isAuthenticated, now),
   );
-
-  return DEFAULT_DAILY_QUESTS.map((template) => {
-    const existing = existingById.get(template.id);
-
-    if (template.id === AUTH_QUEST.id) {
-      const completed = isAuthenticated;
-      return buildQuestSlot(template, {
-        progress: completed ? 1 : 0,
-        completed,
-        claimed: completed ? existing?.claimed ?? false : false,
-      });
-    }
-
-    if (template.id === PLAY_ALL_MODES_QUEST.id) {
-      const modeProgress = normalizeModeProgress(existing?.modeProgress);
-      const progress = Math.min(modeProgress.length, template.target);
-      return buildQuestSlot(template, {
-        progress,
-        completed: progress >= template.target,
-        claimed: existing?.claimed ?? false,
-        modeProgress,
-      });
-    }
-
-    const progress = Math.min(existing?.progress ?? 0, template.target);
-    return buildQuestSlot(template, {
-      progress,
-      completed: progress >= template.target || existing?.claimed === true,
-      claimed: existing?.claimed ?? false,
-    });
-  });
-};
 
 const areQuestSlotsEqual = (left: readonly QuestSlot[], right: readonly QuestSlot[]) => {
   if (left.length !== right.length) return false;
@@ -194,6 +327,7 @@ const areQuestSlotsEqual = (left: readonly QuestSlot[], right: readonly QuestSlo
     const rightModes = normalizeModeProgress(other.modeProgress);
 
     return (
+      slot.slotId === other.slotId &&
       slot.questId === other.questId &&
       slot.title === other.title &&
       slot.description === other.description &&
@@ -202,6 +336,9 @@ const areQuestSlotsEqual = (left: readonly QuestSlot[], right: readonly QuestSlo
       slot.completed === other.completed &&
       slot.claimed === other.claimed &&
       slot.reward === other.reward &&
+      slot.completedAt === other.completedAt &&
+      slot.refreshAfter === other.refreshAfter &&
+      slot.rotationCount === other.rotationCount &&
       leftModes.length === rightModes.length &&
       leftModes.every((mode, modeIndex) => mode === rightModes[modeIndex])
     );
@@ -229,22 +366,16 @@ const ensureTodayQuestDoc = async (
   userId: Id<"users">,
 ) => {
   const dayKey = getTodayKey();
+  const now = Date.now();
   const existing = await ctx.db
     .query("quests")
     .withIndex("by_user_and_day", (q) => q.eq("userId", userId).eq("dayKey", dayKey))
     .unique();
 
   if (existing) {
-    const shouldResetToCurrentQuestSet =
-      existing.questVersion !== CURRENT_QUEST_VERSION;
-    const nextSlots = shouldResetToCurrentQuestSet
-      ? buildDefaultQuestSlots(true)
-      : mergeQuestSlots(existing.questSlots, true);
+    const nextSlots = normalizeQuestSlots(existing.questSlots, true, now);
 
-    if (
-      shouldResetToCurrentQuestSet ||
-      !areQuestSlotsEqual(existing.questSlots, nextSlots)
-    ) {
+    if (existing.questVersion !== CURRENT_QUEST_VERSION || !areQuestSlotsEqual(existing.questSlots, nextSlots)) {
       await ctx.db.patch(existing._id, {
         questVersion: CURRENT_QUEST_VERSION,
         questSlots: nextSlots,
@@ -255,11 +386,7 @@ const ensureTodayQuestDoc = async (
   }
 
   const latestQuestDoc = await getLatestQuestDocForUser(ctx, userId);
-  const shouldResetToCurrentQuestSet =
-    !latestQuestDoc || latestQuestDoc.questVersion !== CURRENT_QUEST_VERSION;
-  const nextSlots = shouldResetToCurrentQuestSet
-    ? buildDefaultQuestSlots(true)
-    : mergeQuestSlots(latestQuestDoc.questSlots, true);
+  const nextSlots = normalizeQuestSlots(latestQuestDoc?.questSlots, true, now);
 
   const questId = await ctx.db.insert("quests", {
     userId,
@@ -278,40 +405,65 @@ const applyQuestProgressUpdate = (
     won: boolean;
     greenLetters: number;
   },
+  now: number,
 ) =>
-  questSlots.map((slot) => {
+  questSlots.map((slot, slotIndex) => {
     if (slot.claimed) return slot;
+    if (slot.completed) return slot;
 
-    if (slot.questId === PLAY_ONE_GAME_QUEST.id) {
-      const progress = Math.min(slot.progress + 1, slot.target);
+    const template =
+      QUESTS_BY_ID.get(slot.questId) ?? getReplacementQuestTemplate(slotIndex, slot.rotationCount ?? 1);
+    const completeSlot = (next: Partial<QuestSlot>): QuestSlot => {
+      const progress = Math.min(next.progress ?? slot.progress, slot.target);
+      const completed = progress >= slot.target;
       return {
         ...slot,
+        ...next,
         progress,
-        completed: progress >= slot.target,
+        completed,
+        ...(completed
+          ? {
+              completedAt: now,
+              refreshAfter: now + QUEST_REFRESH_MS,
+            }
+          : {}),
       };
-    }
+    };
 
-    if (slot.questId === PLAY_ALL_MODES_QUEST.id) {
-      if (!isTrackedMode(args.mode)) {
-        return slot;
+    switch (template.kind) {
+      case "play_any":
+        return completeSlot({ progress: slot.progress + 1 });
+      case "play_mode":
+        if (args.mode !== template.requiredMode) {
+          return slot;
+        }
+        return completeSlot({ progress: slot.progress + 1 });
+      case "play_all_modes": {
+        if (!isTrackedMode(args.mode)) {
+          return slot;
+        }
+
+        const modeProgress = normalizeModeProgress(slot.modeProgress);
+        if (modeProgress.includes(args.mode)) {
+          return slot;
+        }
+
+        const nextModeProgress = [...modeProgress, args.mode];
+        return completeSlot({
+          progress: nextModeProgress.length,
+          modeProgress: nextModeProgress,
+        });
       }
-
-      const modeProgress = normalizeModeProgress(slot.modeProgress);
-      if (modeProgress.includes(args.mode)) {
+      case "win_any":
+        if (!args.won) {
+          return slot;
+        }
+        return completeSlot({ progress: slot.progress + 1 });
+      case "green_letters":
+        return completeSlot({ progress: slot.progress + args.greenLetters });
+      case "auth":
         return slot;
-      }
-
-      const nextModeProgress = [...modeProgress, args.mode];
-      const progress = Math.min(nextModeProgress.length, slot.target);
-      return {
-        ...slot,
-        progress,
-        completed: progress >= slot.target,
-        modeProgress: nextModeProgress,
-      };
     }
-
-    return slot;
   });
 
 // ── Queries ──────────────────────────────────────────────────────────
@@ -321,11 +473,12 @@ export const getMyQuests = query({
   args: {},
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
+    const now = Date.now();
     if (!userId) {
       return {
         dayKey: getTodayKey(),
         preview: true,
-        questSlots: buildDefaultQuestSlots(false),
+        questSlots: normalizeQuestSlots(undefined, false, now),
       };
     }
 
@@ -336,9 +489,7 @@ export const getMyQuests = query({
       .unique();
 
     if (existing) {
-      const questSlots = existing.questVersion === CURRENT_QUEST_VERSION
-        ? mergeQuestSlots(existing.questSlots, true)
-        : buildDefaultQuestSlots(true);
+      const questSlots = normalizeQuestSlots(existing.questSlots, true, now);
 
       return {
         ...existing,
@@ -348,10 +499,7 @@ export const getMyQuests = query({
     }
 
     const latestQuestDoc = await getLatestQuestDocForUser(ctx, userId);
-    const questSlots =
-      latestQuestDoc && latestQuestDoc.questVersion === CURRENT_QUEST_VERSION
-        ? mergeQuestSlots(latestQuestDoc.questSlots, true)
-        : buildDefaultQuestSlots(true);
+    const questSlots = normalizeQuestSlots(latestQuestDoc?.questSlots, true, now);
 
     return {
       _id: null as unknown,
@@ -428,7 +576,7 @@ export const recordQuestProgress = mutation({
     if (!userId) return;
 
     const { questId, questSlots } = await ensureTodayQuestDoc(ctx, userId);
-    const updated = applyQuestProgressUpdate(questSlots, args);
+    const updated = applyQuestProgressUpdate(questSlots, args, Date.now());
     await ctx.db.patch(questId, { questSlots: updated });
   },
 });
@@ -443,28 +591,28 @@ export const internalRecordQuestProgress = internalMutation({
   },
   handler: async (ctx, args) => {
     const { questId, questSlots } = await ensureTodayQuestDoc(ctx, args.userId);
-    const updated = applyQuestProgressUpdate(questSlots, args);
+    const updated = applyQuestProgressUpdate(questSlots, args, Date.now());
     await ctx.db.patch(questId, { questSlots: updated });
   },
 });
 
 /** Claim a completed quest's shard reward */
 export const claimQuestReward = mutation({
-  args: { questId: v.string() },
+  args: { slotId: v.string() },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) throw new Error("Must be logged in");
 
     const { questId, questSlots } = await ensureTodayQuestDoc(ctx, userId);
 
-    const slot = questSlots.find((s) => s.questId === args.questId);
+    const slot = questSlots.find((s) => s.slotId === args.slotId);
     if (!slot) throw new Error("Quest not found");
     if (!slot.completed) throw new Error("Quest not completed yet");
     if (slot.claimed) throw new Error("Already claimed");
 
     // Mark as claimed
     const updatedSlots = questSlots.map((s) =>
-      s.questId === args.questId ? { ...s, claimed: true } : s
+      s.slotId === args.slotId ? { ...s, claimed: true } : s
     );
     await ctx.db.patch(questId, { questSlots: updatedSlots });
 
@@ -489,7 +637,8 @@ export const claimQuestReward = mutation({
       distinctId: userId,
       event: "quest reward claimed",
       properties: {
-        quest_id: args.questId,
+        quest_id: slot.questId,
+        quest_slot_id: args.slotId,
         shards_earned: slot.reward,
       },
       personProperties: {

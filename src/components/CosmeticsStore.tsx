@@ -44,11 +44,8 @@ const CATEGORY_META: Record<
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function getTimeUntilReset(): string {
-  const now = new Date();
-  const midnight = new Date(now);
-  midnight.setUTCHours(24, 0, 0, 0);
-  const diff = midnight.getTime() - now.getTime();
+function formatTimeRemaining(targetTime: number, now = Date.now()): string {
+  const diff = Math.max(0, targetTime - now);
   const h = Math.floor(diff / 3_600_000);
   const m = Math.floor((diff % 3_600_000) / 60_000);
   return `${h}h ${m}m`;
@@ -360,6 +357,7 @@ function SectionHeader({ shards }: { shards: number }) {
 }
 
 interface QuestSlot {
+  slotId?: string;
   questId: string;
   title: string;
   description: string;
@@ -368,6 +366,9 @@ interface QuestSlot {
   completed: boolean;
   claimed: boolean;
   reward: number;
+  completedAt?: number;
+  refreshAfter?: number;
+  rotationCount?: number;
   modeProgress?: Array<"classic" | "hard" | "timed">;
 }
 
@@ -376,7 +377,7 @@ export const DailyQuestsSidebar = () => {
   const quests = useQuery(api.cosmetics.getMyQuests, user ? {} : "skip");
   const seedQuests = useMutation(api.cosmetics.seedDailyQuests);
   const claimReward = useMutation(api.cosmetics.claimQuestReward);
-  const [resetTimer, setResetTimer] = useState(getTimeUntilReset);
+  const [now, setNow] = useState(() => Date.now());
   const [guestState, setGuestState] = useState(getGuestCosmeticsState);
 
   useEffect(() => {
@@ -394,14 +395,14 @@ export const DailyQuestsSidebar = () => {
   }, [user]);
 
   useEffect(() => {
-    const t = setInterval(() => setResetTimer(getTimeUntilReset()), 60_000);
+    const t = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(t);
   }, []);
 
-  const handleClaim = async (questId: string) => {
+  const handleClaim = async (slotId: string) => {
     if (!user) {
       try {
-        claimGuestQuestReward(questId);
+        claimGuestQuestReward(slotId);
         toast.success("+3 shards earned! 💎");
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : "Failed to claim");
@@ -411,7 +412,7 @@ export const DailyQuestsSidebar = () => {
 
     try {
       await seedQuests();
-      await claimReward({ questId });
+      await claimReward({ slotId });
       toast.success("+3 shards earned! 💎");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to claim");
@@ -419,6 +420,12 @@ export const DailyQuestsSidebar = () => {
   };
 
   const questSlots = user ? quests?.questSlots ?? [] : guestState.questSlots;
+  const nextRefreshAt = questSlots.reduce<number | null>((earliest, slot) => {
+    if (!slot.refreshAfter || slot.refreshAfter <= now) {
+      return earliest;
+    }
+    return earliest === null ? slot.refreshAfter : Math.min(earliest, slot.refreshAfter);
+  }, null);
 
   return (
     <Card className="overflow-hidden border-border/70 bg-card/60">
@@ -431,13 +438,13 @@ export const DailyQuestsSidebar = () => {
             </h3>
             <p className="text-xs text-muted-foreground">
               {user
-                ? "This starter quest set stays pinned until you finish it."
-                : "Pinned starter quests and shard rewards save locally on this device."}
+                ? "Starter quests stay pinned until you finish them. Each completed slot refreshes 24 hours later."
+                : "Starter quests stay pinned until you finish them, and completed slots refresh 24 hours later on this device."}
             </p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
             <Clock className="w-3.5 h-3.5" />
-            {resetTimer}
+            {nextRefreshAt ? formatTimeRemaining(nextRefreshAt, now) : "24h rolling"}
           </span>
         </div>
       </div>
@@ -445,11 +452,12 @@ export const DailyQuestsSidebar = () => {
       <div className="space-y-3 p-4">
         {questSlots.map((slot) => (
           <QuestCard
-            key={slot.questId}
+            key={slot.slotId ?? slot.questId}
             slot={slot}
-            onClaim={() => handleClaim(slot.questId)}
+            onClaim={() => handleClaim(slot.slotId ?? slot.questId)}
             isSignedIn={!!user}
-            onGuestAction={() => handleClaim(slot.questId)}
+            onGuestAction={() => handleClaim(slot.slotId ?? slot.questId)}
+            now={now}
           />
         ))}
         {questSlots.length === 0 && (
@@ -467,11 +475,13 @@ function QuestCard({
   onClaim,
   isSignedIn,
   onGuestAction,
+  now,
 }: {
   slot: QuestSlot;
   onClaim: () => void;
   isSignedIn: boolean;
   onGuestAction: () => void;
+  now: number;
 }) {
   const pct = Math.min((slot.progress / slot.target) * 100, 100);
 
@@ -549,6 +559,12 @@ function QuestCard({
           In Progress…
         </div>
       )}
+
+      {slot.completed && slot.refreshAfter ? (
+        <div className="text-center text-[11px] text-muted-foreground">
+          Refreshes in {formatTimeRemaining(slot.refreshAfter, now)}
+        </div>
+      ) : null}
     </Card>
   );
 }

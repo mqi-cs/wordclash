@@ -235,6 +235,7 @@ export default defineSchema({
     questVersion: v.optional(v.number()),
     questSlots: v.array(
       v.object({
+        slotId: v.optional(v.string()),
         questId: v.string(), // references a quest template key
         title: v.string(),
         description: v.string(),
@@ -243,6 +244,9 @@ export default defineSchema({
         completed: v.boolean(),
         claimed: v.boolean(),
         reward: v.number(), // shards
+        completedAt: v.optional(v.number()),
+        refreshAfter: v.optional(v.number()),
+        rotationCount: v.optional(v.number()),
         modeProgress: v.optional(
           v.array(
             v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"))

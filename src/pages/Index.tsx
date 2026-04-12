@@ -51,6 +51,7 @@ import {
 import { FeatureWalkthroughDialog, WalkthroughSlide } from "@/components/FeatureWalkthrough";
 import { InteractiveFeatureCoach } from "@/components/InteractiveFeatureCoach";
 import { usePostHog } from "@/contexts/PostHogContext";
+import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -232,6 +233,7 @@ const Index = () => {
   const abandonSoloRoundMut = useMutation(api.leaderboards.abandonSoloRound);
   const importGuestDailySeriesMut = useMutation(api.leaderboards.importGuestDailySeries);
   const { trackGame } = usePostHog();
+  const { updateStats } = useStatsUpdate();
   const wallet = useQuery(api.cosmetics.getMyCosmetics, user ? {} : "skip");
   const signedInDailyModeLimits = useQuery(api.dailyLimits.getMyDailyRoundLimits, user ? {} : "skip");
   const [guestCosmeticsState, setGuestCosmeticsState] = useState(getGuestCosmeticsState);
@@ -663,6 +665,7 @@ const Index = () => {
       });
 
       if (user) {
+        void updateStats(gameMode as GameMode, true, greenLetters, undefined, "solo");
         finalizeTrackedSoloRound({
           mode: gameMode as LimitedGameMode,
           won: true,
@@ -677,7 +680,7 @@ const Index = () => {
           rawGuesses: newGuesses.length,
         });
         if (gameMode === "classic" || gameMode === "hard") {
-          recordGuestQuestProgress(gameMode);
+          recordGuestQuestProgress(gameMode, { won: true, greenLetters });
         }
         trackGame("game_completed", {
           mode: gameMode,
@@ -714,6 +717,7 @@ const Index = () => {
       }
 
       if (user && gameMode) {
+        void updateStats(gameMode, false, greenLetters, undefined, "solo");
         finalizeTrackedSoloRound({
           mode: gameMode as LimitedGameMode,
           won: false,
@@ -730,7 +734,7 @@ const Index = () => {
           });
         }
         if (gameMode === "classic" || gameMode === "hard") {
-          recordGuestQuestProgress(gameMode);
+          recordGuestQuestProgress(gameMode, { won: false, greenLetters });
         }
         trackGame("game_completed", {
           mode: gameMode,
@@ -757,6 +761,7 @@ const Index = () => {
     maxGuesses,
     targetWord,
     trackGame,
+    updateStats,
     updateLetterStatus,
     user,
   ]);
@@ -778,6 +783,7 @@ const Index = () => {
     });
 
     if (user) {
+      void updateStats("timed", wordsCompleted > 0, greenLetters, undefined, "solo");
       finalizeTrackedSoloRound({
         mode: "timed",
         won: wordsCompleted > 0,
@@ -791,7 +797,10 @@ const Index = () => {
         greenLetters,
         wordsCompleted,
       });
-      recordGuestQuestProgress("timed");
+      recordGuestQuestProgress("timed", {
+        won: wordsCompleted > 0,
+        greenLetters,
+      });
       trackGame("game_completed", {
         mode: "timed",
         won: wordsCompleted > 0,
@@ -806,7 +815,7 @@ const Index = () => {
       toast.error(`Time's up! You completed ${wordsCompleted} word${wordsCompleted !== 1 ? "s" : ""}!`);
       setShowResult(true);
     }, 500);
-  }, [evaluations, finalizeTrackedSoloRound, totalGuesses, trackGame, user, wordsCompleted]);
+  }, [evaluations, finalizeTrackedSoloRound, totalGuesses, trackGame, updateStats, user, wordsCompleted]);
 
   // Keep ref updated with the latest handleEnter
   useEffect(() => {
