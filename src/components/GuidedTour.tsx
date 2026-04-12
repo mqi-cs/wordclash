@@ -41,7 +41,7 @@ const TOUR_STEPS: TourStep[] = [
     targetId: "tour-timed",
     title: "Timed Mode",
     description:
-      "Start with 60 seconds. Solve words to earn +15s bonus time. How many can you complete before the clock runs out?",
+      "Start with 75 seconds. Solve words to earn +25s bonus time, but hints cost 10 seconds. How many can you complete before the clock runs out?",
     accentVar: "menu-timed",
     position: "bottom",
   },

@@ -7,7 +7,7 @@ import { internal } from "./_generated/api";
 import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
 
 const MAX_MULTIPLAYER_PLAYERS = 4;
-const TIMED_MULTIPLAYER_DURATION_MS = 60 * 1000;
+const TIMED_MULTIPLAYER_DURATION_MS = 75 * 1000;
 const LOBBY_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const LOBBY_CODE_LENGTH = 6;
 const STALE_WAITING_GAME_MS = 1000 * 60 * 60 * 24;

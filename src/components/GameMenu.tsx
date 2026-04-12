@@ -87,9 +87,10 @@ const WALKTHROUGH_CONFIG: Record<WalkthroughKey, WalkthroughConfig> = {
         description:
           "Timed Mode is about momentum. One solved word buys you time for the next one.",
         bullets: [
-          "You begin with 60 seconds on the clock.",
+          "You begin with 75 seconds on the clock.",
           "There is no fixed guess cap per word.",
-          "Each solved word adds 15 seconds.",
+          "Each solved word adds 25 seconds.",
+          "Each hint costs 10 seconds.",
         ],
         accentVar: "menu-timed",
       },
@@ -741,11 +742,15 @@ export const GameMenu = ({
                   <ul className="space-y-2 text-[13px] text-muted-foreground sm:text-sm">
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
-                      60 seconds to start
+                      75 seconds to start
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
-                      +15s bonus per word
+                      +25s bonus per word
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />
+                      -10s per hint
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--menu-timed))]" />

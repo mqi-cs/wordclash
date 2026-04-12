@@ -25,8 +25,8 @@ import { getRandomFallbackOpponentName } from "@/lib/fakeOpponent";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
-const TIMED_INITIAL_SECONDS = 60;
-const TIMED_BONUS_SECONDS = 15;
+const TIMED_INITIAL_SECONDS = 75;
+const TIMED_BONUS_SECONDS = 25;
 
 interface BotGameProps {
   onBackToMenu: () => void;

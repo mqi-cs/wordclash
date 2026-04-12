@@ -58,8 +58,9 @@ const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ defa
 const WORD_LENGTH = 5;
 const CLASSIC_GUESSES = 6;
 const HARD_GUESSES = 10;
-const TIMED_INITIAL_SECONDS = 60;
-const TIMED_BONUS_SECONDS = 15;
+const TIMED_INITIAL_SECONDS = 75;
+const TIMED_BONUS_SECONDS = 25;
+const TIMED_HINT_PENALTY_SECONDS = 10;
 
 type ActiveHint = {
   turn: number;
@@ -760,6 +761,53 @@ const Index = () => {
     user,
   ]);
 
+  const endTimedGame = useCallback(() => {
+    setGameOver(true);
+    setTimedGameActive(false);
+
+    const lastEvaluation = evaluations[evaluations.length - 1] || [];
+    const greenLetters = lastEvaluation.filter(e => e === "correct").length;
+
+    saveGameResult({
+      mode: "timed",
+      won: wordsCompleted > 0,
+      guesses: totalGuesses,
+      wordsCompleted,
+      greenLetters,
+      timestamp: Date.now(),
+    });
+
+    if (user) {
+      finalizeTrackedSoloRound({
+        mode: "timed",
+        won: wordsCompleted > 0,
+        greenLetters,
+        wordsCompleted,
+      });
+    } else {
+      finalizeTrackedSoloRound({
+        mode: "timed",
+        won: wordsCompleted > 0,
+        greenLetters,
+        wordsCompleted,
+      });
+      recordGuestQuestProgress("timed");
+      trackGame("game_completed", {
+        mode: "timed",
+        won: wordsCompleted > 0,
+        words_completed: wordsCompleted,
+        total_guesses: totalGuesses,
+        green_letters: greenLetters,
+        game_type: "solo",
+      });
+    }
+
+    setTimeout(() => {
+      toast.error(`Time's up! You completed ${wordsCompleted} word${wordsCompleted !== 1 ? "s" : ""}!`);
+      setShowResult(true);
+    }, 500);
+  }, [evaluations, finalizeTrackedSoloRound, totalGuesses, trackGame, user, wordsCompleted]);
+
   // Keep ref updated with the latest handleEnter
   useEffect(() => {
     handleEnterRef.current = handleEnter;
@@ -949,6 +997,16 @@ const Index = () => {
       }
     }
     setRoundHintUses((prev) => (gameMode === "timed" ? prev : prev + 1));
+    if (gameMode === "timed") {
+      const nextTimeLeft = Math.max(0, timeLeft - TIMED_HINT_PENALTY_SECONDS);
+      setTimeLeft(nextTimeLeft);
+      if (nextTimeLeft === 0) {
+        endTimedGame();
+        return true;
+      }
+      toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}" (-${TIMED_HINT_PENALTY_SECONDS}s)`);
+      return true;
+    }
     toast.success(`Hint revealed: "${targetWord[positionToReveal].toUpperCase()}"`);
     return true;
   };
@@ -1078,52 +1136,7 @@ const Index = () => {
       const timer = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
-            setGameOver(true);
-            setTimedGameActive(false);
-
-            // Count green letters in last evaluation
-            const lastEvaluation = evaluations[evaluations.length - 1] || [];
-            const greenLetters = lastEvaluation.filter(e => e === "correct").length;
-
-            // Save timed mode result to localStorage
-            saveGameResult({
-              mode: "timed",
-              won: wordsCompleted > 0,
-              guesses: totalGuesses,
-              wordsCompleted: wordsCompleted,
-              greenLetters,
-              timestamp: Date.now(),
-            });
-
-            if (user) {
-              finalizeTrackedSoloRound({
-                mode: "timed",
-                won: wordsCompleted > 0,
-                greenLetters,
-                wordsCompleted,
-              });
-            } else {
-              finalizeTrackedSoloRound({
-                mode: "timed",
-                won: wordsCompleted > 0,
-                greenLetters,
-                wordsCompleted,
-              });
-              recordGuestQuestProgress("timed");
-              trackGame("game_completed", {
-                mode: "timed",
-                won: wordsCompleted > 0,
-                words_completed: wordsCompleted,
-                total_guesses: totalGuesses,
-                green_letters: greenLetters,
-                game_type: "solo",
-              });
-            }
-
-            setTimeout(() => {
-              toast.error(`Time's up! You completed ${wordsCompleted} word${wordsCompleted !== 1 ? 's' : ''}!`);
-              setShowResult(true);
-            }, 500);
+            endTimedGame();
             return 0;
           }
           return prev - 1;
@@ -1132,15 +1145,10 @@ const Index = () => {
       return () => clearInterval(timer);
     }
   }, [
-    evaluations,
-    finalizeTrackedSoloRound,
+    endTimedGame,
     gameMode,
     timedGameActive,
     timeLeft,
-    totalGuesses,
-    trackGame,
-    user,
-    wordsCompleted,
   ]);
 
   // Handle keyboard events
