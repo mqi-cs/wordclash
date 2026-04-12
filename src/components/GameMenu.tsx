@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { CosmeticsStore, DailyQuestsSidebar } from "./CosmeticsStore";
 import { Card } from "@/components/ui/card";
-import { Zap, Target, Trophy, Flame, Timer, Award, LogIn, LogOut, HelpCircle } from "lucide-react";
+import { Zap, Target, Trophy, Flame, Timer, Award, LogIn, LogOut, HelpCircle, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +13,7 @@ import { IncomingChallenges } from "./IncomingChallenges";
 import { OpenGames } from "./OpenGames";
 import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { DAILY_MODE_ROUND_LIMIT, type DailyModeLimits, type LimitedGameMode } from "@/lib/guestLimits";
 import { useMutation, useQuery } from "convex/react";
@@ -25,6 +25,7 @@ import {
 } from "@/components/FeatureWalkthrough";
 import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
 import { Leaderboard } from "@/components/Leaderboard";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
@@ -225,6 +226,49 @@ const persistWalkthroughState = (state: Record<WalkthroughKey, boolean>) => {
   window.localStorage.setItem(WALKTHROUGH_STORAGE_KEY, JSON.stringify(state));
 };
 
+type MenuSectionKey = "stats" | "quests" | "social" | "leaderboard" | "cosmetics";
+
+type ExpandableMenuSectionProps = {
+  title: string;
+  subtitle: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+  className?: string;
+  contentClassName?: string;
+};
+
+const ExpandableMenuSection = ({
+  title,
+  subtitle,
+  open,
+  onOpenChange,
+  children,
+  className,
+  contentClassName,
+}: ExpandableMenuSectionProps) => (
+  <Collapsible open={open} onOpenChange={onOpenChange} className={className}>
+    <CollapsibleTrigger asChild>
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-4 rounded-[1.5rem] border border-border/70 bg-card/55 px-4 py-3 text-left transition-colors hover:bg-card/70 sm:px-5"
+      >
+        <div className="space-y-1">
+          <h2 className="text-base font-bold tracking-tight text-foreground sm:text-lg">{title}</h2>
+          <p className="text-xs leading-5 text-muted-foreground sm:text-sm">{subtitle}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-background/65 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          {open ? "Hide" : "Show"}
+          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")} />
+        </div>
+      </button>
+    </CollapsibleTrigger>
+    <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+      <div className={cn("pt-3 sm:pt-4", contentClassName)}>{children}</div>
+    </CollapsibleContent>
+  </Collapsible>
+);
+
 interface GameMenuProps {
   onSelectMode: (mode: GameMode, isBot?: boolean) => void | Promise<void>;
   onShowLeaderboard: () => void;
@@ -248,6 +292,13 @@ export const GameMenu = ({
   const [seenWalkthroughs, setSeenWalkthroughs] = useState<Record<WalkthroughKey, boolean>>(
     loadWalkthroughState,
   );
+  const [sectionOpen, setSectionOpen] = useState<Record<MenuSectionKey, boolean>>({
+    stats: false,
+    quests: false,
+    social: false,
+    leaderboard: true,
+    cosmetics: false,
+  });
   const [activeWalkthrough, setActiveWalkthrough] = useState<WalkthroughKey | null>(null);
   const pendingActionRef = useRef<(() => void) | null>(null);
   const hasBackgroundTheme = themeClassName?.includes("theme-bg-") ?? false;
@@ -412,9 +463,13 @@ export const GameMenu = ({
     }
   };
 
+  const setMenuSectionOpen = (section: MenuSectionKey, open: boolean) => {
+    setSectionOpen((prev) => ({ ...prev, [section]: open }));
+  };
+
   return (
     <>
-      <div className={cn("relative min-h-screen overflow-x-hidden overflow-y-hidden bg-background px-2 py-4 sm:px-4 sm:py-10", themeClassName)}>
+      <div className={cn("relative min-h-screen overflow-x-hidden bg-background px-2 py-4 sm:px-4 sm:py-10", themeClassName)}>
       {!hasBackgroundTheme && (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_30%)]" />
@@ -499,7 +554,14 @@ export const GameMenu = ({
                 {!seenWalkthroughs.quests && (
                   <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.quests.slides[0].accentVar} />
                 )}
-                <DailyQuestsSidebar />
+                <ExpandableMenuSection
+                  title="Daily Quests"
+                  subtitle="Keep rewards and refresh timers tucked away until you need them."
+                  open={sectionOpen.quests}
+                  onOpenChange={(open) => setMenuSectionOpen("quests", open)}
+                >
+                  <DailyQuestsSidebar />
+                </ExpandableMenuSection>
               </div>
             </aside>
 
@@ -507,7 +569,14 @@ export const GameMenu = ({
             {/* User Stats */}
             {user && (
               <div className="animate-fade-in">
-                <UserStats />
+                <ExpandableMenuSection
+                  title="Profile Stats"
+                  subtitle="Open your win rates and mode history when you want the deeper breakdown."
+                  open={sectionOpen.stats}
+                  onOpenChange={(open) => setMenuSectionOpen("stats", open)}
+                >
+                  <UserStats />
+                </ExpandableMenuSection>
               </div>
             )}
 
@@ -520,20 +589,27 @@ export const GameMenu = ({
                 {!seenWalkthroughs.social && (
                   <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.social.slides[0].accentVar} />
                 )}
-                <div className="space-y-3 sm:space-y-6">
-                  <OpenGames onResumeGame={(gameId) => onResumeGame?.(gameId)} />
-                  <IncomingChallenges />
-                  <div className="grid gap-3 md:grid-cols-2 sm:gap-6">
-                    <div className="space-y-3 sm:space-y-6">
-                      <Card className="border-border/70 bg-card/60 p-4 sm:p-6">
-                        <h3 className="mb-3 text-lg font-bold tracking-tight sm:mb-4 sm:text-xl">Add Friends</h3>
-                        <FriendSearch onRequestSent={refreshFriends} />
-                      </Card>
-                      <FriendRequests key={friendsKey} onRequestHandled={refreshFriends} />
+                <ExpandableMenuSection
+                  title="Social Hub"
+                  subtitle="Challenges, active games, friend requests, and your friend list live here."
+                  open={sectionOpen.social}
+                  onOpenChange={(open) => setMenuSectionOpen("social", open)}
+                >
+                  <div className="space-y-3 sm:space-y-6">
+                    <OpenGames onResumeGame={(gameId) => onResumeGame?.(gameId)} />
+                    <IncomingChallenges />
+                    <div className="grid gap-3 md:grid-cols-2 sm:gap-6">
+                      <div className="space-y-3 sm:space-y-6">
+                        <Card className="border-border/70 bg-card/60 p-4 sm:p-6">
+                          <h3 className="mb-3 text-lg font-bold tracking-tight sm:mb-4 sm:text-xl">Add Friends</h3>
+                          <FriendSearch onRequestSent={refreshFriends} />
+                        </Card>
+                        <FriendRequests key={friendsKey} onRequestHandled={refreshFriends} />
+                      </div>
+                      <FriendsList key={friendsKey} />
                     </div>
-                    <FriendsList key={friendsKey} />
                   </div>
-                </div>
+                </ExpandableMenuSection>
               </div>
             )}
 
@@ -775,9 +851,17 @@ export const GameMenu = ({
               </Card>
             </div>
 
-              <Card className="border-border/70 bg-card/60 p-4 xl:hidden sm:p-6">
-                <Leaderboard variant="embedded" />
-              </Card>
+              <ExpandableMenuSection
+                title="Rankings"
+                subtitle="Daily and weekly ladders stay visible, but you can collapse them when you want a cleaner menu."
+                open={sectionOpen.leaderboard}
+                onOpenChange={(open) => setMenuSectionOpen("leaderboard", open)}
+                className="xl:hidden"
+              >
+                <Card className="border-border/70 bg-card/60 p-4 sm:p-6">
+                  <Leaderboard variant="embedded" />
+                </Card>
+              </ExpandableMenuSection>
 
               <div
                 className="relative rounded-[2rem]"
@@ -786,16 +870,30 @@ export const GameMenu = ({
                 {!seenWalkthroughs.cosmetics && (
                   <FeatureDiscoveryHalo accentVar={WALKTHROUGH_CONFIG.cosmetics.slides[0].accentVar} />
                 )}
-                <CosmeticsStore />
+                <ExpandableMenuSection
+                  title="Customization"
+                  subtitle="Themes, tiles, and reveal effects are here when you want to tweak the look."
+                  open={sectionOpen.cosmetics}
+                  onOpenChange={(open) => setMenuSectionOpen("cosmetics", open)}
+                >
+                  <CosmeticsStore />
+                </ExpandableMenuSection>
               </div>
             </div>
           </div>
 
           <aside className="hidden xl:absolute xl:right-0 xl:top-0 xl:block xl:w-[24rem]">
             <div className="xl:sticky xl:top-8">
-              <Card className="border-border/70 bg-card/60 p-6">
-                <Leaderboard variant="embedded" />
-              </Card>
+              <ExpandableMenuSection
+                title="Rankings"
+                subtitle="Daily and weekly ladders stay ready on the side without crowding the main menu."
+                open={sectionOpen.leaderboard}
+                onOpenChange={(open) => setMenuSectionOpen("leaderboard", open)}
+              >
+                <Card className="border-border/70 bg-card/60 p-6">
+                  <Leaderboard variant="embedded" />
+                </Card>
+              </ExpandableMenuSection>
             </div>
           </aside>
         </div>
