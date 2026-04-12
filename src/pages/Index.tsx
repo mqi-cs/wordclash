@@ -1268,12 +1268,12 @@ const Index = () => {
         highlightBot={!seenGameplayWalkthroughs.wordBot && gameMode === "classic" && !gameOver}
       />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 py-2 border-b gap-2 flex-shrink-0">
-        <Button variant="ghost" size="sm" onClick={handleBackToMenu} className="h-8">
+      <div className="flex flex-col items-start justify-between gap-1.5 border-b px-2.5 py-1.5 flex-shrink-0 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-2">
+        <Button variant="ghost" size="sm" onClick={handleBackToMenu} className="h-7 px-2 sm:h-8">
           <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
           <span className="text-xs sm:text-sm">Menu</span>
         </Button>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] sm:gap-4 sm:text-sm">
           <span className="font-medium capitalize">{gameMode} Mode</span>
           {gameMode === "timed" && (
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
@@ -1292,8 +1292,8 @@ const Index = () => {
         </div>
       </div>
 
-      <main className="flex-1 flex min-h-0 flex-col items-center justify-start gap-2 overflow-y-auto px-2 py-2 sm:justify-center sm:gap-4 sm:overflow-hidden sm:px-4 sm:py-2">
-        <div className="flex w-full min-h-0 items-start justify-center overflow-visible pt-1 sm:items-center sm:overflow-hidden sm:pt-0">
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-start gap-1 overflow-y-auto px-1.5 py-1.5 sm:justify-center sm:gap-4 sm:overflow-hidden sm:px-4 sm:py-2">
+        <div className="flex w-full min-h-0 items-start justify-center overflow-visible pt-0.5 sm:items-center sm:overflow-hidden sm:pt-0">
           <GameGrid
             guesses={guesses}
             currentGuess={currentGuess}
@@ -1307,7 +1307,7 @@ const Index = () => {
           />
         </div>
 
-        <div className="flex w-full flex-shrink-0 justify-center pb-1 pt-1 sm:pt-0">
+        <div className="flex w-full flex-shrink-0 justify-center pb-0.5 pt-0.5 sm:pt-0">
           <Keyboard
             onKeyPress={handleKeyPress}
             onEnter={handleEnter}
