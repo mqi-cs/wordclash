@@ -221,7 +221,7 @@ const toCell = (mode: LeaderboardMode, round: LeaderboardRound | undefined) => {
   if (round.status === "won") {
     return {
       kind: "score" as const,
-      value: round.adjustedScore ?? 0,
+      value: round.rawGuesses ?? round.adjustedScore ?? 0,
     };
   }
 
@@ -678,7 +678,7 @@ export const getLeaderboard = query({
 export const getGuestProjectedRank = query({
   args: {
     mode: leaderboardModeValidator,
-    totalScore: v.optional(v.number()),
+    sortScore: v.optional(v.number()),
     totalHintsUsed: v.number(),
     completedAt: v.optional(v.number()),
     rankingStatus: v.union(
@@ -688,13 +688,12 @@ export const getGuestProjectedRank = query({
     ),
   },
   handler: async (ctx, args) => {
-    if (args.rankingStatus !== "qualified" || args.totalScore === undefined || args.completedAt === undefined) {
+    if (args.rankingStatus !== "qualified" || args.sortScore === undefined || args.completedAt === undefined) {
       return { rank: null };
     }
 
-    const sortScore = args.mode === "timed" ? -args.totalScore : args.totalScore;
     const rank = await getQualifiedRank(ctx, args.mode, {
-      sortScore,
+      sortScore: args.sortScore,
       totalHintsUsed: args.totalHintsUsed,
       completedAt: args.completedAt,
       usernameLower: "you (guest)",

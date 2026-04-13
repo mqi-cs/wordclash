@@ -59,6 +59,7 @@ type LeaderboardPanelProps = {
   period: LeaderboardPeriod;
   mode: LeaderboardMode;
   rows: DisplayRow[];
+  totalColumnLabel: string;
   leaderboardLoaded: boolean;
   onPeriodChange: (value: string) => void;
   onModeChange: (value: string) => void;
@@ -68,7 +69,7 @@ type LeaderboardPanelProps = {
 const getModeHintCopy = (mode: LeaderboardMode) =>
   mode === "timed"
     ? "Timed totals are the total words completed across 3 sessions."
-    : "Classic and Hard totals include a +1 guess penalty for every hint used.";
+    : "Classic and Hard rank by words solved first, then by the lowest total guesses across solved words.";
 
 const cellToText = (cell: Cell) => {
   if (cell.kind === "score") return String(cell.value);
@@ -94,7 +95,7 @@ const toGuestCell = (mode: LeaderboardMode, round: GuestLeaderboardRound | undef
   if (round.status === "won") {
     return {
       kind: "score",
-      value: round.adjustedScore ?? 0,
+      value: round.rawGuesses ?? round.adjustedScore ?? 0,
     };
   }
 
@@ -181,7 +182,13 @@ const buildDisplayRows = (
   return baseRows;
 };
 
-const LeaderboardTable = ({ rows }: { rows: DisplayRow[] }) => {
+const LeaderboardTable = ({
+  rows,
+  totalColumnLabel,
+}: {
+  rows: DisplayRow[];
+  totalColumnLabel: string;
+}) => {
   if (rows.length === 0) {
     return (
       <div className="rounded-[1.4rem] border border-dashed border-border/70 bg-background/50 px-6 py-12 text-center">
@@ -203,7 +210,7 @@ const LeaderboardTable = ({ rows }: { rows: DisplayRow[] }) => {
             <th className="px-4 py-3 text-center font-semibold">First</th>
             <th className="px-4 py-3 text-center font-semibold">Second</th>
             <th className="px-4 py-3 text-center font-semibold">Third</th>
-            <th className="px-4 py-3 text-center font-semibold">Total</th>
+            <th className="px-4 py-3 text-center font-semibold">{totalColumnLabel}</th>
           </tr>
         </thead>
         <tbody>
@@ -270,6 +277,7 @@ const LeaderboardPanel = ({
   period,
   mode,
   rows,
+  totalColumnLabel,
   leaderboardLoaded,
   onPeriodChange,
   onModeChange,
@@ -300,7 +308,7 @@ const LeaderboardPanel = ({
     </Tabs>
 
     {leaderboardLoaded ? (
-      <LeaderboardTable rows={rows} />
+      <LeaderboardTable rows={rows} totalColumnLabel={totalColumnLabel} />
     ) : (
       <div className="rounded-[1.4rem] border border-border/70 bg-background/50 px-6 py-12 text-center text-sm text-muted-foreground">
         Loading rankings...
@@ -326,11 +334,11 @@ export const Leaderboard = ({
   const projectedGuestRank = useQuery(
     api.leaderboards.getGuestProjectedRank,
     !user && period === "daily" && guestSeries
-      ? {
+        ? {
           mode,
           rankingStatus: guestSeries.rankingStatus,
+          ...(typeof guestSeries.sortScore === "number" ? { sortScore: guestSeries.sortScore } : {}),
           totalHintsUsed: guestSeries.totalHintsUsed,
-          ...(typeof guestSeries.totalScore === "number" ? { totalScore: guestSeries.totalScore } : {}),
           ...(typeof guestSeries.completedAt === "number" ? { completedAt: guestSeries.completedAt } : {}),
         }
       : "skip",
@@ -358,7 +366,9 @@ export const Leaderboard = ({
 
   const helperCopy = useMemo(() => {
     if (!user && period === "daily") {
-      return "This is your projected rank for today only. Sign in to save this ranking.";
+      return mode === "timed"
+        ? "This is your projected rank for today only. Sign in to save this ranking."
+        : "This is your projected rank for today only. Classic and Hard rank by words solved first, then by the lowest total guesses across solved words. Sign in to save this ranking.";
     }
     return getModeHintCopy(mode);
   }, [mode, period, user]);
@@ -369,6 +379,7 @@ export const Leaderboard = ({
       period={period}
       mode={mode}
       rows={rows}
+      totalColumnLabel={mode === "timed" ? "Words" : "Guesses"}
       leaderboardLoaded={leaderboard !== undefined}
       onPeriodChange={(value) => setPeriod(value as LeaderboardPeriod)}
       onModeChange={(value) => setMode(value as LeaderboardMode)}

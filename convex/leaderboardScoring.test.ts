@@ -75,3 +75,119 @@ describe("leaderboardScoring timed mode", () => {
     expect(summary.totalScore).toBeUndefined();
   });
 });
+
+describe("leaderboardScoring classic and hard ranking hierarchy", () => {
+  it("qualifies completed series even when some rounds were lost", () => {
+    const summary = summarizeSeries(
+      "classic",
+      [
+        normalizeRoundForMode("classic", {
+          slot: 1,
+          status: "won",
+          startedAt: 1_000,
+          finishedAt: 2_000,
+          rawGuesses: 3,
+          hintUses: 1,
+          adjustedScore: 4,
+        }),
+        normalizeRoundForMode("classic", {
+          slot: 2,
+          status: "lost",
+          startedAt: 3_000,
+          finishedAt: 4_000,
+          rawGuesses: 6,
+          hintUses: 0,
+          adjustedScore: 6,
+        }),
+        normalizeRoundForMode("classic", {
+          slot: 3,
+          status: "won",
+          startedAt: 5_000,
+          finishedAt: 6_000,
+          rawGuesses: 4,
+          hintUses: 2,
+          adjustedScore: 6,
+        }),
+      ],
+      3,
+    );
+
+    expect(summary.rankingStatus).toBe("qualified");
+    expect(summary.totalScore).toBe(7);
+    expect(summary.completedAt).toBe(6_000);
+  });
+
+  it("ranks solved words ahead of lower guess totals", () => {
+    const twoSolvedSummary = summarizeSeries(
+      "hard",
+      [
+        normalizeRoundForMode("hard", {
+          slot: 1,
+          status: "won",
+          startedAt: 1_000,
+          finishedAt: 2_000,
+          rawGuesses: 6,
+          hintUses: 0,
+          adjustedScore: 6,
+        }),
+        normalizeRoundForMode("hard", {
+          slot: 2,
+          status: "won",
+          startedAt: 3_000,
+          finishedAt: 4_000,
+          rawGuesses: 6,
+          hintUses: 0,
+          adjustedScore: 6,
+        }),
+        normalizeRoundForMode("hard", {
+          slot: 3,
+          status: "lost",
+          startedAt: 5_000,
+          finishedAt: 6_000,
+          rawGuesses: 1,
+          hintUses: 0,
+          adjustedScore: 1,
+        }),
+      ],
+      3,
+    );
+
+    const oneSolvedSummary = summarizeSeries(
+      "hard",
+      [
+        normalizeRoundForMode("hard", {
+          slot: 1,
+          status: "won",
+          startedAt: 1_000,
+          finishedAt: 2_000,
+          rawGuesses: 1,
+          hintUses: 0,
+          adjustedScore: 1,
+        }),
+        normalizeRoundForMode("hard", {
+          slot: 2,
+          status: "lost",
+          startedAt: 3_000,
+          finishedAt: 4_000,
+          rawGuesses: 1,
+          hintUses: 0,
+          adjustedScore: 1,
+        }),
+        normalizeRoundForMode("hard", {
+          slot: 3,
+          status: "lost",
+          startedAt: 5_000,
+          finishedAt: 6_000,
+          rawGuesses: 1,
+          hintUses: 0,
+          adjustedScore: 1,
+        }),
+      ],
+      3,
+    );
+
+    expect(twoSolvedSummary.rankingStatus).toBe("qualified");
+    expect(oneSolvedSummary.rankingStatus).toBe("qualified");
+    expect(twoSolvedSummary.sortScore).toBeLessThan(oneSolvedSummary.sortScore ?? Number.MAX_SAFE_INTEGER);
+  });
+});

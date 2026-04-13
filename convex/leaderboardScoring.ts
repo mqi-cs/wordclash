@@ -22,6 +22,42 @@ export type LeaderboardSeriesSummary = {
   completedAt?: number;
 };
 
+const CLASSIC_HARD_SOLVE_WEIGHT = 1_000_000;
+
+const getSolvedWords = (
+  mode: LeaderboardMode,
+  rounds: Array<Pick<LeaderboardRoundLike, "status">>,
+) => {
+  if (mode === "timed") {
+    return undefined;
+  }
+
+  return rounds.reduce((total, round) => total + (round.status === "won" ? 1 : 0), 0);
+};
+
+const getSolvedGuessTotal = (
+  mode: LeaderboardMode,
+  rounds: Array<Pick<LeaderboardRoundLike, "status" | "rawGuesses" | "adjustedScore">>,
+) => {
+  if (mode === "timed") {
+    return undefined;
+  }
+
+  return rounds.reduce((total, round) => {
+    if (round.status !== "won") {
+      return total;
+    }
+
+    return total + (round.rawGuesses ?? round.adjustedScore ?? 0);
+  }, 0);
+};
+
+const getClassicHardSortScore = (
+  requiredRounds: number,
+  solvedWords: number,
+  solvedGuessTotal: number,
+) => (requiredRounds - solvedWords) * CLASSIC_HARD_SOLVE_WEIGHT + solvedGuessTotal;
+
 export const isRoundInProgress = (
   mode: LeaderboardMode,
   round: Pick<LeaderboardRoundLike, "status" | "finishedAt">,
@@ -74,18 +110,21 @@ export const normalizeRoundForMode = (
 
 export const summarizeSeries = (
   mode: LeaderboardMode,
-  rounds: Array<Pick<LeaderboardRoundLike, "status" | "hintUses" | "wordsCompleted" | "adjustedScore" | "finishedAt" | "slot">>,
+  rounds: Array<
+    Pick<
+      LeaderboardRoundLike,
+      "status" | "hintUses" | "wordsCompleted" | "adjustedScore" | "rawGuesses" | "finishedAt" | "slot"
+    >
+  >,
   requiredRounds: number,
 ): LeaderboardSeriesSummary => {
   const sortedRounds = [...rounds].sort((a, b) => a.slot - b.slot);
   const totalHintsUsed = sortedRounds.reduce((total, round) => total + (round.hintUses ?? 0), 0);
   const hasInProgress = sortedRounds.some((round) => isRoundInProgress(mode, round));
   const hasAbandoned = sortedRounds.some((round) => round.status === "abandoned");
-  const hasFailedClassicRound =
-    mode !== "timed" && sortedRounds.some((round) => round.status === "lost");
   const isComplete = sortedRounds.length >= requiredRounds && !hasInProgress;
 
-  if (hasAbandoned || hasFailedClassicRound) {
+  if (hasAbandoned) {
     return {
       rankingStatus: "disqualified",
       totalHintsUsed,
@@ -102,22 +141,27 @@ export const summarizeSeries = (
     };
   }
 
-  const totalScore = sortedRounds.reduce((total, round) => {
-    if (mode === "timed") {
-      return total + (round.wordsCompleted ?? round.adjustedScore ?? 0);
-    }
-    return total + (round.adjustedScore ?? 0);
-  }, 0);
+  const totalScore =
+    mode === "timed"
+      ? sortedRounds.reduce(
+          (total, round) => total + (round.wordsCompleted ?? round.adjustedScore ?? 0),
+          0,
+        )
+      : getSolvedGuessTotal(mode, sortedRounds) ?? 0;
 
   const completedAt = sortedRounds.reduce(
     (latest, round) => Math.max(latest, round.finishedAt ?? 0),
     0,
   );
+  const solvedWords = getSolvedWords(mode, sortedRounds);
 
   return {
     rankingStatus: "qualified",
     totalScore,
-    sortScore: mode === "timed" ? -totalScore : totalScore,
+    sortScore:
+      mode === "timed"
+        ? -totalScore
+        : getClassicHardSortScore(requiredRounds, solvedWords ?? 0, totalScore),
     totalHintsUsed,
     completedAt,
   };

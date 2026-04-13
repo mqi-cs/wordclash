@@ -18,6 +18,7 @@ export type GuestLeaderboardSeries = {
   dayKey: string;
   rankingStatus: GuestLeaderboardRankingStatus;
   totalScore?: number;
+  sortScore?: number;
   totalHintsUsed: number;
   completedAt?: number;
   rounds: GuestLeaderboardRound[];
@@ -31,6 +32,7 @@ type GuestLeaderboardStorage = {
 const STORAGE_KEY = "wordclash_guest_leaderboard_v1";
 const STORAGE_EVENT = "wordclash:guest-leaderboard-updated";
 const MAX_ROUNDS = 3;
+const CLASSIC_HARD_SOLVE_WEIGHT = 1_000_000;
 
 const getTodayKey = () => {
   const now = new Date();
@@ -52,16 +54,17 @@ const dispatchStorageUpdate = () => {
 const summarizeSeries = (
   mode: GuestLeaderboardMode,
   rounds: GuestLeaderboardRound[],
-): Pick<GuestLeaderboardSeries, "rankingStatus" | "totalScore" | "totalHintsUsed" | "completedAt"> => {
+): Pick<
+  GuestLeaderboardSeries,
+  "rankingStatus" | "totalScore" | "sortScore" | "totalHintsUsed" | "completedAt"
+> => {
   const sortedRounds = [...rounds].sort((a, b) => a.slot - b.slot);
   const totalHintsUsed = sortedRounds.reduce((total, round) => total + (round.hintUses ?? 0), 0);
   const hasInProgress = sortedRounds.some((round) => round.status === "in_progress");
   const hasAbandoned = sortedRounds.some((round) => round.status === "abandoned");
-  const hasFailedClassicRound =
-    mode !== "timed" && sortedRounds.some((round) => round.status === "lost");
   const isComplete = sortedRounds.length >= MAX_ROUNDS && !hasInProgress;
 
-  if (hasAbandoned || hasFailedClassicRound) {
+  if (hasAbandoned) {
     return {
       rankingStatus: "disqualified",
       totalHintsUsed,
@@ -79,16 +82,31 @@ const summarizeSeries = (
     };
   }
 
-  const totalScore = sortedRounds.reduce((total, round) => {
-    if (mode === "timed") {
-      return total + (round.wordsCompleted ?? round.adjustedScore ?? 0);
-    }
-    return total + (round.adjustedScore ?? 0);
-  }, 0);
+  const totalScore =
+    mode === "timed"
+      ? sortedRounds.reduce(
+          (total, round) => total + (round.wordsCompleted ?? round.adjustedScore ?? 0),
+          0,
+        )
+      : sortedRounds.reduce((total, round) => {
+          if (round.status !== "won") {
+            return total;
+          }
+
+          return total + (round.rawGuesses ?? round.adjustedScore ?? 0);
+        }, 0);
+  const solvedWords =
+    mode === "timed"
+      ? undefined
+      : sortedRounds.reduce((total, round) => total + (round.status === "won" ? 1 : 0), 0);
 
   return {
     rankingStatus: "qualified",
     totalScore,
+    sortScore:
+      mode === "timed"
+        ? -totalScore
+        : (MAX_ROUNDS - (solvedWords ?? 0)) * CLASSIC_HARD_SOLVE_WEIGHT + totalScore,
     totalHintsUsed,
     completedAt: sortedRounds.reduce(
       (latest, round) => Math.max(latest, round.finishedAt ?? 0),
@@ -115,7 +133,18 @@ const normalizeStorage = (storage: GuestLeaderboardStorage): GuestLeaderboardSto
   if (storage.dayKey !== todayKey) {
     return createEmptyStorage(todayKey);
   }
-  return storage;
+
+  const normalizedModes = Object.fromEntries(
+    Object.entries(storage.modes).map(([mode, series]) => [
+      mode,
+      series ? upsertSeries(mode as GuestLeaderboardMode, series.rounds) : series,
+    ]),
+  ) as GuestLeaderboardStorage["modes"];
+
+  return {
+    dayKey: storage.dayKey,
+    modes: normalizedModes,
+  };
 };
 
 const readStorage = (): GuestLeaderboardStorage => {
@@ -160,6 +189,7 @@ const upsertSeries = (
     rankingStatus: summary.rankingStatus,
     totalHintsUsed: summary.totalHintsUsed,
     ...(summary.totalScore !== undefined ? { totalScore: summary.totalScore } : {}),
+    ...(summary.sortScore !== undefined ? { sortScore: summary.sortScore } : {}),
     ...(summary.completedAt !== undefined ? { completedAt: summary.completedAt } : {}),
   };
 };
