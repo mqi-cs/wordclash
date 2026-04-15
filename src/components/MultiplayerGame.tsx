@@ -29,6 +29,7 @@ import { useStatsUpdate } from "@/hooks/useStatsUpdate";
 import { BotGame } from "@/components/BotGame";
 import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
 import { getRandomFallbackOpponentName } from "@/lib/fakeOpponent";
+import { isValidWord } from "@/lib/wordList";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -662,6 +663,13 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
 
     if (myCurrentGuess.length !== WORD_LENGTH) {
       toast.error("Not enough letters");
+      setShake(true);
+      window.setTimeout(() => setShake(false), 400);
+      return;
+    }
+
+    if (!isValidWord(myCurrentGuess)) {
+      toast.error("Not in word list");
       setShake(true);
       window.setTimeout(() => setShake(false), 400);
       return;
