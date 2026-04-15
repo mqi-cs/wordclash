@@ -423,8 +423,13 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       return;
     }
 
+    const getRemainingTime = () =>
+      Math.max(0, Math.ceil((game.gameEndTime - Date.now()) / 1000));
+
+    setGameTimeLeft(getRemainingTime());
+
     const interval = setInterval(() => {
-      const remainingTime = Math.max(0, Math.floor((game.gameEndTime! - Date.now()) / 1000));
+      const remainingTime = getRemainingTime();
       setGameTimeLeft(remainingTime);
       if (remainingTime <= 0) {
         clearInterval(interval);
