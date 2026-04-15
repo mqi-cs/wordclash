@@ -117,6 +117,7 @@ export const GameGrid = ({
   blurCurrentGuess = false,
 }: GameGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
   const sixRowViewportHeight = "calc(6 * min(17vw, 72px) + 5 * 8px)";
 
   // For modes with many guesses (hard=10, timed=999), we show a scrollable window.
@@ -129,11 +130,15 @@ export const GameGrid = ({
   // Auto-scroll to keep the current row visible
   useEffect(() => {
     if (needsScroll && scrollRef.current) {
-      const container = scrollRef.current;
-      // Scroll to show the current active row near the bottom of the viewport
-      const rowHeight = container.scrollHeight / displayRows;
-      const targetScroll = Math.max(0, (guesses.length - 3) * rowHeight);
-      container.scrollTo({ top: targetScroll, behavior: guesses.length === 0 ? "auto" : "smooth" });
+      const activeRowIndex = Math.min(guesses.length, displayRows - 1);
+      const activeRow = rowRefs.current[activeRowIndex];
+
+      if (activeRow) {
+        activeRow.scrollIntoView({
+          block: "nearest",
+          behavior: guesses.length === 0 ? "auto" : "smooth",
+        });
+      }
     }
   }, [guesses.length, needsScroll, displayRows]);
 
@@ -169,6 +174,9 @@ export const GameGrid = ({
       {rows.map((row, i) => (
         <div
           key={i}
+          ref={(element) => {
+            rowRefs.current[i] = element;
+          }}
           className={cn(
             "grid grid-cols-5 gap-1.5 sm:gap-2",
             shake && i === guesses.length && "animate-shake"
