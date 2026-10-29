@@ -28,6 +28,7 @@ import {
   purchaseGuestCosmetic,
   subscribeToGuestCosmetics,
 } from "@/lib/guestCosmetics";
+import { getErrorMessage } from "@/lib/errors";
 
 // ── Category metadata for icons + colors ────────────────────────────
 
@@ -91,7 +92,7 @@ export const CosmeticsStore = () => {
         purchaseGuestCosmetic(cosmeticId, item.cost);
         toast.success("Cosmetic unlocked on this device! ✨");
       } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : "Failed to unlock");
+        toast.error(getErrorMessage(e, "Failed to unlock"));
       }
       return;
     }
@@ -100,7 +101,7 @@ export const CosmeticsStore = () => {
       await purchase({ cosmeticId });
       toast.success("Cosmetic unlocked! ✨");
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to purchase");
+      toast.error(getErrorMessage(e, "Failed to purchase"));
     }
   };
 
@@ -110,7 +111,7 @@ export const CosmeticsStore = () => {
         equipGuestCosmetic(cosmeticId);
         toast.success("Theme updated for this device");
       } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : "Failed to equip");
+        toast.error(getErrorMessage(e, "Failed to equip"));
       }
       return;
     }
@@ -118,7 +119,7 @@ export const CosmeticsStore = () => {
     try {
       await equip({ cosmeticId });
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to equip");
+      toast.error(getErrorMessage(e, "Failed to equip"));
     }
   };
 
@@ -405,7 +406,7 @@ export const DailyQuestsSidebar = () => {
         claimGuestQuestReward(slotId);
         toast.success("+3 shards earned! 💎");
       } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : "Failed to claim");
+        toast.error(getErrorMessage(e, "Failed to claim"));
       }
       return;
     }
@@ -415,7 +416,7 @@ export const DailyQuestsSidebar = () => {
       await claimReward({ slotId });
       toast.success("+3 shards earned! 💎");
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to claim");
+      toast.error(getErrorMessage(e, "Failed to claim"));
     }
   };
 

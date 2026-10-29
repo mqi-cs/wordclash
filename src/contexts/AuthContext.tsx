@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { getErrorMessage } from "@/lib/errors";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const APP_SITE_URL = "https://wordclash.co";
@@ -37,8 +38,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const normalizeUsername = (username: string) => username.trim();
-const getErrorMessage = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
 
 export const getConvexHttpActionBaseUrl = (
   siteUrl: string | undefined,

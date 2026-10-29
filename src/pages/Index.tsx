@@ -52,6 +52,7 @@ import { FeatureWalkthroughDialog, WalkthroughSlide } from "@/components/Feature
 import { InteractiveFeatureCoach } from "@/components/InteractiveFeatureCoach";
 import { usePostHog } from "@/contexts/PostHogContext";
 import { useStatsUpdate } from "@/hooks/useStatsUpdate";
+import { getErrorMessage } from "@/lib/errors";
 
 const MultiplayerGame = lazy(() => import("@/components/MultiplayerGame").then(module => ({ default: module.MultiplayerGame })));
 const BotGame = lazy(() => import("@/components/BotGame").then(module => ({ default: module.BotGame })));
@@ -523,7 +524,7 @@ const Index = () => {
       wordsCompleted?: number;
     }) => {
       if (currentLeaderboardSlot === null) {
-        return;
+        return false;
       }
 
       const slot = currentLeaderboardSlot;
@@ -554,6 +555,8 @@ const Index = () => {
 
       setCurrentLeaderboardSlot(null);
       setRoundHintUses(0);
+      // finishSoloRound also records the player's stats and quest progress.
+      return !!user;
     },
     [currentLeaderboardSlot, finishSoloRoundMut, roundHintUses, user],
   );
@@ -665,13 +668,15 @@ const Index = () => {
       });
 
       if (user) {
-        void updateStats(gameMode as GameMode, true, greenLetters, undefined, "solo");
-        finalizeTrackedSoloRound({
+        const recorded = finalizeTrackedSoloRound({
           mode: gameMode as LimitedGameMode,
           won: true,
           greenLetters,
           rawGuesses: newGuesses.length,
         });
+        if (!recorded) {
+          void updateStats(gameMode as GameMode, true, greenLetters, undefined, "solo");
+        }
       } else {
         finalizeTrackedSoloRound({
           mode: gameMode as LimitedGameMode,
@@ -717,13 +722,15 @@ const Index = () => {
       }
 
       if (user && gameMode) {
-        void updateStats(gameMode, false, greenLetters, undefined, "solo");
-        finalizeTrackedSoloRound({
+        const recorded = finalizeTrackedSoloRound({
           mode: gameMode as LimitedGameMode,
           won: false,
           greenLetters,
           rawGuesses: newGuesses.length,
         });
+        if (!recorded) {
+          void updateStats(gameMode, false, greenLetters, undefined, "solo");
+        }
       } else {
         if (gameMode) {
           finalizeTrackedSoloRound({
@@ -783,13 +790,15 @@ const Index = () => {
     });
 
     if (user) {
-      void updateStats("timed", wordsCompleted > 0, greenLetters, undefined, "solo");
-      finalizeTrackedSoloRound({
+      const recorded = finalizeTrackedSoloRound({
         mode: "timed",
         won: wordsCompleted > 0,
         greenLetters,
         wordsCompleted,
       });
+      if (!recorded) {
+        void updateStats("timed", wordsCompleted > 0, greenLetters, undefined, "solo");
+      }
     } else {
       finalizeTrackedSoloRound({
         mode: "timed",
@@ -827,7 +836,7 @@ const Index = () => {
       try {
         await startTrackedSoloRound(gameMode);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Daily limit reached for this mode.");
+        toast.error(getErrorMessage(error, "Daily limit reached for this mode."));
         return;
       }
 
@@ -1035,7 +1044,7 @@ const Index = () => {
       try {
         await startTrackedSoloRound(mode);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Daily limit reached for this mode.");
+        toast.error(getErrorMessage(error, "Daily limit reached for this mode."));
         return;
       }
     }
@@ -1143,22 +1152,19 @@ const Index = () => {
   useEffect(() => {
     if (gameMode === "timed" && timedGameActive && timeLeft > 0) {
       const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            endTimedGame();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft((prev) => Math.max(0, prev - 1));
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [
-    endTimedGame,
-    gameMode,
-    timedGameActive,
-    timeLeft,
-  ]);
+  }, [gameMode, timedGameActive, timeLeft]);
+
+  // End the round from an effect rather than inside the state updater above:
+  // updaters must be pure, and React may call them more than once.
+  useEffect(() => {
+    if (gameMode === "timed" && timedGameActive && timeLeft <= 0) {
+      endTimedGame();
+    }
+  }, [endTimedGame, gameMode, timedGameActive, timeLeft]);
 
   // Handle keyboard events
   useEffect(() => {

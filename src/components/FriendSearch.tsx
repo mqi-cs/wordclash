@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, UserPlus } from "lucide-react";
 
 import { usePostHog } from "@/contexts/PostHogContext";
+import { getErrorMessage } from "@/lib/errors";
 
 export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) => {
   const { user } = useAuth();
@@ -38,18 +40,17 @@ export const FriendSearch = ({ onRequestSent }: { onRequestSent?: () => void }) 
   const sendFriendRequest = async (friendId: string) => {
     setSendingId(friendId);
     try {
-      await sendRequest({ friendId: friendId as any });
+      await sendRequest({ friendId: friendId as Id<"users"> });
       trackGame("friend_request_sent", { friend_id: friendId });
       toast({
         title: "Request sent",
         description: "Friend request sent successfully!",
       });
       onRequestSent?.();
-    } catch (error: any) {
-// ... existing code continues
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to send request",
+        description: getErrorMessage(error, "Failed to send request"),
         variant: "destructive",
       });
     } finally {

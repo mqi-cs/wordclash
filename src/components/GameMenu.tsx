@@ -21,6 +21,7 @@ import { api } from "../../convex/_generated/api";
 import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
 import { Leaderboard } from "@/components/Leaderboard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { getErrorMessage } from "@/lib/errors";
 
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 
@@ -174,7 +175,7 @@ export const GameMenu = ({
       });
       navigate(`/?mode=multiplayer&game=${result.gameId}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to accept random match");
+      toast.error(getErrorMessage(error, "Failed to accept random match"));
     } finally {
       setProcessingRandomRequest(false);
     }
@@ -190,7 +191,7 @@ export const GameMenu = ({
       });
       toast.info("Random match request declined");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to decline random match");
+      toast.error(getErrorMessage(error, "Failed to decline random match"));
     } finally {
       setProcessingRandomRequest(false);
     }

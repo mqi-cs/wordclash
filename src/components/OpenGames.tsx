@@ -25,6 +25,7 @@ interface OpenGamesProps {
 }
 
 import { usePostHog } from "@/contexts/PostHogContext";
+import { getErrorMessage } from "@/lib/errors";
 
 export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
   const { user } = useAuth();
@@ -53,9 +54,8 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
         mode: g?.mode 
       });
       toast.success("Game removed");
-    } catch (error: any) {
-// ... existing code continues
-      toast.error(error.message || "Failed to delete game");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to delete game"));
     } finally {
       setDeletingGameId(null);
     }

@@ -30,6 +30,7 @@ import { BotGame } from "@/components/BotGame";
 import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
 import { getRandomFallbackOpponentName } from "@/lib/fakeOpponent";
 import { isValidWord } from "@/lib/wordList";
+import { getErrorMessage } from "@/lib/errors";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -83,7 +84,6 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const [myLetterStatus, setMyLetterStatus] = useState<Record<string, "correct" | "present" | "absent">>({});
   const [shake, setShake] = useState(false);
   const [copiedLobbyCode, setCopiedLobbyCode] = useState(false);
-  const [subMode, setSubMode] = useState<"classic" | "hard" | "timed">("classic");
   const [turnTimer, setTurnTimer] = useState(TURN_DURATION);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [gameTimeLeft, setGameTimeLeft] = useState(0);
@@ -125,6 +125,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const joinGameMut = useMutation(api.games.joinGame);
   const joinGameByCodeMut = useMutation(api.games.joinGameByCode);
   const startGameMut = useMutation(api.games.startGame);
+  const setLobbyModeMut = useMutation(api.games.setLobbyMode);
   const submitGuessMut = useMutation(api.guesses.submitGuess);
   const deleteGameMut = useMutation(api.games.deleteGame);
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
@@ -195,8 +196,9 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const isDraw = game?.isDraw;
   const challengeOpponent = otherBoards[0] ?? null;
   const hideOpponentLetters = game?.status !== "finished" && game?.status !== "abandoned";
+  // Timed challenges are a simultaneous race; classic/hard alternate turns.
   const isMyTurn =
-    isChallenge && game?.status === "in_progress" && myBoard && challengeOpponent
+    isChallenge && mode !== "timed" && game?.status === "in_progress" && myBoard && challengeOpponent
       ? myBoard.guesses.length === challengeOpponent.guesses.length
         ? isHost
         : myBoard.guesses.length < challengeOpponent.guesses.length
@@ -211,8 +213,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         syncMultiplayerUrl(joinedGameId);
         trackGame("multiplayer_game_joined", { method: "code", lobby_code: code });
       } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to join lobby";
+        const errorMessage = getErrorMessage(error, "Failed to join lobby");
         toast.error(errorMessage);
       }
     },
@@ -228,8 +229,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         syncMultiplayerUrl(resolvedGameId);
         trackGame("multiplayer_game_joined", { method: "link", game_id: requestedGameId });
       } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to open multiplayer game";
+        const errorMessage = getErrorMessage(error, "Failed to open multiplayer game");
         toast.error(errorMessage);
         setGameId(null);
         setEntryMode("select");
@@ -387,7 +387,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   }, [myBoard]);
 
   useEffect(() => {
-    if (!isChallenge || !gameStarted || game?.status === "finished" || !gameId) {
+    if (!isChallenge || mode === "timed" || !gameStarted || game?.status === "finished" || !gameId) {
       if (timerRef.current) clearInterval(timerRef.current);
       setTurnTimer(TURN_DURATION);
       return;
@@ -413,7 +413,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [game?.status, gameId, gameStarted, isChallenge, isMyTurn, myGameOver, submitGuessMut]);
+  }, [game?.status, gameId, gameStarted, isChallenge, isMyTurn, mode, myGameOver, submitGuessMut]);
 
   // Timed mode game timer
   useEffect(() => {
@@ -471,14 +471,13 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
 
   const handleCreateLobby = async () => {
     try {
-      const newGameId = await createGameMut({ gameType: "multiplayer", mode: subMode });
+      const newGameId = await createGameMut({ gameType: "multiplayer", mode: "classic" });
       setGameId(newGameId);
       setEntryMode(null);
       syncMultiplayerUrl(newGameId);
-      trackGame("multiplayer_lobby_created", { mode: subMode });
+      trackGame("multiplayer_lobby_created", { mode: "classic" });
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to create lobby";
+      const errorMessage = getErrorMessage(error, "Failed to create lobby");
       toast.error(errorMessage);
     }
   };
@@ -491,8 +490,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setEntryMode("select");
       toast.success("Searching for a random opponent...");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to find a random opponent";
+      const errorMessage = getErrorMessage(error, "Failed to find a random opponent");
       toast.error(errorMessage);
     }
   };
@@ -505,8 +503,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setRandomMatchmakingId(null);
       toast.info("Random matchmaking cancelled");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to cancel matchmaking";
+      const errorMessage = getErrorMessage(error, "Failed to cancel matchmaking");
       toast.error(errorMessage);
     }
   };
@@ -523,8 +520,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setEntryMode(null);
       syncMultiplayerUrl(result.gameId);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to accept random match";
+      const errorMessage = getErrorMessage(error, "Failed to accept random match");
       toast.error(errorMessage);
     } finally {
       setProcessingRandomRequest(false);
@@ -541,8 +537,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       });
       toast.info("Random match request declined");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to decline random match";
+      const errorMessage = getErrorMessage(error, "Failed to decline random match");
       toast.error(errorMessage);
     } finally {
       setProcessingRandomRequest(false);
@@ -556,8 +551,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setEntryMode(null);
       syncMultiplayerUrl(resolvedGameId);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to open game";
+      const errorMessage = getErrorMessage(error, "Failed to open game");
       toast.error(errorMessage);
     }
   };
@@ -575,8 +569,18 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       });
       toast.success("Game started!");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to start game";
+      const errorMessage = getErrorMessage(error, "Failed to start game");
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleSelectLobbyMode = async (nextMode: "classic" | "hard" | "timed") => {
+    if (!gameId || !isHost || game?.mode === nextMode) return;
+
+    try {
+      await setLobbyModeMut({ gameId, mode: nextMode });
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error, "Failed to change mode");
       toast.error(errorMessage);
     }
   };
@@ -654,8 +658,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       resetMultiplayerUrl();
       onBackToMenu();
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete match";
+      const errorMessage = getErrorMessage(error, "Failed to delete match");
       toast.error(errorMessage);
     } finally {
       setDeletingGame(false);
@@ -684,8 +687,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       await submitGuessMut({ gameId, guess: myCurrentGuess });
       setMyCurrentGuess("");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to submit guess";
+      const errorMessage = getErrorMessage(error, "Failed to submit guess");
       toast.error(errorMessage);
     }
   }, [gameId, gameStarted, isChallenge, isMyTurn, myCurrentGuess, myGameOver, submitGuessMut]);
@@ -824,8 +826,8 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
             {(["classic", "hard", "timed"] as const).map((m) => (
               <Button
                 key={m}
-                variant={isHost ? (subMode === m ? "default" : "outline") : (game?.mode === m ? "default" : "outline")}
-                onClick={() => isHost && setSubMode(m)}
+                variant={(game?.mode ?? "classic") === m ? "default" : "outline"}
+                onClick={() => void handleSelectLobbyMode(m)}
                 disabled={!isHost}
                 className="h-10 capitalize sm:h-11"
               >
