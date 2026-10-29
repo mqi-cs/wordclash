@@ -10,14 +10,14 @@ const normalizeEventName = (event: string) =>
     .replace(/\s+/g, "_")
     .toLowerCase();
 
-function getClient(): PostHog {
+// Returns null when PostHog isn't configured (e.g. dev deployments) so that
+// analytics become a no-op instead of failing every scheduled action.
+function getClient(): PostHog | null {
   const apiKey = process.env.POSTHOG_API_KEY;
   const host = process.env.POSTHOG_HOST;
-  if (!apiKey) {
-    throw new Error("POSTHOG_API_KEY environment variable is not set");
-  }
-  if (!host) {
-    throw new Error("POSTHOG_HOST environment variable is not set");
+  if (!apiKey || !host) {
+    console.warn("PostHog is not configured (POSTHOG_API_KEY / POSTHOG_HOST); skipping event");
+    return null;
   }
   const client = new PostHog(apiKey, {
     host,
@@ -38,6 +38,7 @@ export const captureEvent = internalAction({
   },
   handler: async (_ctx, args) => {
     const client = getClient();
+    if (!client) return;
     client.capture({
       distinctId: args.distinctId,
       event: normalizeEventName(args.event),
@@ -64,6 +65,7 @@ export const identifyUser = internalAction({
   },
   handler: async (_ctx, args) => {
     const client = getClient();
+    if (!client) return;
     client.identify({
       distinctId: args.distinctId,
       properties: {
@@ -83,6 +85,7 @@ export const captureException = internalAction({
   },
   handler: async (_ctx, args) => {
     const client = getClient();
+    if (!client) return;
     client.captureException(
       new Error(args.message),
       args.distinctId,

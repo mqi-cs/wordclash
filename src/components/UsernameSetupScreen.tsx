@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./ThemeToggle";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 
 interface UsernameSetupScreenProps {
   email?: string;
@@ -31,8 +32,8 @@ export const UsernameSetupScreen = ({ email, googleName }: UsernameSetupScreenPr
         title: "Username saved",
         description: "Your profile is ready.",
       });
-    } catch (error: any) {
-      const errorMessage = error?.message || "Failed to save username";
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error, "Failed to save username");
       if (errorMessage === "Username is already taken") {
         setUsernameError("That username is already in use. Please choose another one.");
         return;

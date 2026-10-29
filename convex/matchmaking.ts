@@ -5,12 +5,15 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { getRandomTargetWord } from "./shared/gameLogic";
 import { internal } from "./_generated/api";
+import { startNextTurn } from "./gameState";
 
 const ONLINE_WINDOW_MS = 30_000;
+// Matches games.ts: waiting lobbies older than this are expired.
+const STALE_WAITING_GAME_MS = 1000 * 60 * 60 * 24;
 const RANDOM_MATCH_WAIT_MS = 5_000;
 const CANDIDATE_SCAN_LIMIT = 50;
 const ACTIVE_MATCH_STATUSES = ["searching", "pending_accept"] as const;
@@ -68,11 +71,12 @@ const getUserGameDocs = async (
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">,
 ) => {
+  // Newest first, so long-time players' current games are the ones checked.
   const [asPlayer1, asPlayer2, asPlayer3, asPlayer4] = await Promise.all([
-    ctx.db.query("games").withIndex("by_player1", (q) => q.eq("player1Id", userId)).take(10),
-    ctx.db.query("games").withIndex("by_player2", (q) => q.eq("player2Id", userId)).take(10),
-    ctx.db.query("games").withIndex("by_player3", (q) => q.eq("player3Id", userId)).take(10),
-    ctx.db.query("games").withIndex("by_player4", (q) => q.eq("player4Id", userId)).take(10),
+    ctx.db.query("games").withIndex("by_player1", (q) => q.eq("player1Id", userId)).order("desc").take(10),
+    ctx.db.query("games").withIndex("by_player2", (q) => q.eq("player2Id", userId)).order("desc").take(10),
+    ctx.db.query("games").withIndex("by_player3", (q) => q.eq("player3Id", userId)).order("desc").take(10),
+    ctx.db.query("games").withIndex("by_player4", (q) => q.eq("player4Id", userId)).order("desc").take(10),
   ]);
 
   const byId = new Map<Id<"games">, Doc<"games">>();
@@ -87,10 +91,12 @@ const isBusyInGame = async (
   userId: Id<"users">,
 ) => {
   const games = await getUserGameDocs(ctx, userId);
+  const now = Date.now();
   return games.some(
     (game) =>
       (game.gameType === "challenge" || game.gameType === "multiplayer") &&
-      (game.status === "waiting" || game.status === "in_progress"),
+      ((game.status === "waiting" && now - game._creationTime < STALE_WAITING_GAME_MS) ||
+        game.status === "in_progress"),
   );
 };
 
@@ -102,6 +108,7 @@ const hasActiveMatchmaking = async (
   const requesterRows = await ctx.db
     .query("randomMatchmaking")
     .withIndex("by_requester", (q) => q.eq("requesterId", userId))
+    .order("desc")
     .take(10);
 
   const hasRequesterRow = requesterRows.some(
@@ -111,17 +118,18 @@ const hasActiveMatchmaking = async (
     return true;
   }
 
+  // Expired rows keep their active status, so scanning by status alone
+  // fills up with stale rows; look up this user's requests directly.
   for (const status of ACTIVE_MATCH_STATUSES) {
     const targetedRows = await ctx.db
       .query("randomMatchmaking")
-      .withIndex("by_status", (q) => q.eq("status", status))
-      .take(CANDIDATE_SCAN_LIMIT);
-
-    if (
-      targetedRows.some(
-        (row) => row.targetUserId === userId && row.expiresAt > now,
+      .withIndex("by_targetUserId_and_status", (q) =>
+        q.eq("targetUserId", userId).eq("status", status),
       )
-    ) {
+      .order("desc")
+      .take(10);
+
+    if (targetedRows.some((row) => row.expiresAt > now)) {
       return true;
     }
   }
@@ -185,6 +193,7 @@ const cleanupExpiredRequesterRows = async (
   const rows = await ctx.db
     .query("randomMatchmaking")
     .withIndex("by_requester", (q) => q.eq("requesterId", requesterId))
+    .order("desc")
     .take(10);
 
   for (const row of rows) {
@@ -276,7 +285,7 @@ export const presenceHeartbeat = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const existing = await ctx.db
@@ -306,17 +315,17 @@ export const startRandomMatchmaking = mutation({
   handler: async (ctx, args) => {
     const requesterId = await auth.getUserId(ctx);
     if (!requesterId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const now = Date.now();
     await cleanupExpiredRequesterRows(ctx, requesterId, now);
 
     if (await isBusyInGame(ctx, requesterId)) {
-      throw new Error("Finish your current multiplayer or challenge match first.");
+      throw new ConvexError("Finish your current multiplayer or challenge match first.");
     }
     if (await hasActiveMatchmaking(ctx, requesterId, now)) {
-      throw new Error("You already have a pending random match request.");
+      throw new ConvexError("You already have a pending random match request.");
     }
 
     const gameId = await createChallengeGame(ctx, requesterId);
@@ -343,12 +352,12 @@ export const getMyRandomMatchmakingStatus = query({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const row = await ctx.db.get(args.matchmakingId);
     if (!row || row.requesterId !== userId) {
-      throw new Error("Matchmaking request not found");
+      throw new ConvexError("Matchmaking request not found");
     }
 
     return {
@@ -399,26 +408,26 @@ export const acceptRandomMatchmaking = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const row = await ctx.db.get(args.matchmakingId);
     if (!row || row.targetUserId !== userId) {
-      throw new Error("Random match request not found");
+      throw new ConvexError("Random match request not found");
     }
     if (row.status !== "pending_accept") {
-      throw new Error("Random match request is no longer available");
+      throw new ConvexError("Random match request is no longer available");
     }
+    // No cleanup before these throws: a throw rolls back the whole mutation.
+    // The requester's finalizeRandomMatchmakingFallback settles the request.
     if (row.expiresAt <= Date.now()) {
-      await cleanupUnusedChallengeGame(ctx, row.gameId);
-      await ctx.db.patch(row._id, { status: "cancelled" });
-      throw new Error("Random match request expired");
+      throw new ConvexError("Random match request expired");
     }
     if (!row.gameId) {
-      throw new Error("Random match game is unavailable");
+      throw new ConvexError("Random match game is unavailable");
     }
     if (await isBusyInGame(ctx, userId)) {
-      throw new Error("Finish your current multiplayer or challenge match first.");
+      throw new ConvexError("Finish your current multiplayer or challenge match first.");
     }
 
     const game = await ctx.db.get(row.gameId);
@@ -428,8 +437,7 @@ export const acceptRandomMatchmaking = mutation({
       game.status !== "waiting" ||
       game.player2Id !== undefined
     ) {
-      await ctx.db.patch(row._id, { status: "cancelled" });
-      throw new Error("Random match is no longer available");
+      throw new ConvexError("Random match is no longer available");
     }
 
     await ctx.db.patch(game._id, {
@@ -438,6 +446,7 @@ export const acceptRandomMatchmaking = mutation({
       startedAt: Date.now(),
     });
     await ctx.db.patch(row._id, { status: "matched" });
+    await startNextTurn(ctx, game._id);
     await captureGameStarted(ctx, game._id, row.requesterId, userId);
 
     return { gameId: game._id };
@@ -449,15 +458,15 @@ export const declineRandomMatchmaking = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const row = await ctx.db.get(args.matchmakingId);
     if (!row || row.targetUserId !== userId) {
-      throw new Error("Random match request not found");
+      throw new ConvexError("Random match request not found");
     }
     if (row.status !== "pending_accept") {
-      throw new Error("Random match request is no longer available");
+      throw new ConvexError("Random match request is no longer available");
     }
 
     await ctx.db.patch(row._id, { status: "declined" });
@@ -470,15 +479,15 @@ export const cancelRandomMatchmaking = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const row = await ctx.db.get(args.matchmakingId);
     if (!row || row.requesterId !== userId) {
-      throw new Error("Matchmaking request not found");
+      throw new ConvexError("Matchmaking request not found");
     }
     if (row.status === "matched") {
-      throw new Error("Match already started");
+      throw new ConvexError("Match already started");
     }
 
     await cleanupUnusedChallengeGame(ctx, row.gameId);
@@ -492,12 +501,12 @@ export const finalizeRandomMatchmakingFallback = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const row = await ctx.db.get(args.matchmakingId);
     if (!row || row.requesterId !== userId) {
-      throw new Error("Matchmaking request not found");
+      throw new ConvexError("Matchmaking request not found");
     }
     if (row.status === "matched") {
       return {
@@ -514,13 +523,13 @@ export const finalizeRandomMatchmakingFallback = mutation({
       };
     }
     if (row.status === "cancelled") {
-      throw new Error("Matchmaking request was cancelled");
+      throw new ConvexError("Matchmaking request was cancelled");
     }
     if (
       row.status !== "declined" &&
       row.expiresAt > Date.now()
     ) {
-      throw new Error("Still searching for a random opponent");
+      throw new ConvexError("Still searching for a random opponent");
     }
 
     const opponentDisplayName = row.botOpponentName ?? createFakeOpponentName();

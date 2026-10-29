@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Swords, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { getErrorMessage } from "@/lib/errors";
 
 export const IncomingChallenges = () => {
   const { user } = useAuth();
@@ -24,12 +26,12 @@ export const IncomingChallenges = () => {
   const handleAccept = async (invitationId: string) => {
     setProcessingChallenge(invitationId);
     try {
-      const gameId = await acceptInvitation({ invitationId: invitationId as any });
+      const gameId = await acceptInvitation({ invitationId: invitationId as Id<"invitations"> });
       toast.success("Challenge accepted!");
       navigate(`/?join=${gameId}&mode=multiplayer`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (import.meta.env.DEV) console.error("Error accepting challenge:", error);
-      toast.error(error.message || "Failed to accept challenge");
+      toast.error(getErrorMessage(error, "Failed to accept challenge"));
     } finally {
       setProcessingChallenge(null);
     }
@@ -38,11 +40,11 @@ export const IncomingChallenges = () => {
   const handleDecline = async (invitationId: string) => {
     setProcessingChallenge(invitationId);
     try {
-      await declineInvitation({ invitationId: invitationId as any });
+      await declineInvitation({ invitationId: invitationId as Id<"invitations"> });
       toast.success("Challenge declined");
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (import.meta.env.DEV) console.error("Error declining challenge:", error);
-      toast.error(error.message || "Failed to decline challenge");
+      toast.error(getErrorMessage(error, "Failed to decline challenge"));
     } finally {
       setProcessingChallenge(null);
     }

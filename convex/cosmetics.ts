@@ -6,7 +6,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
 
@@ -556,32 +556,15 @@ export const seedDailyQuests = mutation({
   args: {},
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Must be logged in");
+    if (!userId) throw new ConvexError("Must be logged in");
 
     const { questId } = await ensureTodayQuestDoc(ctx, userId);
     return questId;
   },
 });
 
-/** Increment quest progress after a game finishes.
- *  Called from stats.updateStats or separately. */
-export const recordQuestProgress = mutation({
-  args: {
-    mode: v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"), v.literal("multiplayer")),
-    won: v.boolean(),
-    greenLetters: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) return;
-
-    const { questId, questSlots } = await ensureTodayQuestDoc(ctx, userId);
-    const updated = applyQuestProgressUpdate(questSlots, args, Date.now());
-    await ctx.db.patch(questId, { questSlots: updated });
-  },
-});
-
-/** Internal version called from stats.updateStats (already has userId) */
+/** Increment quest progress after a game finishes. Internal only: progress
+ *  must come from a recorded game result, never directly from the client. */
 export const internalRecordQuestProgress = internalMutation({
   args: {
     userId: v.id("users"),
@@ -601,14 +584,14 @@ export const claimQuestReward = mutation({
   args: { slotId: v.string() },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Must be logged in");
+    if (!userId) throw new ConvexError("Must be logged in");
 
     const { questId, questSlots } = await ensureTodayQuestDoc(ctx, userId);
 
     const slot = questSlots.find((s) => s.slotId === args.slotId);
-    if (!slot) throw new Error("Quest not found");
-    if (!slot.completed) throw new Error("Quest not completed yet");
-    if (slot.claimed) throw new Error("Already claimed");
+    if (!slot) throw new ConvexError("Quest not found");
+    if (!slot.completed) throw new ConvexError("Quest not completed yet");
+    if (slot.claimed) throw new ConvexError("Already claimed");
 
     // Mark as claimed
     const updatedSlots = questSlots.map((s) =>
@@ -633,7 +616,7 @@ export const claimQuestReward = mutation({
       });
     }
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "quest reward claimed",
       properties: {
@@ -653,10 +636,10 @@ export const purchaseCosmetic = mutation({
   args: { cosmeticId: v.string() },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Must be logged in");
+    if (!userId) throw new ConvexError("Must be logged in");
 
     const item = COSMETIC_CATALOG.find((c) => c.id === args.cosmeticId);
-    if (!item) throw new Error("Cosmetic not found");
+    if (!item) throw new ConvexError("Cosmetic not found");
 
     const wallet = await ctx.db
       .query("userCosmetics")
@@ -664,10 +647,10 @@ export const purchaseCosmetic = mutation({
       .unique();
 
     const currentShards = wallet?.shards ?? 0;
-    if (currentShards < item.cost) throw new Error("Not enough shards");
+    if (currentShards < item.cost) throw new ConvexError("Not enough shards");
 
     const owned = wallet?.ownedCosmetics ?? [];
-    if (owned.includes(item.id)) throw new Error("Already owned");
+    if (owned.includes(item.id)) throw new ConvexError("Already owned");
 
     const newShards = (wallet?.shards ?? 0) - item.cost;
     const newOwned = [...owned, item.id];
@@ -686,7 +669,7 @@ export const purchaseCosmetic = mutation({
       });
     }
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "cosmetic purchased",
       properties: {
@@ -710,10 +693,10 @@ export const equipCosmetic = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Must be logged in");
+    if (!userId) throw new ConvexError("Must be logged in");
 
     const item = COSMETIC_CATALOG.find((c) => c.id === args.cosmeticId);
-    if (!item) throw new Error("Cosmetic not found");
+    if (!item) throw new ConvexError("Cosmetic not found");
 
     const wallet = await ctx.db
       .query("userCosmetics")
@@ -721,7 +704,7 @@ export const equipCosmetic = mutation({
       .unique();
 
     if (!wallet || !wallet.ownedCosmetics.includes(item.id)) {
-      throw new Error("Cosmetic not owned");
+      throw new ConvexError("Cosmetic not owned");
     }
 
     const equipped: Record<string, string> = { ...wallet.equippedCosmetics };
@@ -736,7 +719,7 @@ export const equipCosmetic = mutation({
     await ctx.db.patch(wallet._id, { equippedCosmetics: equipped });
 
     const isNowEquipped = equipped[slotKey] === item.id;
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "cosmetic equipped",
       properties: {

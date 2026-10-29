@@ -1,10 +1,22 @@
 import { MutationCtx, QueryCtx, internalMutation, mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { getRandomTargetWord } from "./shared/gameLogic";
 import { internal } from "./_generated/api";
 import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
+import {
+  IDLE_FORFEIT_MS,
+  getExitAction,
+  getGamePlayerIds,
+  getPlayerProgress,
+  getTurnPlayerId,
+  isParticipant,
+  isTurnBased,
+  scheduleIdleCheck,
+  settleGame,
+  startNextTurn,
+} from "./gameState";
 
 const MAX_MULTIPLAYER_PLAYERS = 4;
 const TIMED_MULTIPLAYER_DURATION_MS = 75 * 1000;
@@ -13,6 +25,8 @@ const LOBBY_CODE_LENGTH = 6;
 const STALE_WAITING_GAME_MS = 1000 * 60 * 60 * 24;
 
 type GameDoc = Doc<"games">;
+type GameMode = "classic" | "hard" | "timed";
+const gameModeValidator = v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"));
 type UserSummary = {
   id: Id<"users">;
   username: string;
@@ -25,14 +39,6 @@ type UserSummary = {
     animation?: string;
   };
 };
-
-const getGamePlayerIds = (game: GameDoc): Id<"users">[] =>
-  [game.player1Id, game.player2Id, game.player3Id, game.player4Id].filter(
-    (playerId): playerId is Id<"users"> => playerId !== undefined,
-  );
-
-const isParticipant = (game: GameDoc, userId: Id<"users">) =>
-  getGamePlayerIds(game).includes(userId);
 
 const getPlayerCount = (game: GameDoc) => getGamePlayerIds(game).length;
 
@@ -92,10 +98,18 @@ const generateLobbyCode = async (ctx: MutationCtx) => {
     }
   }
 
-  throw new Error("Could not generate a unique lobby code. Please try again.");
+  throw new ConvexError("Could not generate a unique lobby code. Please try again.");
 };
 
 const normalizeLobbyCode = (code: string) => code.trim().toUpperCase();
+
+const buildGameSecret = (mode: GameMode) => {
+  if (mode === "timed") {
+    const targetWords = Array.from({ length: 50 }, () => getRandomTargetWord());
+    return { targetWord: targetWords[0], targetWords };
+  }
+  return { targetWord: getRandomTargetWord() };
+};
 
 const joinMultiplayerLobby = async (
   ctx: MutationCtx,
@@ -107,12 +121,12 @@ const joinMultiplayerLobby = async (
   }
 
   if (game.status !== "waiting") {
-    throw new Error("This lobby has already started.");
+    throw new ConvexError("This lobby has already started.");
   }
 
   const nextOpenSlot = getNextOpenSlot(game);
   if (nextOpenSlot === null) {
-    throw new Error("This lobby is full.");
+    throw new ConvexError("This lobby is full.");
   }
 
   await ctx.db.patch(game._id, {
@@ -120,6 +134,24 @@ const joinMultiplayerLobby = async (
   });
 
   return game._id;
+};
+
+const areFriends = async (
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  otherUserId: Id<"users">,
+) => {
+  const [asUser1, asUser2] = await Promise.all([
+    ctx.db
+      .query("friendships")
+      .withIndex("by_users", (q) => q.eq("user1Id", userId).eq("user2Id", otherUserId))
+      .first(),
+    ctx.db
+      .query("friendships")
+      .withIndex("by_users", (q) => q.eq("user1Id", otherUserId).eq("user2Id", userId))
+      .first(),
+  ]);
+  return asUser1?.status === "accepted" || asUser2?.status === "accepted";
 };
 
 const deleteGameArtifacts = async (ctx: MutationCtx, gameId: Id<"games">) => {
@@ -201,14 +233,12 @@ const captureGameStartedForParticipants = async (
   );
 };
 
-const ensureGameIsNotStale = async (ctx: MutationCtx, game: GameDoc) => {
-  if (!isWaitingGameStale(game)) {
-    return;
+// Throwing rolls back the whole mutation, so expired lobbies are deleted by
+// cleanupStaleWaitingGamesImpl rather than here.
+const ensureGameIsNotStale = (game: GameDoc) => {
+  if (isWaitingGameStale(game)) {
+    throw new ConvexError("This waiting game expired.");
   }
-
-  await captureGameAbandoned(ctx, game, "waiting_game_expired");
-  await deleteGameWithArtifacts(ctx, game._id);
-  throw new Error("This waiting game expired.");
 };
 
 const cleanupStaleWaitingGamesImpl = async (ctx: MutationCtx) => {
@@ -237,8 +267,8 @@ const joinGameById = async (
   userId: Id<"users">,
 ) => {
   const game = await ctx.db.get(gameId);
-  if (!game) throw new Error("Game not found");
-  await ensureGameIsNotStale(ctx, game);
+  if (!game) throw new ConvexError("Game not found");
+  ensureGameIsNotStale(game);
 
   if (game.gameType === "multiplayer") {
     return await joinMultiplayerLobby(ctx, game, userId);
@@ -249,14 +279,30 @@ const joinGameById = async (
   }
 
   if (game.player2Id) {
-    throw new Error("Game is full");
+    throw new ConvexError("Game is full");
   }
+
+  // Challenges are friend-to-friend: only the invited player may take the
+  // open seat, not anyone who obtains the game id.
+  if (!(await hasInvitationToGame(ctx, game._id, userId))) {
+    throw new ConvexError("You have not been invited to this challenge");
+  }
+
+  // Timed challenges start as soon as the opponent joins, so the clock has
+  // to start here too, or the game never ends.
+  const gameEndTime =
+    game.mode === "timed" ? await scheduleTimedGameEnd(ctx, game._id) : undefined;
 
   await ctx.db.patch(game._id, {
     player2Id: userId,
     status: "in_progress",
     startedAt: Date.now(),
+    ...(gameEndTime !== undefined ? { gameEndTime } : {}),
   });
+
+  if (isTurnBased(game)) {
+    await startNextTurn(ctx, game._id);
+  }
 
   await captureGameStartedForParticipants(
     ctx,
@@ -272,9 +318,27 @@ const joinGameById = async (
   return game._id;
 };
 
-const canDeleteGame = (game: GameDoc, userId: Id<"users">) =>
-  isParticipant(game, userId) &&
-  (game.gameType === "challenge" || game.gameType === "multiplayer");
+const scheduleTimedGameEnd = async (ctx: MutationCtx, gameId: Id<"games">) => {
+  await ctx.scheduler.runAfter(TIMED_MULTIPLAYER_DURATION_MS, internal.games.finishTimedGame, {
+    gameId,
+  });
+  return Date.now() + TIMED_MULTIPLAYER_DURATION_MS;
+};
+
+const hasInvitationToGame = async (
+  ctx: MutationCtx,
+  gameId: Id<"games">,
+  userId: Id<"users">,
+) => {
+  const invitations = await ctx.db
+    .query("invitations")
+    .withIndex("by_game", (q) => q.eq("gameId", gameId))
+    .take(20);
+  return invitations.some(
+    (invitation) => invitation.toUserId === userId && invitation.status !== "declined",
+  );
+};
+
 
 // Get active games for the current user
 export const getMyGames = query({
@@ -285,10 +349,12 @@ export const getMyGames = query({
     const now = Date.now();
 
     const [asPlayer1, asPlayer2, asPlayer3, asPlayer4] = await Promise.all([
-      ctx.db.query("games").withIndex("by_player1", (q) => q.eq("player1Id", userId)).take(20),
-      ctx.db.query("games").withIndex("by_player2", (q) => q.eq("player2Id", userId)).take(20),
-      ctx.db.query("games").withIndex("by_player3", (q) => q.eq("player3Id", userId)).take(20),
-      ctx.db.query("games").withIndex("by_player4", (q) => q.eq("player4Id", userId)).take(20),
+      // Newest first: ascending order would only ever return a player's
+      // oldest 20 games, hiding every game they've created since.
+      ctx.db.query("games").withIndex("by_player1", (q) => q.eq("player1Id", userId)).order("desc").take(20),
+      ctx.db.query("games").withIndex("by_player2", (q) => q.eq("player2Id", userId)).order("desc").take(20),
+      ctx.db.query("games").withIndex("by_player3", (q) => q.eq("player3Id", userId)).order("desc").take(20),
+      ctx.db.query("games").withIndex("by_player4", (q) => q.eq("player4Id", userId)).order("desc").take(20),
     ]);
 
     const uniqueGames = new Map<Id<"games">, GameDoc>();
@@ -307,7 +373,7 @@ export const getMyGames = query({
         ...game,
         playerCount: getPlayerCount(game),
         lobbyCode: game.lobbyCode ?? null,
-        canDelete: canDeleteGame(game, userId),
+        exitAction: getExitAction(game, userId),
       }));
   },
 });
@@ -317,7 +383,7 @@ export const getGame = query({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const game = await ctx.db.get(args.gameId);
     if (!game) return null;
@@ -327,7 +393,7 @@ export const getGame = query({
       game.gameType === "multiplayer" && game.status === "waiting";
 
     if (!isParticipant(game, userId) && !canPreviewWaitingLobby) {
-      throw new Error("You are not part of this game");
+      throw new ConvexError("You are not part of this game");
     }
 
     return {
@@ -335,7 +401,7 @@ export const getGame = query({
       playerCount: getPlayerCount(game),
       players: await buildPlayerSummaries(ctx, game),
       lobbyCode: game.lobbyCode ?? null,
-      canDelete: canDeleteGame(game, userId),
+      exitAction: getExitAction(game, userId),
     };
   },
 });
@@ -411,20 +477,21 @@ export const getOpenGames = query({
 export const createGame = mutation({
   args: { 
     gameType: v.union(v.literal("multiplayer"), v.literal("challenge")),
-    mode: v.optional(v.union(v.literal("classic"), v.literal("hard"), v.literal("timed"))),
+    mode: v.optional(gameModeValidator),
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
     await cleanupStaleWaitingGamesImpl(ctx);
 
     const hostedGames = await ctx.db
       .query("games")
       .withIndex("by_player1", (q) => q.eq("player1Id", userId))
-      .take(10);
+      .order("desc")
+      .take(20);
     const waitingCount = hostedGames.filter((game) => game.status === "waiting").length;
     if (waitingCount >= 5) {
-      throw new Error("You have too many active lobbies. Close some before creating a new one.");
+      throw new ConvexError("You have too many active lobbies. Close some before creating a new one.");
     }
 
     const lobbyCode =
@@ -440,21 +507,7 @@ export const createGame = mutation({
       ...(lobbyCode ? { lobbyCode } : {}),
     });
 
-    let targetWord = getRandomTargetWord();
-    let targetWords: string[] | undefined = undefined;
-
-    if (gameMode === "timed") {
-      targetWords = Array.from({ length: 50 }, () => getRandomTargetWord());
-      targetWord = targetWords[0];
-    } else {
-      targetWord = getRandomTargetWord();
-    }
-
-    await ctx.db.insert("gameSecrets", {
-      gameId,
-      targetWord,
-      ...(targetWords ? { targetWords } : {}),
-    });
+    await ctx.db.insert("gameSecrets", { gameId, ...buildGameSecret(gameMode) });
 
     const createdMetrics = await incrementMetric(
       ctx,
@@ -462,7 +515,7 @@ export const createGame = mutation({
       userId,
     );
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_created",
       properties: {
@@ -471,8 +524,6 @@ export const createGame = mutation({
         game_id: gameId,
         has_lobby_code: !!lobbyCode,
         metric_day: createdMetrics.dayKey,
-        games_created_total: createdMetrics.totalCount,
-        games_created_today_total: createdMetrics.todayTotalCount,
         games_created_by_user_total: createdMetrics.userTotalCount,
         games_created_by_user_today: createdMetrics.userTodayCount,
       },
@@ -486,15 +537,15 @@ export const startGame = mutation({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const game = await ctx.db.get(args.gameId);
-    if (!game) throw new Error("Game not found");
-    await ensureGameIsNotStale(ctx, game);
-    if (game.gameType !== "multiplayer") throw new Error("Only multiplayer lobbies can be started.");
-    if (game.player1Id !== userId) throw new Error("Only the host can start this game.");
-    if (game.status !== "waiting") throw new Error("This game has already started.");
-    if (getPlayerCount(game) < 2) throw new Error("You need at least 2 players to start.");
+    if (!game) throw new ConvexError("Game not found");
+    ensureGameIsNotStale(game);
+    if (game.gameType !== "multiplayer") throw new ConvexError("Only multiplayer lobbies can be started.");
+    if (game.player1Id !== userId) throw new ConvexError("Only the host can start this game.");
+    if (game.status !== "waiting") throw new ConvexError("This game has already started.");
+    if (getPlayerCount(game) < 2) throw new ConvexError("You need at least 2 players to start.");
 
     const updates: Partial<Doc<"games">> = {
       status: "in_progress",
@@ -502,10 +553,9 @@ export const startGame = mutation({
     };
 
     if (game.mode === "timed") {
-      updates.gameEndTime = Date.now() + TIMED_MULTIPLAYER_DURATION_MS;
-      ctx.scheduler.runAfter(TIMED_MULTIPLAYER_DURATION_MS, internal.games.finishTimedGame, {
-        gameId: args.gameId,
-      });
+      updates.gameEndTime = await scheduleTimedGameEnd(ctx, args.gameId);
+    } else {
+      await scheduleIdleCheck(ctx, args.gameId, IDLE_FORFEIT_MS);
     }
 
     await ctx.db.patch(game._id, updates);
@@ -518,8 +568,6 @@ export const startGame = mutation({
 
     await captureGameStartedForParticipants(ctx, game, args.gameId, {
       metric_day: startedMetrics.dayKey,
-      games_started_total: startedMetrics.totalCount,
-      games_started_today_total: startedMetrics.todayTotalCount,
       games_started_by_user_total: startedMetrics.userTotalCount,
       games_started_by_user_today: startedMetrics.userTodayCount,
     });
@@ -528,18 +576,65 @@ export const startGame = mutation({
   },
 });
 
+export const setLobbyMode = mutation({
+  args: { gameId: v.id("games"), mode: gameModeValidator },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new ConvexError("Unauthorized");
+
+    const game = await ctx.db.get(args.gameId);
+    if (!game) throw new ConvexError("Game not found");
+    ensureGameIsNotStale(game);
+    if (game.gameType !== "multiplayer") throw new ConvexError("Only multiplayer lobbies have a selectable mode.");
+    if (game.player1Id !== userId) throw new ConvexError("Only the host can change the mode.");
+    if (game.status !== "waiting") throw new ConvexError("This game has already started.");
+
+    if ((game.mode ?? "classic") === args.mode) {
+      return game._id;
+    }
+
+    // Timed games need a queue of words, so the secret is regenerated to
+    // match the new mode.
+    const secret = await ctx.db
+      .query("gameSecrets")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .unique();
+    const nextSecret = buildGameSecret(args.mode);
+    if (secret) {
+      await ctx.db.replace(secret._id, { gameId: game._id, ...nextSecret });
+    } else {
+      await ctx.db.insert("gameSecrets", { gameId: game._id, ...nextSecret });
+    }
+
+    await ctx.db.patch(game._id, { mode: args.mode });
+    return game._id;
+  },
+});
+
 export const inviteToGame = mutation({
   args: { gameId: v.id("games"), friendId: v.id("users") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const game = await ctx.db.get(args.gameId);
     if (game) {
-      await ensureGameIsNotStale(ctx, game);
+      ensureGameIsNotStale(game);
     }
     if (!game || game.player1Id !== userId) {
-      throw new Error("You can only invite to your own games");
+      throw new ConvexError("You can only invite to your own games");
+    }
+    if (game.status !== "waiting") {
+      throw new ConvexError("This game has already started");
+    }
+    if (args.friendId === userId) {
+      throw new ConvexError("You can't invite yourself");
+    }
+    if (!(await areFriends(ctx, userId, args.friendId))) {
+      throw new ConvexError("You can only invite friends");
+    }
+    if (await hasInvitationToGame(ctx, args.gameId, args.friendId)) {
+      return;
     }
 
     await ctx.db.insert("invitations", {
@@ -549,7 +644,7 @@ export const inviteToGame = mutation({
       status: "pending",
     });
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "invitation_sent",
       properties: {
@@ -564,27 +659,26 @@ export const acceptInvitation = mutation({
   args: { invitationId: v.id("invitations") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const invitation = await ctx.db.get(args.invitationId);
     if (!invitation || invitation.toUserId !== userId) {
-      throw new Error("Invitation not found");
+      throw new ConvexError("Invitation not found");
     }
     if (invitation.status !== "pending") {
-      throw new Error("Invitation is no longer available");
+      throw new ConvexError("Invitation is no longer available");
     }
 
     const game = await ctx.db.get(invitation.gameId);
     if (!game) {
-      await ctx.db.delete(invitation._id);
-      throw new Error("Challenge is no longer available");
+      throw new ConvexError("Challenge is no longer available");
     }
-    await ensureGameIsNotStale(ctx, game);
+    ensureGameIsNotStale(game);
 
     await ctx.db.patch(invitation._id, { status: "accepted" });
     const gameId = await joinGameById(ctx, invitation.gameId, userId);
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_joined",
       properties: {
@@ -602,14 +696,14 @@ export const declineInvitation = mutation({
   args: { invitationId: v.id("invitations") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const invitation = await ctx.db.get(args.invitationId);
     if (!invitation || invitation.toUserId !== userId) {
-      throw new Error("Invitation not found");
+      throw new ConvexError("Invitation not found");
     }
     if (invitation.status !== "pending") {
-      throw new Error("Invitation is no longer available");
+      throw new ConvexError("Invitation is no longer available");
     }
 
     const game = await ctx.db.get(invitation.gameId);
@@ -621,7 +715,7 @@ export const declineInvitation = mutation({
     ) {
       await deleteGameWithArtifacts(ctx, game._id);
       await captureGameAbandoned(ctx, game, "invitation_declined");
-      ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+      await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
         distinctId: userId,
         event: "invitation declined",
         properties: {
@@ -634,7 +728,7 @@ export const declineInvitation = mutation({
 
     await ctx.db.patch(invitation._id, { status: "declined" });
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "invitation_declined",
       properties: {
@@ -651,12 +745,12 @@ export const joinGame = mutation({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const gameId = await joinGameById(ctx, args.gameId, userId);
     const game = await ctx.db.get(args.gameId);
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_joined",
       properties: {
@@ -674,12 +768,12 @@ export const joinGameByCode = mutation({
   args: { lobbyCode: v.string() },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
     await cleanupStaleWaitingGamesImpl(ctx);
 
     const normalizedCode = normalizeLobbyCode(args.lobbyCode);
     if (normalizedCode.length !== LOBBY_CODE_LENGTH) {
-      throw new Error("Please enter a valid 6-character lobby code.");
+      throw new ConvexError("Please enter a valid 6-character lobby code.");
     }
 
     const game = await ctx.db
@@ -688,13 +782,13 @@ export const joinGameByCode = mutation({
       .unique();
 
     if (!game || game.gameType !== "multiplayer") {
-      throw new Error("Lobby not found.");
+      throw new ConvexError("Lobby not found.");
     }
-    await ensureGameIsNotStale(ctx, game);
+    ensureGameIsNotStale(game);
 
     const gameId = await joinMultiplayerLobby(ctx, game, userId);
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "game_joined",
       properties: {
@@ -712,7 +806,7 @@ export const cleanupStaleWaitingGames = mutation({
   args: {},
   handler: async (ctx) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
     return await cleanupStaleWaitingGamesImpl(ctx);
   },
 });
@@ -721,18 +815,20 @@ export const deleteGame = mutation({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const game = await ctx.db.get(args.gameId);
-    if (!game) throw new Error("Game not found");
+    if (!game) throw new ConvexError("Game not found");
     if (isWaitingGameStale(game)) {
-      throw new Error("Game expired");
+      throw new ConvexError("Game expired");
     }
-    if (!canDeleteGame(game, userId)) {
-      throw new Error("Only players involved in this challenge or multiplayer match can delete it.");
+    // Deleting removes the game for everyone, so it is limited to the host of
+    // a game that hasn't started. Everyone else leaves (see leaveGame).
+    if (getExitAction(game, userId) !== "delete") {
+      throw new ConvexError("Only the host can delete a game that hasn't started.");
     }
 
-    const deletingPlayerRole = userId === game.player1Id ? "host" : "participant";
+    const deletingPlayerRole = "host";
     await captureGameAbandoned(
       ctx,
       game,
@@ -755,38 +851,116 @@ export const finishTimedGame = internalMutation({
     if (!game || game.status !== "in_progress" || game.mode !== "timed") return;
 
     if (game.gameEndTime && game.gameEndTime > Date.now()) {
-      ctx.scheduler.runAfter(game.gameEndTime - Date.now(), internal.games.finishTimedGame, {
+      await ctx.scheduler.runAfter(game.gameEndTime - Date.now(), internal.games.finishTimedGame, {
         gameId: args.gameId,
       });
       return;
     }
 
-    const players = getGamePlayerIds(game);
-    const playerSummaries = await Promise.all(players.map(async (playerId) => {
-      const pGuesses = await ctx.db
-        .query("guesses")
-        .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", playerId))
-        .collect();
-      const solvedCount = pGuesses.filter(g => g.evaluation.every(e => e === "correct")).length;
-      return { id: playerId, solvedCount };
-    }));
+    await settleGame(ctx, game, { timeUp: true });
+  },
+});
 
-    playerSummaries.sort((a, b) => b.solvedCount - a.solvedCount);
-    let winnerId: Id<"users"> | undefined = undefined;
-    let isDraw = false;
+export const leaveGame = mutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new ConvexError("Unauthorized");
 
-    if (playerSummaries.length > 1 && playerSummaries[0].solvedCount === playerSummaries[1].solvedCount) {
-        isDraw = true;
-    } else {
-        winnerId = playerSummaries[0].id;
+    const game = await ctx.db.get(args.gameId);
+    if (!game) throw new ConvexError("Game not found");
+    if (getExitAction(game, userId) !== "leave") {
+      throw new ConvexError("You can't leave this game.");
     }
 
-    await ctx.db.patch(args.gameId, {
-      status: "finished",
-      winnerId,
-      isDraw,
-      finishedAt: Date.now(),
+    if (game.status === "waiting") {
+      const seat = (["player2Id", "player3Id", "player4Id"] as const).find(
+        (slot) => game[slot] === userId,
+      );
+      if (seat) {
+        await ctx.db.patch(game._id, { [seat]: undefined });
+      }
+      return { forfeited: false };
+    }
+
+    // Leaving a live game forfeits it; the others play on.
+    const forfeitedGame = {
+      ...game,
+      forfeitedPlayerIds: [...(game.forfeitedPlayerIds ?? []), userId],
+    };
+    await ctx.db.patch(game._id, { forfeitedPlayerIds: forfeitedGame.forfeitedPlayerIds });
+    await settleGame(ctx, forfeitedGame);
+
+    await captureGameAbandoned(ctx, game, "player_forfeited", { forfeited_by_user_id: userId });
+    return { forfeited: true };
+  },
+});
+
+// Spends the turn of a challenge player who let their clock run out, so an
+// absent opponent can't stall the game.
+export const enforceTurnTimeout = internalMutation({
+  args: { gameId: v.id("games"), turnDeadline: v.number() },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "in_progress" || game.turnDeadline !== args.turnDeadline) {
+      return; // A guess was made in time (or the game ended).
+    }
+
+    const progress = await getPlayerProgress(ctx, game);
+    const turnPlayerId = getTurnPlayerId(game, progress);
+    const turnPlayer = progress.find((player) => player.id === turnPlayerId);
+    if (!turnPlayer) return;
+
+    // A skipped turn is a blank row: it uses up a guess and reveals nothing.
+    await ctx.db.insert("guesses", {
+      gameId: game._id,
+      playerId: turnPlayer.id,
+      guess: "",
+      evaluation: ["absent", "absent", "absent", "absent", "absent"],
+      guessNumber: turnPlayer.guessCount + 1,
+      wordIndex: 0,
     });
+
+    if (!(await settleGame(ctx, game))) {
+      await startNextTurn(ctx, game._id);
+    }
+  },
+});
+
+// Forfeits players in a simultaneous classic/hard game who have stopped
+// guessing, so one absent player can't keep everyone else waiting.
+export const forfeitIdlePlayers = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "in_progress" || game.mode === "timed" || isTurnBased(game)) {
+      return;
+    }
+
+    const now = Date.now();
+    const startedAt = game.startedAt ?? game._creationTime;
+    const stillPlaying = (await getPlayerProgress(ctx, game)).filter(
+      (player) => !player.forfeited && !player.hasWon && !player.isOut,
+    );
+    const lastActive = (player: (typeof stillPlaying)[number]) => Math.max(startedAt, player.lastGuessAt);
+    const idleIds = stillPlaying
+      .filter((player) => now - lastActive(player) >= IDLE_FORFEIT_MS)
+      .map((player) => player.id);
+
+    const updatedGame = idleIds.length
+      ? { ...game, forfeitedPlayerIds: [...(game.forfeitedPlayerIds ?? []), ...idleIds] }
+      : game;
+    if (idleIds.length) {
+      await ctx.db.patch(game._id, { forfeitedPlayerIds: updatedGame.forfeitedPlayerIds });
+    }
+
+    if (await settleGame(ctx, updatedGame)) return;
+
+    const remaining = stillPlaying.filter((player) => !idleIds.includes(player.id));
+    if (remaining.length > 0) {
+      const nextIdleAt = Math.min(...remaining.map((player) => lastActive(player) + IDLE_FORFEIT_MS));
+      await scheduleIdleCheck(ctx, game._id, nextIdleAt - now);
+    }
   },
 });
 
@@ -794,16 +968,16 @@ export const getTargetWord = query({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const game = await ctx.db.get(args.gameId);
-    if (!game) throw new Error("Game not found");
+    if (!game) throw new ConvexError("Game not found");
     if (!isParticipant(game, userId)) {
-      throw new Error("You are not part of this game");
+      throw new ConvexError("You are not part of this game");
     }
 
     if (game.status !== "finished" && game.status !== "abandoned") {
-      throw new Error("Game is not finished yet");
+      throw new ConvexError("Game is not finished yet");
     }
 
     const secret = await ctx.db

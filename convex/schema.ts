@@ -10,6 +10,8 @@ const leaderboardModeValidator = v.union(
   v.literal("timed"),
 );
 
+const evaluationValidator = v.union(v.literal("correct"), v.literal("present"), v.literal("absent"));
+
 const leaderboardRoundValidator = v.object({
   slot: v.number(),
   status: v.union(
@@ -43,13 +45,18 @@ export default defineSchema({
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
-    .index("by_username", ["username"]),
+    .index("by_username", ["username"])
+    .searchIndex("search_username", { searchField: "username" }),
 
   usernameClaims: defineTable({
     username: v.string(),
+    // Lowercased username: names are unique regardless of case. Optional
+    // until older claims are backfilled by usernames.maintainUsernameRegistry.
+    usernameLower: v.optional(v.string()),
     userId: v.optional(v.id("users")),
   })
     .index("by_username", ["username"])
+    .index("by_username_lower", ["usernameLower"])
     .index("by_user", ["userId"]),
 
   // User Statistics
@@ -107,6 +114,36 @@ export default defineSchema({
       "completedAt",
       "usernameLower",
     ]),
+
+  // Live state of a ranked solo round. Holds the answer, so it is never
+  // returned to clients directly; see soloRounds.ts.
+  soloRounds: defineTable({
+    userId: v.id("users"),
+    mode: leaderboardModeValidator,
+    dayKey: v.string(),
+    slot: v.number(),
+    status: v.union(v.literal("in_progress"), v.literal("finished")),
+    targetWords: v.array(v.string()),
+    wordIndex: v.number(),
+    // Guesses on the current word only (timed rounds reset it per word).
+    currentGuesses: v.array(
+      v.object({
+        guess: v.string(),
+        evaluation: v.array(evaluationValidator),
+      }),
+    ),
+    totalGuesses: v.number(),
+    hintUses: v.number(),
+    // currentGuesses.length when the last hint was used: one hint per guess.
+    hintTurn: v.optional(v.number()),
+    eliminatedLetters: v.array(v.string()),
+    wordsCompleted: v.number(),
+    lastGreenLetters: v.number(),
+    won: v.optional(v.boolean()),
+    deadline: v.optional(v.number()),
+    startedAt: v.number(),
+    finishedAt: v.optional(v.number()),
+  }).index("by_user_mode_day_slot", ["userId", "mode", "dayKey", "slot"]),
 
   leaderboardWeeklyBest: defineTable({
     userId: v.id("users"),
@@ -192,6 +229,10 @@ export default defineSchema({
     startedAt: v.optional(v.number()),
     finishedAt: v.optional(v.number()),
     gameEndTime: v.optional(v.number()), // For timed mode
+    // Players who left mid-game; they count as having lost.
+    forfeitedPlayerIds: v.optional(v.array(v.id("users"))),
+    // When the current turn of a turn-based challenge runs out.
+    turnDeadline: v.optional(v.number()),
   })
     .index("by_player1", ["player1Id"])
     .index("by_player2", ["player2Id"])
@@ -216,6 +257,13 @@ export default defineSchema({
     guessNumber: v.number(),
     wordIndex: v.optional(v.number()), // For timed mode
   }).index("by_game_and_player", ["gameId", "playerId"]),
+
+  // One row per (game, player) once that player's multiplayer result has been
+  // applied to their stats, so a finished game can't be counted twice.
+  gameResultsRecorded: defineTable({
+    gameId: v.id("games"),
+    userId: v.id("users"),
+  }).index("by_game_and_user", ["gameId", "userId"]),
 
   // Pending Invites
   invitations: defineTable({

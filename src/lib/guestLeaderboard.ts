@@ -328,33 +328,6 @@ export const abandonGuestLeaderboardRound = (mode: GuestLeaderboardMode, slot: n
   return nextSeries;
 };
 
-export const clearGuestLeaderboardSeries = (mode: GuestLeaderboardMode) => {
-  const storage = readStorage();
-  if (!storage.modes[mode]) {
-    return;
-  }
-
-  const nextModes = { ...storage.modes };
-  delete nextModes[mode];
-
-  writeStorage({
-    dayKey: storage.dayKey,
-    modes: nextModes,
-  });
-};
-
-export const getGuestLeaderboardImportPayloads = () => {
-  const storage = readStorage();
-
-  return (Object.entries(storage.modes) as Array<[GuestLeaderboardMode, GuestLeaderboardSeries]>)
-    .filter(([, series]) => series.rounds.length > 0)
-    .map(([mode, series]) => ({
-      mode,
-      dayKey: series.dayKey,
-      rounds: series.rounds,
-    }));
-};
-
 export const subscribeToGuestLeaderboard = (callback: () => void) => {
   if (typeof window === "undefined") {
     return () => undefined;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { usePostHog } from "@/contexts/PostHogContext";
 import {
@@ -13,8 +13,8 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { markOnboardingSeen } from "@/lib/onboardingStorage";
 
-const ONBOARDING_KEY = "wordclash_onboarding_seen";
 
 interface SlideData {
   icon: React.ReactNode;
@@ -162,20 +162,27 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
       last_slide_index: currentSlide,
       percent_complete: Math.round(((currentSlide + 1) / slides.length) * 100)
     });
-    localStorage.setItem(ONBOARDING_KEY, "true");
+    markOnboardingSeen();
     onComplete();
   };
 
-  // Keyboard navigation
+  // Keyboard navigation. The listener reads the latest handlers through a
+  // ref, so it is attached once rather than on every render.
+  const keyHandlersRef = useRef({ next, prev, handleComplete });
+  useEffect(() => {
+    keyHandlersRef.current = { next, prev, handleComplete };
+  });
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "Enter") next();
-      else if (e.key === "ArrowLeft") prev();
-      else if (e.key === "Escape") handleComplete();
+      const handlers = keyHandlersRef.current;
+      if (e.key === "ArrowRight" || e.key === "Enter") handlers.next();
+      else if (e.key === "ArrowLeft") handlers.prev();
+      else if (e.key === "Escape") handlers.handleComplete();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [currentSlide, isAnimating, next, prev]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-md">
@@ -313,12 +320,4 @@ export const OnboardingGuide = ({ onComplete }: OnboardingGuideProps) => {
       </div>
     </div>
   );
-};
-
-export const hasSeenOnboarding = (): boolean => {
-  return localStorage.getItem(ONBOARDING_KEY) === "true";
-};
-
-export const resetOnboarding = (): void => {
-  localStorage.removeItem(ONBOARDING_KEY);
 };

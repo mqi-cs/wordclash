@@ -1,10 +1,12 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/errors";
 
 export const FriendRequests = ({ onRequestHandled }: { onRequestHandled?: () => void }) => {
   const { user } = useAuth();
@@ -19,13 +21,13 @@ export const FriendRequests = ({ onRequestHandled }: { onRequestHandled?: () => 
 
   const handleAccept = async (friendshipId: string) => {
     try {
-      await acceptRequest({ friendshipId: friendshipId as any });
+      await acceptRequest({ friendshipId: friendshipId as Id<"friendships"> });
       toast({ title: "Friend request accepted!" });
       onRequestHandled?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to accept request",
+        description: getErrorMessage(error, "Failed to accept request"),
         variant: "destructive",
       });
     }
@@ -33,13 +35,13 @@ export const FriendRequests = ({ onRequestHandled }: { onRequestHandled?: () => 
 
   const handleDecline = async (friendshipId: string) => {
     try {
-      await declineRequest({ friendshipId: friendshipId as any });
+      await declineRequest({ friendshipId: friendshipId as Id<"friendships"> });
       toast({ title: "Friend request declined" });
       onRequestHandled?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to decline request",
+        description: getErrorMessage(error, "Failed to decline request"),
         variant: "destructive",
       });
     }

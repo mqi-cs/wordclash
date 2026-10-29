@@ -3,22 +3,11 @@ import { api } from "../../convex/_generated/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Play, Users, Clock, Crown, Trash2 } from "lucide-react";
+import { GameExitButton } from "@/components/GameExitButton";
+import { Play, Users, Clock, Crown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "../../convex/_generated/dataModel";
-import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 interface OpenGamesProps {
   onResumeGame: (gameId: string) => void;
@@ -31,8 +20,6 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
   const { trackGame } = usePostHog();
   const games = useQuery(api.games.getMyGames);
   const cleanupStaleWaitingGames = useMutation(api.games.cleanupStaleWaitingGames);
-  const deleteGame = useMutation(api.games.deleteGame);
-  const [deletingGameId, setDeletingGameId] = useState<Id<"games"> | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -41,25 +28,6 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
 
     void cleanupStaleWaitingGames({}).catch(() => null);
   }, [cleanupStaleWaitingGames, user]);
-
-  const handleDeleteGame = async (gameId: Id<"games">) => {
-    setDeletingGameId(gameId);
-    try {
-      const g = games?.find(x => x._id === gameId);
-      await deleteGame({ gameId });
-      trackGame("game_deleted", { 
-        game_id: gameId, 
-        game_type: g?.gameType, 
-        mode: g?.mode 
-      });
-      toast.success("Game removed");
-    } catch (error: any) {
-// ... existing code continues
-      toast.error(error.message || "Failed to delete game");
-    } finally {
-      setDeletingGameId(null);
-    }
-  };
 
   const handleResume = (gameId: Id<"games">) => {
     const g = games?.find(x => x._id === gameId);
@@ -161,37 +129,13 @@ export const OpenGames = ({ onResumeGame }: OpenGamesProps) => {
                     : "Resume Game"}
                 </Button>
 
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="mt-2 h-10 w-full text-destructive hover:text-destructive"
-                      disabled={deletingGameId === game._id}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      {deletingGameId === game._id ? "Deleting..." : "Delete"}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete this game?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently remove this {game.gameType} match for every player involved,
-                        including all guesses and lobby state.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Keep</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => void handleDeleteGame(game._id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                {game.exitAction && (
+                  <GameExitButton
+                    game={{ ...game, exitAction: game.exitAction }}
+                    variant="ghost"
+                    className="mt-2 h-10 w-full"
+                  />
+                )}
               </CardContent>
             </Card>
           ))}

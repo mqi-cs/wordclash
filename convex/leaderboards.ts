@@ -1,10 +1,9 @@
 import { Doc, Id } from "./_generated/dataModel";
-import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { MutationCtx, QueryCtx, query } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import {
   DAILY_MODE_ROUND_LIMIT,
-  LimitedMode,
   consumeDailyRoundForUser,
   getTodayKey,
   syncDailyRoundUsageForUser,
@@ -24,29 +23,13 @@ type LeaderboardSeriesDoc = Doc<"leaderboardSeries">;
 type LeaderboardWeeklyBestDoc = Doc<"leaderboardWeeklyBest">;
 type LeaderboardRound = LeaderboardSeriesDoc["rounds"][number];
 
-const leaderboardModeValidator = v.union(
+export const leaderboardModeValidator = v.union(
   v.literal("classic"),
   v.literal("hard"),
   v.literal("timed"),
 );
 
 const rankingPeriodValidator = v.union(v.literal("daily"), v.literal("weekly"));
-
-const roundImportValidator = v.object({
-  slot: v.number(),
-  status: v.union(
-    v.literal("in_progress"),
-    v.literal("won"),
-    v.literal("lost"),
-    v.literal("abandoned"),
-  ),
-  rawGuesses: v.optional(v.number()),
-  hintUses: v.optional(v.number()),
-  adjustedScore: v.optional(v.number()),
-  wordsCompleted: v.optional(v.number()),
-  startedAt: v.number(),
-  finishedAt: v.optional(v.number()),
-});
 
 type ComparableRanking = {
   sortScore: number;
@@ -55,7 +38,7 @@ type ComparableRanking = {
   usernameLower: string;
 };
 
-const getWeekKey = (timestamp: number = Date.now()) => {
+export const getWeekKey = (timestamp: number = Date.now()) => {
   const date = new Date(timestamp);
   const day = date.getUTCDay();
   const offset = day === 0 ? -6 : 1 - day;
@@ -64,7 +47,7 @@ const getWeekKey = (timestamp: number = Date.now()) => {
   return date.toISOString().slice(0, 10);
 };
 
-const getUserDisplayInfo = async (
+export const getUserDisplayInfo = async (
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">,
 ) => {
@@ -180,7 +163,7 @@ const upsertWeeklyBest = async (
   });
 };
 
-const getDailySeriesForUser = async (
+export const getDailySeriesForUser = async (
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">,
   mode: LeaderboardMode,
@@ -295,139 +278,117 @@ const getQualifiedRank = async (
   return aheadCount + 1;
 };
 
-export const startSoloRound = mutation({
-  args: {
-    mode: leaderboardModeValidator,
-  },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to start a ranked round");
-    }
+// Opens the next slot of today's ranked series and consumes a daily round.
+// Returns the new slot number.
+export const startSeriesRound = async (
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  mode: LeaderboardMode,
+  dayKey: string,
+) => {
+  const now = Date.now();
+  const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
+  const existing = await getDailySeriesForUser(ctx, userId, mode, dayKey);
+  await syncDailyRoundUsageForUser(ctx, userId, mode, existing?.rounds.length ?? 0);
 
-    const now = Date.now();
-    const dayKey = getTodayKey();
-    const weekKey = getWeekKey(now);
-    const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
-    const existing = await getDailySeriesForUser(ctx, userId, args.mode, dayKey);
-    await syncDailyRoundUsageForUser(ctx, userId, args.mode, existing?.rounds.length ?? 0);
+  if (existing?.rounds.some((round) => isRoundInProgress(mode, round))) {
+    throw new ConvexError("Finish your current ranked round first.");
+  }
 
-    if (existing?.rounds.some((round) => isRoundInProgress(args.mode, round))) {
-      throw new Error("Finish or abandon your current ranked round first.");
-    }
+  const nextSlot = (existing?.rounds.length ?? 0) + 1;
+  if (nextSlot > DAILY_MODE_ROUND_LIMIT) {
+    throw new ConvexError(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
+  }
 
-    const nextSlot = (existing?.rounds.length ?? 0) + 1;
-    if (nextSlot > DAILY_MODE_ROUND_LIMIT) {
-      throw new Error(`Daily limit reached for ${args.mode} mode. Come back tomorrow.`);
-    }
+  await consumeDailyRoundForUser(ctx, userId, mode);
 
-    await consumeDailyRoundForUser(ctx, userId, args.mode);
+  const nextRounds = [
+    ...(existing?.rounds ?? []),
+    normalizeRoundForMode(mode, { slot: nextSlot, status: "in_progress", startedAt: now }),
+  ];
+  const summary = summarizeSeries(mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
 
-    const nextRounds = [
-      ...(existing?.rounds ?? []),
-      normalizeRoundForMode(args.mode, {
-        slot: nextSlot,
-        status: "in_progress",
-        startedAt: now,
-      }),
-    ];
-    const summary = summarizeSeries(args.mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
-
-    if (!existing) {
-      await ctx.db.insert("leaderboardSeries", {
-        userId,
-        mode: args.mode,
-        dayKey,
-        weekKey,
-        displayName,
-        usernameLower,
-        rounds: nextRounds,
-        rankingStatus: summary.rankingStatus,
-        totalHintsUsed: summary.totalHintsUsed,
-        ...(summary.totalScore !== undefined ? { totalScore: summary.totalScore } : {}),
-        ...(summary.sortScore !== undefined ? { sortScore: summary.sortScore } : {}),
-        ...(summary.completedAt !== undefined ? { completedAt: summary.completedAt } : {}),
-      });
-    } else {
-      await patchSeries(ctx, existing._id, {
-        displayName,
-        usernameLower,
-        rounds: nextRounds,
-        rankingStatus: summary.rankingStatus,
-        totalHintsUsed: summary.totalHintsUsed,
-        totalScore: summary.totalScore,
-        sortScore: summary.sortScore,
-        completedAt: summary.completedAt,
-      });
-    }
-
-    return {
-      slot: nextSlot,
+  if (!existing) {
+    await ctx.db.insert("leaderboardSeries", {
+      userId,
+      mode,
       dayKey,
-      weekKey,
+      weekKey: getWeekKey(now),
+      displayName,
+      usernameLower,
+      rounds: nextRounds,
+      rankingStatus: summary.rankingStatus,
+      totalHintsUsed: summary.totalHintsUsed,
+      ...(summary.totalScore !== undefined ? { totalScore: summary.totalScore } : {}),
+      ...(summary.sortScore !== undefined ? { sortScore: summary.sortScore } : {}),
+      ...(summary.completedAt !== undefined ? { completedAt: summary.completedAt } : {}),
+    });
+  } else {
+    await patchSeries(ctx, existing._id, {
+      displayName,
+      usernameLower,
+      rounds: nextRounds,
+      rankingStatus: summary.rankingStatus,
+      totalHintsUsed: summary.totalHintsUsed,
+      totalScore: summary.totalScore,
+      sortScore: summary.sortScore,
+      completedAt: summary.completedAt,
+    });
+  }
+
+  return nextSlot;
+};
+
+type SoloRoundResult =
+  | { mode: "timed"; wordsCompleted: number; greenLetters: number }
+  | {
+      mode: "classic" | "hard";
+      won: boolean;
+      rawGuesses: number;
+      hintUses: number;
+      greenLetters: number;
     };
-  },
-});
 
-export const finishSoloRound = mutation({
-  args: {
-    mode: leaderboardModeValidator,
-    slot: v.number(),
-    won: v.boolean(),
-    greenLetters: v.number(),
-    rawGuesses: v.optional(v.number()),
-    hintUses: v.optional(v.number()),
-    wordsCompleted: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to finish a ranked round");
-    }
+// Records a finished ranked solo round on the daily series, the weekly best
+// and the player's stats. Only called by soloRounds.ts with results it
+// computed itself; clients never report results directly.
+export const recordSoloRoundResult = async (
+  ctx: MutationCtx,
+  args: { userId: Id<"users">; dayKey: string; slot: number; result: SoloRoundResult },
+) => {
+  const { userId, dayKey, slot, result } = args;
+  const mode = result.mode;
+  const existing = await getDailySeriesForUser(ctx, userId, mode, dayKey);
+  const targetRound = existing?.rounds.find((round) => round.slot === slot);
 
-    const dayKey = getTodayKey();
-    const existing = await getDailySeriesForUser(ctx, userId, args.mode, dayKey);
-    if (!existing) {
-      throw new Error("No active ranked round found");
-    }
-
-    const targetRound = existing.rounds.find((round) => round.slot === args.slot);
-    if (!targetRound || !isRoundInProgress(args.mode, targetRound)) {
-      throw new Error("Ranked round is not active");
-    }
-
+  if (existing && targetRound && isRoundInProgress(mode, targetRound)) {
     const now = Date.now();
     const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
     const nextRounds = existing.rounds.map((round) => {
-      if (round.slot !== args.slot) {
+      if (round.slot !== slot) {
         return round;
       }
-
-      if (args.mode === "timed") {
-        const wordsCompleted = Math.max(0, args.wordsCompleted ?? 0);
-        return normalizeRoundForMode(args.mode, {
-          slot: args.slot,
+      if (result.mode === "timed") {
+        return normalizeRoundForMode(mode, {
+          slot,
           status: "won",
           startedAt: round.startedAt,
           finishedAt: now,
-          wordsCompleted,
+          wordsCompleted: result.wordsCompleted,
         });
       }
-
-      const rawGuesses = args.rawGuesses ?? 0;
-      const hintUses = Math.max(0, args.hintUses ?? 0);
-      return normalizeRoundForMode(args.mode, {
-        slot: args.slot,
-        status: args.won ? "won" : "lost",
+      return normalizeRoundForMode(mode, {
+        slot,
+        status: result.won ? "won" : "lost",
         startedAt: round.startedAt,
         finishedAt: now,
-        rawGuesses,
-        hintUses,
-        adjustedScore: rawGuesses + hintUses,
+        rawGuesses: result.rawGuesses,
+        hintUses: result.hintUses,
+        adjustedScore: result.rawGuesses + result.hintUses,
       });
     });
 
-    const summary = summarizeSeries(args.mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
+    const summary = summarizeSeries(mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
     const nextSeries: LeaderboardSeriesDoc = {
       ...existing,
       displayName,
@@ -454,151 +415,16 @@ export const finishSoloRound = mutation({
     if (nextSeries.rankingStatus === "qualified") {
       await upsertWeeklyBest(ctx, nextSeries);
     }
+  }
 
-    await applyStatsUpdate(ctx, {
-      userId,
-      mode: args.mode,
-      won: args.won,
-      greenLetters: args.greenLetters,
-      gameType: "solo",
-    });
-
-    return {
-      rankingStatus: nextSeries.rankingStatus,
-      slot: args.slot,
-    };
-  },
-});
-
-export const abandonSoloRound = mutation({
-  args: {
-    mode: leaderboardModeValidator,
-    slot: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to abandon a ranked round");
-    }
-
-    const dayKey = getTodayKey();
-    const existing = await getDailySeriesForUser(ctx, userId, args.mode, dayKey);
-    if (!existing) {
-      return { abandoned: false };
-    }
-
-    const targetRound = existing.rounds.find((round) => round.slot === args.slot);
-    if (!targetRound || !isRoundInProgress(args.mode, targetRound)) {
-      return { abandoned: false };
-    }
-
-    const now = Date.now();
-    const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
-    const nextRounds = existing.rounds.map((round) =>
-      round.slot === args.slot
-        ? normalizeRoundForMode(args.mode, {
-            slot: args.slot,
-            status: "abandoned",
-            startedAt: round.startedAt,
-            finishedAt: now,
-          })
-        : round,
-    );
-    const summary = summarizeSeries(args.mode, nextRounds, DAILY_MODE_ROUND_LIMIT);
-
-    await patchSeries(ctx, existing._id, {
-      displayName,
-      usernameLower,
-      rounds: nextRounds,
-      rankingStatus: summary.rankingStatus,
-      totalHintsUsed: summary.totalHintsUsed,
-      totalScore: summary.totalScore,
-      sortScore: summary.sortScore,
-      completedAt: summary.completedAt,
-    });
-
-    return { abandoned: true };
-  },
-});
-
-export const importGuestDailySeries = mutation({
-  args: {
-    mode: leaderboardModeValidator,
-    dayKey: v.string(),
-    rounds: v.array(roundImportValidator),
-  },
-  handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) {
-      throw new Error("Must be logged in to import guest leaderboard progress");
-    }
-
-    const todayKey = getTodayKey();
-    if (args.dayKey !== todayKey) {
-      return { imported: false, reason: "expired" as const };
-    }
-
-    const existing = await getDailySeriesForUser(ctx, userId, args.mode, todayKey);
-    if (existing) {
-      return { imported: false, reason: "existing" as const };
-    }
-
-    const now = Date.now();
-    const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
-    const sanitizedRounds = args.rounds
-      .slice(0, DAILY_MODE_ROUND_LIMIT)
-      .sort((a, b) => a.slot - b.slot)
-      .map((round, index) =>
-        normalizeRoundForMode(args.mode, {
-          ...round,
-          slot: index + 1,
-          importedFromGuest: true,
-        }),
-      );
-    const summary = summarizeSeries(args.mode, sanitizedRounds, DAILY_MODE_ROUND_LIMIT);
-
-    const seriesId = await ctx.db.insert("leaderboardSeries", {
-      userId,
-      mode: args.mode,
-      dayKey: todayKey,
-      weekKey: getWeekKey(now),
-      displayName,
-      usernameLower,
-      rounds: sanitizedRounds,
-      rankingStatus: summary.rankingStatus,
-      totalHintsUsed: summary.totalHintsUsed,
-      ...(summary.totalScore !== undefined ? { totalScore: summary.totalScore } : {}),
-      ...(summary.sortScore !== undefined ? { sortScore: summary.sortScore } : {}),
-      ...(summary.completedAt !== undefined ? { completedAt: summary.completedAt } : {}),
-    });
-
-    await syncDailyRoundUsageForUser(ctx, userId, args.mode, sanitizedRounds.length);
-
-    if (summary.rankingStatus === "qualified" && summary.totalScore !== undefined && summary.sortScore !== undefined && summary.completedAt !== undefined) {
-      await upsertWeeklyBest(ctx, {
-        _id: seriesId,
-        _creationTime: now,
-        userId,
-        mode: args.mode,
-        dayKey: todayKey,
-        weekKey: getWeekKey(now),
-        displayName,
-        usernameLower,
-        rounds: sanitizedRounds,
-        rankingStatus: summary.rankingStatus,
-        totalHintsUsed: summary.totalHintsUsed,
-        totalScore: summary.totalScore,
-        sortScore: summary.sortScore,
-        completedAt: summary.completedAt,
-      });
-    }
-
-    return {
-      imported: true,
-      rankingStatus: summary.rankingStatus,
-    };
-  },
-});
+  await applyStatsUpdate(ctx, {
+    userId,
+    mode,
+    won: result.mode === "timed" ? result.wordsCompleted > 0 : result.won,
+    greenLetters: result.greenLetters,
+    gameType: "solo",
+  });
+};
 
 export const getLeaderboard = query({
   args: {

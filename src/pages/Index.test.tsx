@@ -20,15 +20,64 @@ vi.mock("@/contexts/AuthContext", () => ({
     useAuth: vi.fn(),
 }));
 
-vi.mock("convex/react", () => ({
-    useMutation: () =>
-        vi.fn(async () => ({
-            slot: 1,
-            imported: false,
-            reason: "existing",
-        })),
-    useQuery: () => undefined,
-}));
+// A minimal stand-in for the soloRounds API, so signed-in games (which the
+// server scores) can be played against the same answer as guest games.
+const fakeSoloServer = vi.hoisted(() => {
+    const state = { guesses: [] as string[], hintTurn: -1 };
+    const answer = "APPLE";
+    const evaluate = (guess: string) =>
+        guess.split("").map((letter, i) =>
+            letter === answer[i] ? "correct" : answer.includes(letter) ? "present" : "absent",
+        );
+    return {
+        reset: () => {
+            state.guesses = [];
+            state.hintTurn = -1;
+        },
+        handlers: {
+            "soloRounds:start": async () => ({
+                slot: 1,
+                resumed: false,
+                guesses: [],
+                totalGuesses: 0,
+                wordsCompleted: 0,
+                hintUses: 0,
+                eliminatedLetters: [],
+                msRemaining: null,
+            }),
+            "soloRounds:submitGuess": async ({ guess }: { guess: string }) => {
+                state.guesses.push(guess);
+                const solved = guess === answer;
+                const roundOver = solved || state.guesses.length >= 6;
+                return {
+                    evaluation: evaluate(guess),
+                    solved,
+                    roundOver,
+                    won: solved,
+                    answer: roundOver ? answer : null,
+                    wordsCompleted: 0,
+                    msRemaining: null,
+                };
+            },
+            "soloRounds:spendHint": async () => {
+                if (state.hintTurn === state.guesses.length) {
+                    throw new Error("You can only use one hint per guess! Make another guess first.");
+                }
+                state.hintTurn = state.guesses.length;
+                return { kind: "reveal", position: 0, letter: answer[0], msRemaining: null };
+            },
+        } as Record<string, (args: never) => Promise<unknown>>,
+    };
+});
+
+vi.mock("convex/react", async () => {
+    const { getFunctionName } = await vi.importActual<typeof import("convex/server")>("convex/server");
+    return {
+        useMutation: (reference: Parameters<typeof getFunctionName>[0]) =>
+            vi.fn(fakeSoloServer.handlers[getFunctionName(reference)] ?? (async () => null)),
+        useQuery: () => undefined,
+    };
+});
 
 vi.mock("@/contexts/PostHogContext", () => ({
     usePostHog: () => ({
@@ -60,7 +109,7 @@ vi.mock("react-router-dom", async () => {
 });
 
 // Helper to setup the test environment
-const setup = (mode = "classic") => {
+const setup = (signedIn: boolean) => {
     // Mock random word to always be "APPLE"
     vi.mocked(wordList.getRandomWord).mockReturnValue("APPLE");
     // Mock valid word check to always return true for "APPLE" and some others
@@ -68,9 +117,9 @@ const setup = (mode = "classic") => {
 
     // Mock Auth User
     vi.mocked(authContext.useAuth).mockReturnValue({
-        user: { id: "test-user", username: "tester" },
+        user: signedIn ? { id: "test-user", username: "tester" } : null,
         signOut: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof authContext.useAuth>);
 
     const user = userEvent.setup();
     const view = render(<Index />);
@@ -78,25 +127,32 @@ const setup = (mode = "classic") => {
     return { user, ...view };
 };
 
-describe("Classic Mode", () => {
+// Guests play locally; signed-in players play against the server.
+describe.each([
+    ["as a guest", false],
+    ["signed in", true],
+])("Classic Mode (%s)", (_label, signedIn) => {
     beforeEach(() => {
         vi.clearAllMocks();
+        fakeSoloServer.reset();
+        // Guest rounds and daily limits live in localStorage.
+        localStorage.clear();
     });
 
-    const enterGame = async (user: any) => {
+    const enterGame = async (user: ReturnType<typeof userEvent.setup>) => {
         const startButton = screen.getByText("Start Classic");
         await user.click(startButton);
     }
 
     it("starts in Classic Mode", async () => {
-        const { user } = setup();
+        const { user } = setup(signedIn);
         await enterGame(user);
 
         expect(screen.getByText(/Classic Mode/i)).toBeInTheDocument();
     });
 
     it("allows user to type and submit a correct word (Positive Test)", async () => {
-        const { user } = setup();
+        const { user } = setup(signedIn);
         await enterGame(user);
 
         // Type "APPLE"
@@ -116,7 +172,7 @@ describe("Classic Mode", () => {
     });
 
     it("handles invalid words (Edge Scenario)", async () => {
-        const { user } = setup();
+        const { user } = setup(signedIn);
         await enterGame(user);
 
         // Type "ZZZZZ" (invalid)
@@ -132,7 +188,7 @@ describe("Classic Mode", () => {
     });
 
     it("handles not enough letters (Edge Scenario)", async () => {
-        const { user } = setup();
+        const { user } = setup(signedIn);
         await enterGame(user);
 
         // Type "APP"
@@ -147,7 +203,7 @@ describe("Classic Mode", () => {
 
     it("reveals hints correctly", async () => {
         // Hints are enabled after first guess in Classic
-        const { user } = setup();
+        const { user } = setup(signedIn);
         await enterGame(user);
 
         // Make one wrong guess to enable hints
@@ -165,7 +221,7 @@ describe("Classic Mode", () => {
     });
 
     it("resets hint state after a guess is submitted", async () => {
-        const { user, container } = setup();
+        const { user, container } = setup(signedIn);
         await enterGame(user);
 
         vi.spyOn(Math, "random").mockReturnValue(0);
@@ -201,7 +257,7 @@ describe("Classic Mode", () => {
     });
 
     it("loses the game after 6 incorrect guesses (Negative Test)", async () => {
-        const { user } = setup();
+        const { user } = setup(signedIn);
         await enterGame(user);
 
         // Target is APPLE
@@ -211,7 +267,10 @@ describe("Classic Mode", () => {
             for (const char of guess) {
                 fireEvent.keyDown(window, { key: char });
             }
-            fireEvent.keyDown(window, { key: "Enter" });
+            // Let each guess settle: signed-in guesses wait on the server.
+            await act(async () => {
+                fireEvent.keyDown(window, { key: "Enter" });
+            });
         }
 
         await waitFor(() => {

@@ -1,5 +1,5 @@
 import { mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
 
@@ -13,16 +13,17 @@ export const searchUsers = query({
     if (!userId) return [];
     if (!args.searchQuery || args.searchQuery.length < 3) return [];
 
-    const queryLower = args.searchQuery.toLowerCase();
-    
-    // Bounded scan: take at most 200 users to search through.
-    // For a production app with many users, use a Convex search index instead.
-    const users = await ctx.db.query("users").take(200);
-    
-    const matchedUsers = users.filter(u => 
-      u._id !== userId &&
-      ((u.username ?? u.name ?? u.googleName)?.toLowerCase() ?? "").includes(queryLower)
-    );
+    const searchQuery = args.searchQuery.trim().slice(0, 50);
+    if (searchQuery.length < 3) return [];
+
+    // Full-text search over every username (prefix match on the last term).
+    // Scanning a fixed slice of the table missed everyone who signed up later.
+    const users = await ctx.db
+      .query("users")
+      .withSearchIndex("search_username", (q) => q.search("username", searchQuery))
+      .take(20);
+
+    const matchedUsers = users.filter((u) => u._id !== userId);
 
     // Get existing friendships
     const friendshipsAsUser1 = await ctx.db
@@ -124,8 +125,9 @@ export const sendRequest = mutation({
   args: { friendId: v.id("users") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
-    if (userId === args.friendId) throw new Error("Cannot add yourself");
+    if (!userId) throw new ConvexError("Unauthorized");
+    if (userId === args.friendId) throw new ConvexError("Cannot add yourself");
+    if (!(await ctx.db.get(args.friendId))) throw new ConvexError("User not found");
 
     // Rate limit: max 10 pending outgoing requests
     const outgoingAsUser1 = await ctx.db
@@ -140,7 +142,7 @@ export const sendRequest = mutation({
       .collect();
     const pendingOutgoing = [...outgoingAsUser1, ...outgoingAsUser2].filter(f => f.requesterId === userId);
     if (pendingOutgoing.length >= 10) {
-      throw new Error("Too many pending friend requests. Wait for responses or cancel some first.");
+      throw new ConvexError("Too many pending friend requests. Wait for responses or cancel some first.");
     }
 
     // Check if friendship already exists
@@ -155,7 +157,7 @@ export const sendRequest = mutation({
       .first();
 
     if (existing1 || existing2) {
-      throw new Error("Friendship or request already exists");
+      throw new ConvexError("Friendship or request already exists");
     }
 
     await ctx.db.insert("friendships", {
@@ -165,7 +167,7 @@ export const sendRequest = mutation({
       requesterId: userId,
     });
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "friend request sent",
       properties: {
@@ -179,18 +181,18 @@ export const acceptRequest = mutation({
   args: { friendshipId: v.id("friendships") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const friendship = await ctx.db.get(args.friendshipId);
-    if (!friendship) throw new Error("Request not found");
+    if (!friendship) throw new ConvexError("Request not found");
     
     if ((friendship.user1Id !== userId && friendship.user2Id !== userId) || friendship.requesterId === userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     await ctx.db.patch(args.friendshipId, { status: "accepted" });
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "friend request accepted",
       properties: {
@@ -204,13 +206,13 @@ export const removeFriend = mutation({
   args: { friendshipId: v.id("friendships") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const friendship = await ctx.db.get(args.friendshipId);
-    if (!friendship) throw new Error("Friendship not found");
+    if (!friendship) throw new ConvexError("Friendship not found");
     
     if (friendship.user1Id !== userId && friendship.user2Id !== userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     await ctx.db.delete(args.friendshipId);

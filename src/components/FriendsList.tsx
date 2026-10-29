@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Swords, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/errors";
 
 export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) => void }) => {
   const { user } = useAuth();
@@ -51,14 +53,13 @@ export const FriendsList = ({ onChallenge }: { onChallenge?: (friendId: string) 
       const gameId = await createGame({ gameType: "challenge", mode: challengeMode });
       // Target word is now picked server-side automatically
       
-      // We pass the friend's Convex ID. Since we mapped string `id` to `_id` in User type, we just cast it.
-      await inviteToGame({ gameId, friendId: friendId as any });
+      await inviteToGame({ gameId, friendId: friendId as Id<"users"> });
       
       toast.success("Challenge sent!");
       onChallenge?.(friendId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (import.meta.env.DEV) console.error("Error sending challenge:", error);
-      toast.error(error.message || "Failed to send challenge");
+      toast.error(getErrorMessage(error, "Failed to send challenge"));
     } finally {
       setSendingChallenge(null);
     }

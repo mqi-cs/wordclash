@@ -3,20 +3,9 @@ import { GameGrid } from "@/components/GameGrid";
 import { Keyboard } from "@/components/Keyboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Users, Crown, Copy, Check, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, Crown, Copy, Check, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -30,6 +19,8 @@ import { BotGame } from "@/components/BotGame";
 import { RandomMatchRequestPrompt } from "@/components/RandomMatchRequestPrompt";
 import { getRandomFallbackOpponentName } from "@/lib/fakeOpponent";
 import { isValidWord } from "@/lib/wordList";
+import { GameExitButton } from "@/components/GameExitButton";
+import { getErrorMessage } from "@/lib/errors";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -57,6 +48,7 @@ type PlayerBoard = {
   evaluations: Array<Array<"correct" | "present" | "absent">>;
   hasWon: boolean;
   isOut: boolean;
+  forfeited: boolean;
   solvedCount: number;
 };
 
@@ -83,9 +75,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const [myLetterStatus, setMyLetterStatus] = useState<Record<string, "correct" | "present" | "absent">>({});
   const [shake, setShake] = useState(false);
   const [copiedLobbyCode, setCopiedLobbyCode] = useState(false);
-  const [subMode, setSubMode] = useState<"classic" | "hard" | "timed">("classic");
   const [turnTimer, setTurnTimer] = useState(TURN_DURATION);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [gameTimeLeft, setGameTimeLeft] = useState(0);
   const gameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reportedStatsKeyRef = useRef<string | null>(null);
@@ -125,8 +115,8 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const joinGameMut = useMutation(api.games.joinGame);
   const joinGameByCodeMut = useMutation(api.games.joinGameByCode);
   const startGameMut = useMutation(api.games.startGame);
+  const setLobbyModeMut = useMutation(api.games.setLobbyMode);
   const submitGuessMut = useMutation(api.guesses.submitGuess);
-  const deleteGameMut = useMutation(api.games.deleteGame);
   const captureUserEvent = useMutation(api.analyticsEvents.captureUserEvent);
   const heartbeatPresence = useMutation(api.matchmaking.presenceHeartbeat);
   const startRandomMatchmakingMut = useMutation(api.matchmaking.startRandomMatchmaking);
@@ -136,7 +126,6 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const finalizeRandomMatchmakingFallbackMut = useMutation(
     api.matchmaking.finalizeRandomMatchmakingFallback,
   );
-  const [deletingGame, setDeletingGame] = useState(false);
 
   const players = game?.players ?? [];
   const boards: PlayerBoard[] = players.map((player) => {
@@ -158,6 +147,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         evaluations,
         hasWon: false, // In timed mode, you win when time is up and you have most solved
         isOut: false,
+        forfeited: game?.forfeitedPlayerIds?.includes(player.id) ?? false,
         solvedCount: solved.length,
       };
     }
@@ -173,6 +163,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       evaluations,
       hasWon: evaluations.some((evaluation) => evaluation.every((status) => status === "correct")),
       isOut: playerGuessesRaw.length >= maxGuesses,
+      forfeited: game?.forfeitedPlayerIds?.includes(player.id) ?? false,
       solvedCount: evaluations.some((evaluation) => evaluation.every((status) => status === "correct")) ? 1 : 0,
     };
   });
@@ -188,15 +179,18 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
   const mode = game?.mode ?? "classic";
   const maxGuesses = mode === "hard" ? 10 : mode === "timed" ? 999 : 6;
   const gameStarted = game?.status === "in_progress" || game?.status === "finished";
-  const myGameOver = myBoard ? (mode !== "timed" && (myBoard.hasWon || myBoard.isOut)) || game?.status === "finished" : false;
+  const myGameOver = myBoard
+    ? (mode !== "timed" && (myBoard.hasWon || myBoard.isOut)) || myBoard.forfeited || game?.status === "finished"
+    : false;
   const winningBoard = game?.winnerId
     ? boards.find((board) => board.id === game.winnerId) ?? null
     : null;
   const isDraw = game?.isDraw;
   const challengeOpponent = otherBoards[0] ?? null;
   const hideOpponentLetters = game?.status !== "finished" && game?.status !== "abandoned";
+  // Timed challenges are a simultaneous race; classic/hard alternate turns.
   const isMyTurn =
-    isChallenge && game?.status === "in_progress" && myBoard && challengeOpponent
+    isChallenge && mode !== "timed" && game?.status === "in_progress" && myBoard && challengeOpponent
       ? myBoard.guesses.length === challengeOpponent.guesses.length
         ? isHost
         : myBoard.guesses.length < challengeOpponent.guesses.length
@@ -211,12 +205,11 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         syncMultiplayerUrl(joinedGameId);
         trackGame("multiplayer_game_joined", { method: "code", lobby_code: code });
       } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to join lobby";
+        const errorMessage = getErrorMessage(error, "Failed to join lobby");
         toast.error(errorMessage);
       }
     },
-    [joinGameByCodeMut],
+    [joinGameByCodeMut, trackGame],
   );
 
   const resolveRequestedGame = useCallback(
@@ -228,15 +221,14 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
         syncMultiplayerUrl(resolvedGameId);
         trackGame("multiplayer_game_joined", { method: "link", game_id: requestedGameId });
       } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to open multiplayer game";
+        const errorMessage = getErrorMessage(error, "Failed to open multiplayer game");
         toast.error(errorMessage);
         setGameId(null);
         setEntryMode("select");
         resetMultiplayerUrl();
       }
     },
-    [joinGameMut],
+    [joinGameMut, trackGame],
   );
 
   useEffect(() => {
@@ -386,34 +378,21 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     setMyLetterStatus(nextStatus);
   }, [myBoard]);
 
+  // Challenge turns are timed by the server (game.turnDeadline), which also
+  // spends the turn if it runs out; this only shows the countdown.
   useEffect(() => {
-    if (!isChallenge || !gameStarted || game?.status === "finished" || !gameId) {
-      if (timerRef.current) clearInterval(timerRef.current);
+    const turnDeadline = game?.turnDeadline;
+    if (!isChallenge || mode === "timed" || game?.status !== "in_progress" || !turnDeadline) {
       setTurnTimer(TURN_DURATION);
       return;
     }
 
-    if (isMyTurn && !myGameOver) {
-      timerRef.current = setInterval(() => {
-        setTurnTimer((previousValue) => {
-          if (previousValue <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            toast.error("Time's up! Submitting a blank guess as penalty.");
-            void submitGuessMut({ gameId, guess: "XXXXX" }).catch(() => null);
-            return TURN_DURATION;
-          }
-          return previousValue - 1;
-        });
-      }, 1000);
-    } else {
-      setTurnTimer(TURN_DURATION);
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [game?.status, gameId, gameStarted, isChallenge, isMyTurn, myGameOver, submitGuessMut]);
+    const updateTurnTimer = () =>
+      setTurnTimer(Math.max(0, Math.ceil((turnDeadline - Date.now()) / 1000)));
+    updateTurnTimer();
+    const interval = setInterval(updateTurnTimer, 1000);
+    return () => clearInterval(interval);
+  }, [game?.status, game?.turnDeadline, isChallenge, mode]);
 
   // Timed mode game timer
   useEffect(() => {
@@ -471,14 +450,13 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
 
   const handleCreateLobby = async () => {
     try {
-      const newGameId = await createGameMut({ gameType: "multiplayer", mode: subMode });
+      const newGameId = await createGameMut({ gameType: "multiplayer", mode: "classic" });
       setGameId(newGameId);
       setEntryMode(null);
       syncMultiplayerUrl(newGameId);
-      trackGame("multiplayer_lobby_created", { mode: subMode });
+      trackGame("multiplayer_lobby_created", { mode: "classic" });
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to create lobby";
+      const errorMessage = getErrorMessage(error, "Failed to create lobby");
       toast.error(errorMessage);
     }
   };
@@ -491,8 +469,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setEntryMode("select");
       toast.success("Searching for a random opponent...");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to find a random opponent";
+      const errorMessage = getErrorMessage(error, "Failed to find a random opponent");
       toast.error(errorMessage);
     }
   };
@@ -505,8 +482,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setRandomMatchmakingId(null);
       toast.info("Random matchmaking cancelled");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to cancel matchmaking";
+      const errorMessage = getErrorMessage(error, "Failed to cancel matchmaking");
       toast.error(errorMessage);
     }
   };
@@ -523,8 +499,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setEntryMode(null);
       syncMultiplayerUrl(result.gameId);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to accept random match";
+      const errorMessage = getErrorMessage(error, "Failed to accept random match");
       toast.error(errorMessage);
     } finally {
       setProcessingRandomRequest(false);
@@ -541,8 +516,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       });
       toast.info("Random match request declined");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to decline random match";
+      const errorMessage = getErrorMessage(error, "Failed to decline random match");
       toast.error(errorMessage);
     } finally {
       setProcessingRandomRequest(false);
@@ -556,8 +530,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       setEntryMode(null);
       syncMultiplayerUrl(resolvedGameId);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to open game";
+      const errorMessage = getErrorMessage(error, "Failed to open game");
       toast.error(errorMessage);
     }
   };
@@ -575,8 +548,18 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       });
       toast.success("Game started!");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to start game";
+      const errorMessage = getErrorMessage(error, "Failed to start game");
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleSelectLobbyMode = async (nextMode: "classic" | "hard" | "timed") => {
+    if (!gameId || !isHost || game?.mode === nextMode) return;
+
+    try {
+      await setLobbyModeMut({ gameId, mode: nextMode });
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error, "Failed to change mode");
       toast.error(errorMessage);
     }
   };
@@ -637,31 +620,6 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
     setMyCurrentGuess((previousValue) => previousValue.slice(0, -1));
   }, [gameStarted, isChallenge, isMyTurn, myGameOver]);
 
-  const handleDeleteMatch = useCallback(async () => {
-    if (!gameId || !game) return;
-
-    setDeletingGame(true);
-    try {
-      await deleteGameMut({ gameId });
-      trackGame("game_deleted", {
-        game_id: gameId,
-        game_type: game.gameType,
-        mode: game.mode ?? "classic",
-        status: game.status,
-        player_count: game.playerCount,
-      });
-      toast.success("Match deleted");
-      resetMultiplayerUrl();
-      onBackToMenu();
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete match";
-      toast.error(errorMessage);
-    } finally {
-      setDeletingGame(false);
-    }
-  }, [deleteGameMut, game, gameId, onBackToMenu, trackGame]);
-
   const handleEnter = useCallback(async () => {
     if (myGameOver || !gameStarted || !gameId) return;
     if (isChallenge && !isMyTurn) return;
@@ -684,8 +642,7 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
       await submitGuessMut({ gameId, guess: myCurrentGuess });
       setMyCurrentGuess("");
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to submit guess";
+      const errorMessage = getErrorMessage(error, "Failed to submit guess");
       toast.error(errorMessage);
     }
   }, [gameId, gameStarted, isChallenge, isMyTurn, myCurrentGuess, myGameOver, submitGuessMut]);
@@ -824,8 +781,8 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
             {(["classic", "hard", "timed"] as const).map((m) => (
               <Button
                 key={m}
-                variant={isHost ? (subMode === m ? "default" : "outline") : (game?.mode === m ? "default" : "outline")}
-                onClick={() => isHost && setSubMode(m)}
+                variant={(game?.mode ?? "classic") === m ? "default" : "outline"}
+                onClick={() => void handleSelectLobbyMode(m)}
                 disabled={!isHost}
                 className="h-10 capitalize sm:h-11"
               >
@@ -887,6 +844,9 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
             )}
           >
             {opponentBoard?.username ?? "Opponent"}
+            {opponentBoard?.forfeited && (
+              <span className="ml-2 text-xs font-medium text-muted-foreground">Left</span>
+            )}
           </h2>
           <div className="w-full overflow-x-auto pb-1">
             <div
@@ -975,6 +935,9 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
                 </div>
                 {board.hasWon && (
                   <span className="text-xs font-medium text-primary">Solved</span>
+                )}
+                {board.forfeited && (
+                  <span className="text-xs font-medium text-muted-foreground">Left</span>
                 )}
                 {mode === "timed" && (
                     <span className="text-xs font-bold text-primary">{board.solvedCount} words</span>
@@ -1067,39 +1030,17 @@ export const MultiplayerGame = ({ onBackToMenu, themeClassName }: MultiplayerGam
                 <span className="hidden sm:inline">Copy</span>
               </Button>
             ) : null}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={deletingGame}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">
-                    {deletingGame ? "Deleting..." : "Delete"}
-                  </span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this match?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently remove this {game.gameType} match for every player involved,
-                    including all guesses and lobby state.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => void handleDeleteMatch()}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete Match
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {game.exitAction && (
+              <GameExitButton
+                game={{ ...game, exitAction: game.exitAction }}
+                size="sm"
+                compactLabel
+                onExited={() => {
+                  resetMultiplayerUrl();
+                  onBackToMenu();
+                }}
+              />
+            )}
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">

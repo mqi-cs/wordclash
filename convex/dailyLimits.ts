@@ -1,6 +1,6 @@
 import { Id } from "./_generated/dataModel";
 import { MutationCtx, mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 
 export const DAILY_MODE_ROUND_LIMIT = 3;
@@ -16,10 +16,12 @@ export const getTodayKey = () => {
 
 const getMetricForMode = (mode: LimitedMode) => `daily_rounds_${mode}`;
 
-export const buildModeStatus = (played: number) => ({
+// A round in progress can always be resumed, even if it was the last one.
+export const buildModeStatus = (played: number, inProgress = false) => ({
   played,
   remaining: Math.max(0, DAILY_MODE_ROUND_LIMIT - played),
-  reached: played >= DAILY_MODE_ROUND_LIMIT,
+  reached: played >= DAILY_MODE_ROUND_LIMIT && !inProgress,
+  inProgress,
 });
 
 const getExistingCounter = async (
@@ -68,7 +70,7 @@ export const consumeDailyRoundForUser = async (
   const currentPlayed = getCounterValue(existing);
 
   if (currentPlayed >= DAILY_MODE_ROUND_LIMIT) {
-    throw new Error(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
+    throw new ConvexError(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
   }
 
   const nextPlayed = currentPlayed + 1;
@@ -158,6 +160,12 @@ export const getMyDailyRoundLimits = query({
       timed: 0,
     };
 
+    const inProgress = {
+      classic: false,
+      hard: false,
+      timed: false,
+    };
+
     for (const mode of LIMITED_MODES) {
       const counters = await ctx.db
         .query("analyticsCounters")
@@ -167,15 +175,22 @@ export const getMyDailyRoundLimits = query({
         .collect();
 
       counts[mode] = getCounterValue(counters);
+
+      const recentRounds = await ctx.db
+        .query("soloRounds")
+        .withIndex("by_user_mode_day_slot", (q) => q.eq("userId", userId).eq("mode", mode))
+        .order("desc")
+        .take(6);
+      inProgress[mode] = recentRounds.some((round) => round.status === "in_progress");
     }
 
     return {
       dayKey,
       limit: DAILY_MODE_ROUND_LIMIT,
       modes: {
-        classic: buildModeStatus(counts.classic),
-        hard: buildModeStatus(counts.hard),
-        timed: buildModeStatus(counts.timed),
+        classic: buildModeStatus(counts.classic, inProgress.classic),
+        hard: buildModeStatus(counts.hard, inProgress.hard),
+        timed: buildModeStatus(counts.timed, inProgress.timed),
       },
     };
   },
@@ -188,7 +203,7 @@ export const consumeDailyRound = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in");
+      throw new ConvexError("Must be logged in");
     }
 
     return await consumeDailyRoundForUser(ctx, userId, args.mode);

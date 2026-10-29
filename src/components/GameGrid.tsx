@@ -94,10 +94,9 @@ interface GameGridProps {
   maxGuesses?: number;
   wordLength?: number;
   shake?: boolean;
-  revealedHints?: number[];
-  targetWord?: string;
+  // Letters revealed by a hint for the current row, keyed by position.
+  hintLetters?: Partial<Record<number, string>>;
   isOpponent?: boolean;
-  hintActivated?: boolean;
   blurCompletedGuesses?: boolean;
   blurCurrentGuess?: boolean;
 }
@@ -109,10 +108,8 @@ export const GameGrid = ({
   maxGuesses = 6,
   wordLength = 5,
   shake,
-  revealedHints = [],
-  targetWord = "",
+  hintLetters = {},
   isOpponent = false,
-  hintActivated = false,
   blurCompletedGuesses = false,
   blurCurrentGuess = false,
 }: GameGridProps) => {
@@ -155,9 +152,9 @@ export const GameGrid = ({
     } else if (i === guesses.length && !isOpponent) {
       // Current guess with hints (only for the actual player)
       return Array.from({ length: wordLength }, (_, j) => ({
-        letter: currentGuess[j] || (hintActivated && revealedHints.includes(j) ? targetWord[j] : ""),
+        letter: currentGuess[j] || hintLetters[j] || "",
         status: currentGuess[j] ? ("filled" as const) : ("empty" as const),
-        isHint: !currentGuess[j] && hintActivated && revealedHints.includes(j),
+        isHint: !currentGuess[j] && Boolean(hintLetters[j]),
         blurLetter: blurCurrentGuess && Boolean(currentGuess[j]),
       }));
     } else {
