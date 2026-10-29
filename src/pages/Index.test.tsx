@@ -70,7 +70,7 @@ const setup = (mode = "classic") => {
     vi.mocked(authContext.useAuth).mockReturnValue({
         user: { id: "test-user", username: "tester" },
         signOut: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof authContext.useAuth>);
 
     const user = userEvent.setup();
     const view = render(<Index />);
@@ -83,7 +83,7 @@ describe("Classic Mode", () => {
         vi.clearAllMocks();
     });
 
-    const enterGame = async (user: any) => {
+    const enterGame = async (user: ReturnType<typeof userEvent.setup>) => {
         const startButton = screen.getByText("Start Classic");
         await user.click(startButton);
     }
