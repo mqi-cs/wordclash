@@ -254,6 +254,7 @@ export const repairUsernameIntegrity = internalMutation({
       if (!existingClaim) {
         const claimId = await ctx.db.insert("usernameClaims", {
           username: user.username,
+          usernameLower: user.username.toLowerCase(),
           userId: user._id,
         });
         insertedMissingClaims += 1;

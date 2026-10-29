@@ -191,3 +191,28 @@ describe("leaderboardScoring classic and hard ranking hierarchy", () => {
     expect(twoSolvedSummary.sortScore).toBeLessThan(oneSolvedSummary.sortScore ?? Number.MAX_SAFE_INTEGER);
   });
 });
+
+describe("leaderboardScoring value limits", () => {
+  it("clamps round values to what the game can produce", () => {
+    expect(
+      normalizeRoundForMode("classic", {
+        slot: 1,
+        status: "won",
+        startedAt: 1,
+        finishedAt: 2,
+        rawGuesses: -50,
+        hintUses: 99,
+      }),
+    ).toMatchObject({ rawGuesses: 1, hintUses: 6 });
+
+    expect(
+      normalizeRoundForMode("timed", {
+        slot: 1,
+        status: "won",
+        startedAt: 1,
+        finishedAt: 2,
+        wordsCompleted: 10_000,
+      }).wordsCompleted,
+    ).toBe(100);
+  });
+});

@@ -9,6 +9,7 @@ import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { getRandomTargetWord } from "./shared/gameLogic";
 import { internal } from "./_generated/api";
+import { startNextTurn } from "./gameState";
 
 const ONLINE_WINDOW_MS = 30_000;
 // Matches games.ts: waiting lobbies older than this are expired.
@@ -417,9 +418,9 @@ export const acceptRandomMatchmaking = mutation({
     if (row.status !== "pending_accept") {
       throw new ConvexError("Random match request is no longer available");
     }
+    // No cleanup before these throws: a throw rolls back the whole mutation.
+    // The requester's finalizeRandomMatchmakingFallback settles the request.
     if (row.expiresAt <= Date.now()) {
-      await cleanupUnusedChallengeGame(ctx, row.gameId);
-      await ctx.db.patch(row._id, { status: "cancelled" });
       throw new ConvexError("Random match request expired");
     }
     if (!row.gameId) {
@@ -436,7 +437,6 @@ export const acceptRandomMatchmaking = mutation({
       game.status !== "waiting" ||
       game.player2Id !== undefined
     ) {
-      await ctx.db.patch(row._id, { status: "cancelled" });
       throw new ConvexError("Random match is no longer available");
     }
 
@@ -446,6 +446,7 @@ export const acceptRandomMatchmaking = mutation({
       startedAt: Date.now(),
     });
     await ctx.db.patch(row._id, { status: "matched" });
+    await startNextTurn(ctx, game._id);
     await captureGameStarted(ctx, game._id, row.requesterId, userId);
 
     return { gameId: game._id };

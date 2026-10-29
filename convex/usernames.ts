@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { DatabaseWriter, internalMutation } from "./_generated/server";
 import { assertValidUsername } from "./authShared";
+import { internal } from "./_generated/api";
 
 export const USERNAME_TAKEN_ERROR = "Username is already taken";
 const USERNAME_REGISTRY_ERROR = "Username registry is inconsistent";
@@ -52,6 +53,21 @@ const assertUsernameAvailable = async (
     throw new ConvexError(USERNAME_TAKEN_ERROR);
   }
 
+  // Names are unique regardless of case, so "Alice" also blocks "alice".
+  const sameNameClaims = await db
+    .query("usernameClaims")
+    .withIndex("by_username_lower", (q) => q.eq("usernameLower", username.toLowerCase()))
+    .take(10);
+  for (const other of sameNameClaims) {
+    if (other.username === username) {
+      continue; // The exact claim, checked above.
+    }
+    const ownedBySomeoneElse = other.userId !== undefined && other.userId !== currentUserId;
+    if (ownedBySomeoneElse || isPendingSignupClaim(other)) {
+      throw new ConvexError(USERNAME_TAKEN_ERROR);
+    }
+  }
+
   const users = await getUsersWithUsername(db, username);
   if (users.some((user) => user._id !== currentUserId)) {
     throw new ConvexError(USERNAME_TAKEN_ERROR);
@@ -72,8 +88,9 @@ export const reserveUsername = async (
     userId,
     allowPendingSignupClaim,
   );
+  const usernameLower = username.toLowerCase();
   if (!existingClaim) {
-    await db.insert("usernameClaims", userId ? { username, userId } : { username });
+    await db.insert("usernameClaims", { username, usernameLower, ...(userId ? { userId } : {}) });
     return;
   }
 
@@ -82,13 +99,13 @@ export const reserveUsername = async (
     // reservation gets a fresh TTL.
     if (existingClaim.userId === undefined) {
       await db.delete(existingClaim._id);
-      await db.insert("usernameClaims", { username });
+      await db.insert("usernameClaims", { username, usernameLower });
     }
     return;
   }
 
-  if (existingClaim.userId !== userId) {
-    await db.patch(existingClaim._id, { userId });
+  if (existingClaim.userId !== userId || existingClaim.usernameLower !== usernameLower) {
+    await db.patch(existingClaim._id, { userId, usernameLower });
   }
 };
 
@@ -149,3 +166,40 @@ export const assignUsernameToUser = async (
 
   return username;
 };
+
+const MAINTENANCE_BATCH_SIZE = 200;
+
+// Runs from crons.ts. Backfills the case-insensitive key on claims made
+// before it existed, and deletes signup reservations that were abandoned.
+// Both lookups are indexed, so a run with nothing to do reads almost nothing.
+export const maintainUsernameRegistry = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const unkeyedClaims = await ctx.db
+      .query("usernameClaims")
+      .withIndex("by_username_lower", (q) => q.eq("usernameLower", undefined))
+      .take(MAINTENANCE_BATCH_SIZE);
+    for (const claim of unkeyedClaims) {
+      await ctx.db.patch(claim._id, { usernameLower: claim.username.toLowerCase() });
+    }
+
+    const now = Date.now();
+    const unattachedClaims = await ctx.db
+      .query("usernameClaims")
+      .withIndex("by_user", (q) => q.eq("userId", undefined))
+      .take(MAINTENANCE_BATCH_SIZE);
+    const abandonedClaims = unattachedClaims.filter((claim) => !isPendingSignupClaim(claim, now));
+    for (const claim of abandonedClaims) {
+      await ctx.db.delete(claim._id);
+    }
+
+    if (
+      unkeyedClaims.length === MAINTENANCE_BATCH_SIZE ||
+      abandonedClaims.length === MAINTENANCE_BATCH_SIZE
+    ) {
+      await ctx.scheduler.runAfter(0, internal.usernames.maintainUsernameRegistry, {});
+    }
+
+    return { backfilled: unkeyedClaims.length, deletedAbandoned: abandonedClaims.length };
+  },
+});

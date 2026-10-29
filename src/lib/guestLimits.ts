@@ -6,6 +6,8 @@ export type ModeLimitStatus = {
   played: number;
   remaining: number;
   reached: boolean;
+  // A signed-in ranked round that can be resumed.
+  inProgress?: boolean;
 };
 
 export type DailyModeLimits = {

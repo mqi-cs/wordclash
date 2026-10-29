@@ -170,8 +170,6 @@ export const applyStatsUpdate = async (
 
   const analyticsProperties = {
     metric_day: completedMetrics.dayKey,
-    games_completed_total: completedMetrics.totalCount,
-    games_completed_today_total: completedMetrics.todayTotalCount,
     games_completed_by_user_total: completedMetrics.userTotalCount,
     games_completed_by_user_today: completedMetrics.userTodayCount,
   };

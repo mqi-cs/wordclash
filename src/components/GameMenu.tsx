@@ -130,6 +130,9 @@ export const GameMenu = ({
   const getModeLimitStatus = (mode: LimitedGameMode) => dailyModeLimits.modes[mode];
   const getModeLimitLabel = (mode: LimitedGameMode) => {
     const status = getModeLimitStatus(mode);
+    if (status.inProgress) {
+      return "Ranked round in progress";
+    }
     return status.reached
       ? `${status.played}/${DAILY_MODE_ROUND_LIMIT} rounds used today`
       : `${status.remaining}/${DAILY_MODE_ROUND_LIMIT} rounds left today`;
@@ -432,7 +435,11 @@ export const GameMenu = ({
                     onClick={(event) => handleModeSelection("classic", event)}
                     disabled={getModeLimitStatus("classic").reached}
                   >
-                    {getModeLimitStatus("classic").reached ? "Daily Limit Reached" : "Start Classic"}
+                    {getModeLimitStatus("classic").reached
+                      ? "Daily Limit Reached"
+                      : getModeLimitStatus("classic").inProgress
+                        ? "Resume Round"
+                        : "Start Classic"}
                   </Button>
                   <p className="text-[10px] text-center font-medium tracking-tight text-muted-foreground">
                     {getModeLimitLabel("classic")}
@@ -486,7 +493,11 @@ export const GameMenu = ({
                     onClick={(event) => handleModeSelection("hard", event)}
                     disabled={getModeLimitStatus("hard").reached}
                   >
-                    {getModeLimitStatus("hard").reached ? "Daily Limit Reached" : "Start Hard Mode"}
+                    {getModeLimitStatus("hard").reached
+                      ? "Daily Limit Reached"
+                      : getModeLimitStatus("hard").inProgress
+                        ? "Resume Round"
+                        : "Start Hard Mode"}
                   </Button>
                   <p className="text-[10px] text-center font-medium tracking-tight text-muted-foreground">
                     {getModeLimitLabel("hard")}
@@ -544,7 +555,11 @@ export const GameMenu = ({
                     onClick={(event) => handleModeSelection("timed", event)}
                     disabled={getModeLimitStatus("timed").reached}
                   >
-                    {getModeLimitStatus("timed").reached ? "Daily Limit Reached" : "Start Timed"}
+                    {getModeLimitStatus("timed").reached
+                      ? "Daily Limit Reached"
+                      : getModeLimitStatus("timed").inProgress
+                        ? "Resume Round"
+                        : "Start Timed"}
                   </Button>
                   <p className="text-[10px] text-center font-medium tracking-tight text-muted-foreground">
                     {getModeLimitLabel("timed")}

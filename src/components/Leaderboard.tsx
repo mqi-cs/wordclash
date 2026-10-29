@@ -367,8 +367,8 @@ export const Leaderboard = ({
   const helperCopy = useMemo(() => {
     if (!user && period === "daily") {
       return mode === "timed"
-        ? "This is your projected rank for today only. Sign in to save this ranking."
-        : "This is your projected rank for today only. Classic and Hard rank by words solved first, then by the lowest total guesses across solved words. Sign in to save this ranking.";
+        ? "This is a preview of where you'd rank today. Guest rounds aren't ranked: sign in to play rounds that count."
+        : "This is a preview of where you'd rank today. Classic and Hard rank by words solved first, then by the lowest total guesses across solved words. Guest rounds aren't ranked: sign in to play rounds that count.";
     }
     return getModeHintCopy(mode);
   }, [mode, period, user]);

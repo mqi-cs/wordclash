@@ -5,6 +5,18 @@ import { auth } from "./auth";
 import { getRandomTargetWord } from "./shared/gameLogic";
 import { internal } from "./_generated/api";
 import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
+import {
+  IDLE_FORFEIT_MS,
+  getExitAction,
+  getGamePlayerIds,
+  getPlayerProgress,
+  getTurnPlayerId,
+  isParticipant,
+  isTurnBased,
+  scheduleIdleCheck,
+  settleGame,
+  startNextTurn,
+} from "./gameState";
 
 const MAX_MULTIPLAYER_PLAYERS = 4;
 const TIMED_MULTIPLAYER_DURATION_MS = 75 * 1000;
@@ -27,14 +39,6 @@ type UserSummary = {
     animation?: string;
   };
 };
-
-const getGamePlayerIds = (game: GameDoc): Id<"users">[] =>
-  [game.player1Id, game.player2Id, game.player3Id, game.player4Id].filter(
-    (playerId): playerId is Id<"users"> => playerId !== undefined,
-  );
-
-const isParticipant = (game: GameDoc, userId: Id<"users">) =>
-  getGamePlayerIds(game).includes(userId);
 
 const getPlayerCount = (game: GameDoc) => getGamePlayerIds(game).length;
 
@@ -229,14 +233,12 @@ const captureGameStartedForParticipants = async (
   );
 };
 
-const ensureGameIsNotStale = async (ctx: MutationCtx, game: GameDoc) => {
-  if (!isWaitingGameStale(game)) {
-    return;
+// Throwing rolls back the whole mutation, so expired lobbies are deleted by
+// cleanupStaleWaitingGamesImpl rather than here.
+const ensureGameIsNotStale = (game: GameDoc) => {
+  if (isWaitingGameStale(game)) {
+    throw new ConvexError("This waiting game expired.");
   }
-
-  await captureGameAbandoned(ctx, game, "waiting_game_expired");
-  await deleteGameWithArtifacts(ctx, game._id);
-  throw new ConvexError("This waiting game expired.");
 };
 
 const cleanupStaleWaitingGamesImpl = async (ctx: MutationCtx) => {
@@ -266,7 +268,7 @@ const joinGameById = async (
 ) => {
   const game = await ctx.db.get(gameId);
   if (!game) throw new ConvexError("Game not found");
-  await ensureGameIsNotStale(ctx, game);
+  ensureGameIsNotStale(game);
 
   if (game.gameType === "multiplayer") {
     return await joinMultiplayerLobby(ctx, game, userId);
@@ -297,6 +299,10 @@ const joinGameById = async (
     startedAt: Date.now(),
     ...(gameEndTime !== undefined ? { gameEndTime } : {}),
   });
+
+  if (isTurnBased(game)) {
+    await startNextTurn(ctx, game._id);
+  }
 
   await captureGameStartedForParticipants(
     ctx,
@@ -333,9 +339,6 @@ const hasInvitationToGame = async (
   );
 };
 
-const canDeleteGame = (game: GameDoc, userId: Id<"users">) =>
-  isParticipant(game, userId) &&
-  (game.gameType === "challenge" || game.gameType === "multiplayer");
 
 // Get active games for the current user
 export const getMyGames = query({
@@ -370,7 +373,7 @@ export const getMyGames = query({
         ...game,
         playerCount: getPlayerCount(game),
         lobbyCode: game.lobbyCode ?? null,
-        canDelete: canDeleteGame(game, userId),
+        exitAction: getExitAction(game, userId),
       }));
   },
 });
@@ -398,7 +401,7 @@ export const getGame = query({
       playerCount: getPlayerCount(game),
       players: await buildPlayerSummaries(ctx, game),
       lobbyCode: game.lobbyCode ?? null,
-      canDelete: canDeleteGame(game, userId),
+      exitAction: getExitAction(game, userId),
     };
   },
 });
@@ -521,8 +524,6 @@ export const createGame = mutation({
         game_id: gameId,
         has_lobby_code: !!lobbyCode,
         metric_day: createdMetrics.dayKey,
-        games_created_total: createdMetrics.totalCount,
-        games_created_today_total: createdMetrics.todayTotalCount,
         games_created_by_user_total: createdMetrics.userTotalCount,
         games_created_by_user_today: createdMetrics.userTodayCount,
       },
@@ -540,7 +541,7 @@ export const startGame = mutation({
 
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new ConvexError("Game not found");
-    await ensureGameIsNotStale(ctx, game);
+    ensureGameIsNotStale(game);
     if (game.gameType !== "multiplayer") throw new ConvexError("Only multiplayer lobbies can be started.");
     if (game.player1Id !== userId) throw new ConvexError("Only the host can start this game.");
     if (game.status !== "waiting") throw new ConvexError("This game has already started.");
@@ -553,6 +554,8 @@ export const startGame = mutation({
 
     if (game.mode === "timed") {
       updates.gameEndTime = await scheduleTimedGameEnd(ctx, args.gameId);
+    } else {
+      await scheduleIdleCheck(ctx, args.gameId, IDLE_FORFEIT_MS);
     }
 
     await ctx.db.patch(game._id, updates);
@@ -565,8 +568,6 @@ export const startGame = mutation({
 
     await captureGameStartedForParticipants(ctx, game, args.gameId, {
       metric_day: startedMetrics.dayKey,
-      games_started_total: startedMetrics.totalCount,
-      games_started_today_total: startedMetrics.todayTotalCount,
       games_started_by_user_total: startedMetrics.userTotalCount,
       games_started_by_user_today: startedMetrics.userTodayCount,
     });
@@ -583,7 +584,7 @@ export const setLobbyMode = mutation({
 
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new ConvexError("Game not found");
-    await ensureGameIsNotStale(ctx, game);
+    ensureGameIsNotStale(game);
     if (game.gameType !== "multiplayer") throw new ConvexError("Only multiplayer lobbies have a selectable mode.");
     if (game.player1Id !== userId) throw new ConvexError("Only the host can change the mode.");
     if (game.status !== "waiting") throw new ConvexError("This game has already started.");
@@ -618,7 +619,7 @@ export const inviteToGame = mutation({
 
     const game = await ctx.db.get(args.gameId);
     if (game) {
-      await ensureGameIsNotStale(ctx, game);
+      ensureGameIsNotStale(game);
     }
     if (!game || game.player1Id !== userId) {
       throw new ConvexError("You can only invite to your own games");
@@ -670,10 +671,9 @@ export const acceptInvitation = mutation({
 
     const game = await ctx.db.get(invitation.gameId);
     if (!game) {
-      await ctx.db.delete(invitation._id);
       throw new ConvexError("Challenge is no longer available");
     }
-    await ensureGameIsNotStale(ctx, game);
+    ensureGameIsNotStale(game);
 
     await ctx.db.patch(invitation._id, { status: "accepted" });
     const gameId = await joinGameById(ctx, invitation.gameId, userId);
@@ -784,7 +784,7 @@ export const joinGameByCode = mutation({
     if (!game || game.gameType !== "multiplayer") {
       throw new ConvexError("Lobby not found.");
     }
-    await ensureGameIsNotStale(ctx, game);
+    ensureGameIsNotStale(game);
 
     const gameId = await joinMultiplayerLobby(ctx, game, userId);
 
@@ -822,11 +822,13 @@ export const deleteGame = mutation({
     if (isWaitingGameStale(game)) {
       throw new ConvexError("Game expired");
     }
-    if (!canDeleteGame(game, userId)) {
-      throw new ConvexError("Only players involved in this challenge or multiplayer match can delete it.");
+    // Deleting removes the game for everyone, so it is limited to the host of
+    // a game that hasn't started. Everyone else leaves (see leaveGame).
+    if (getExitAction(game, userId) !== "delete") {
+      throw new ConvexError("Only the host can delete a game that hasn't started.");
     }
 
-    const deletingPlayerRole = userId === game.player1Id ? "host" : "participant";
+    const deletingPlayerRole = "host";
     await captureGameAbandoned(
       ctx,
       game,
@@ -855,32 +857,110 @@ export const finishTimedGame = internalMutation({
       return;
     }
 
-    const players = getGamePlayerIds(game);
-    const playerSummaries = await Promise.all(players.map(async (playerId) => {
-      const pGuesses = await ctx.db
-        .query("guesses")
-        .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", playerId))
-        .collect();
-      const solvedCount = pGuesses.filter(g => g.evaluation.every(e => e === "correct")).length;
-      return { id: playerId, solvedCount };
-    }));
+    await settleGame(ctx, game, { timeUp: true });
+  },
+});
 
-    playerSummaries.sort((a, b) => b.solvedCount - a.solvedCount);
-    let winnerId: Id<"users"> | undefined = undefined;
-    let isDraw = false;
+export const leaveGame = mutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (!userId) throw new ConvexError("Unauthorized");
 
-    if (playerSummaries.length > 1 && playerSummaries[0].solvedCount === playerSummaries[1].solvedCount) {
-        isDraw = true;
-    } else {
-        winnerId = playerSummaries[0].id;
+    const game = await ctx.db.get(args.gameId);
+    if (!game) throw new ConvexError("Game not found");
+    if (getExitAction(game, userId) !== "leave") {
+      throw new ConvexError("You can't leave this game.");
     }
 
-    await ctx.db.patch(args.gameId, {
-      status: "finished",
-      winnerId,
-      isDraw,
-      finishedAt: Date.now(),
+    if (game.status === "waiting") {
+      const seat = (["player2Id", "player3Id", "player4Id"] as const).find(
+        (slot) => game[slot] === userId,
+      );
+      if (seat) {
+        await ctx.db.patch(game._id, { [seat]: undefined });
+      }
+      return { forfeited: false };
+    }
+
+    // Leaving a live game forfeits it; the others play on.
+    const forfeitedGame = {
+      ...game,
+      forfeitedPlayerIds: [...(game.forfeitedPlayerIds ?? []), userId],
+    };
+    await ctx.db.patch(game._id, { forfeitedPlayerIds: forfeitedGame.forfeitedPlayerIds });
+    await settleGame(ctx, forfeitedGame);
+
+    await captureGameAbandoned(ctx, game, "player_forfeited", { forfeited_by_user_id: userId });
+    return { forfeited: true };
+  },
+});
+
+// Spends the turn of a challenge player who let their clock run out, so an
+// absent opponent can't stall the game.
+export const enforceTurnTimeout = internalMutation({
+  args: { gameId: v.id("games"), turnDeadline: v.number() },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "in_progress" || game.turnDeadline !== args.turnDeadline) {
+      return; // A guess was made in time (or the game ended).
+    }
+
+    const progress = await getPlayerProgress(ctx, game);
+    const turnPlayerId = getTurnPlayerId(game, progress);
+    const turnPlayer = progress.find((player) => player.id === turnPlayerId);
+    if (!turnPlayer) return;
+
+    // A skipped turn is a blank row: it uses up a guess and reveals nothing.
+    await ctx.db.insert("guesses", {
+      gameId: game._id,
+      playerId: turnPlayer.id,
+      guess: "",
+      evaluation: ["absent", "absent", "absent", "absent", "absent"],
+      guessNumber: turnPlayer.guessCount + 1,
+      wordIndex: 0,
     });
+
+    if (!(await settleGame(ctx, game))) {
+      await startNextTurn(ctx, game._id);
+    }
+  },
+});
+
+// Forfeits players in a simultaneous classic/hard game who have stopped
+// guessing, so one absent player can't keep everyone else waiting.
+export const forfeitIdlePlayers = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game || game.status !== "in_progress" || game.mode === "timed" || isTurnBased(game)) {
+      return;
+    }
+
+    const now = Date.now();
+    const startedAt = game.startedAt ?? game._creationTime;
+    const stillPlaying = (await getPlayerProgress(ctx, game)).filter(
+      (player) => !player.forfeited && !player.hasWon && !player.isOut,
+    );
+    const lastActive = (player: (typeof stillPlaying)[number]) => Math.max(startedAt, player.lastGuessAt);
+    const idleIds = stillPlaying
+      .filter((player) => now - lastActive(player) >= IDLE_FORFEIT_MS)
+      .map((player) => player.id);
+
+    const updatedGame = idleIds.length
+      ? { ...game, forfeitedPlayerIds: [...(game.forfeitedPlayerIds ?? []), ...idleIds] }
+      : game;
+    if (idleIds.length) {
+      await ctx.db.patch(game._id, { forfeitedPlayerIds: updatedGame.forfeitedPlayerIds });
+    }
+
+    if (await settleGame(ctx, updatedGame)) return;
+
+    const remaining = stillPlaying.filter((player) => !idleIds.includes(player.id));
+    if (remaining.length > 0) {
+      const nextIdleAt = Math.min(...remaining.map((player) => lastActive(player) + IDLE_FORFEIT_MS));
+      await scheduleIdleCheck(ctx, game._id, nextIdleAt - now);
+    }
   },
 });
 

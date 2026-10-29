@@ -1,5 +1,7 @@
+import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { MutationCtx } from "./_generated/server";
+import { MutationCtx, internalMutation } from "./_generated/server";
 
 export const ANALYTICS_METRICS = {
   gamesCompleted: "games_completed",
@@ -17,11 +19,15 @@ type CounterKey = {
 
 type MetricSnapshot = {
   dayKey: string;
-  totalCount: number;
-  todayTotalCount: number;
   userTotalCount: number;
   userTodayCount: number;
 };
+
+const analyticsMetricValidator = v.union(
+  v.literal(ANALYTICS_METRICS.gamesCompleted),
+  v.literal(ANALYTICS_METRICS.gamesCreated),
+  v.literal(ANALYTICS_METRICS.gamesStarted),
+);
 
 const getUtcDayKey = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10);
 
@@ -55,6 +61,10 @@ const incrementCounter = async (ctx: MutationCtx, key: CounterKey) => {
   return 1;
 };
 
+// Per-user counters are updated inline: only that player's own mutations
+// touch them. The site-wide counters are touched by every game, so updating
+// them inline made every game-creating mutation conflict with every other;
+// they are updated in a scheduled mutation instead, off the player's path.
 export const incrementMetric = async (
   ctx: MutationCtx,
   metric: AnalyticsMetric,
@@ -62,16 +72,21 @@ export const incrementMetric = async (
   timestamp: number = Date.now(),
 ): Promise<MetricSnapshot> => {
   const dayKey = getUtcDayKey(timestamp);
-  const totalCount = await incrementCounter(ctx, { metric });
-  const todayTotalCount = await incrementCounter(ctx, { metric, dayKey });
   const userTotalCount = await incrementCounter(ctx, { metric, userId });
   const userTodayCount = await incrementCounter(ctx, { metric, userId, dayKey });
+  await ctx.scheduler.runAfter(0, internal.analytics.incrementGlobalMetric, { metric, dayKey });
 
   return {
     dayKey,
-    totalCount,
-    todayTotalCount,
     userTotalCount,
     userTodayCount,
   };
 };
+
+export const incrementGlobalMetric = internalMutation({
+  args: { metric: analyticsMetricValidator, dayKey: v.string() },
+  handler: async (ctx, args) => {
+    await incrementCounter(ctx, { metric: args.metric });
+    await incrementCounter(ctx, { metric: args.metric, dayKey: args.dayKey });
+  },
+});
