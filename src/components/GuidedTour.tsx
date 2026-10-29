@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronRight, X } from "lucide-react";
+import { markTourSeen } from "@/lib/onboardingStorage";
 
-const TOUR_KEY = "wordclash_tour_seen";
 
 interface TourStep {
   targetId: string;
@@ -99,6 +99,18 @@ export const GuidedTour = ({ onComplete }: GuidedTourProps) => {
   const isLast = currentStep === TOUR_STEPS.length - 1;
   const progress = ((currentStep + 1) / TOUR_STEPS.length) * 100;
 
+  // Read the latest onComplete through a ref so the callbacks below stay
+  // stable and the timers they drive aren't reset on every render.
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  const handleComplete = useCallback(() => {
+    markTourSeen();
+    onCompleteRef.current();
+  }, []);
+
   const updateSpotlight = useCallback(
     (stepIndex: number) => {
       const s = TOUR_STEPS[stepIndex];
@@ -168,7 +180,20 @@ export const GuidedTour = ({ onComplete }: GuidedTourProps) => {
         setIsTransitioning(false);
       }, 350);
     },
-    []
+    [handleComplete]
+  );
+
+  const goToStep = useCallback(
+    (index: number) => {
+      if (isTransitioning) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(index);
+        updateSpotlight(index);
+      }, TRANSITION_DURATION / 2);
+    },
+    [isTransitioning, updateSpotlight],
   );
 
   // Auto-advance timer
@@ -186,14 +211,14 @@ export const GuidedTour = ({ onComplete }: GuidedTourProps) => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentStep, isTransitioning, isLast]);
+  }, [currentStep, goToStep, handleComplete, isTransitioning, isLast]);
 
   // Initial spotlight
   useEffect(() => {
     // Small delay for the menu to render and animate in
     const initTimer = setTimeout(() => updateSpotlight(0), 600);
     return () => clearTimeout(initTimer);
-  }, []);
+  }, [updateSpotlight]);
 
   // Recalculate on resize
   useEffect(() => {
@@ -202,20 +227,6 @@ export const GuidedTour = ({ onComplete }: GuidedTourProps) => {
     return () => window.removeEventListener("resize", handleResize);
   }, [currentStep, updateSpotlight]);
 
-  const goToStep = (index: number) => {
-    if (isTransitioning) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentStep(index);
-      updateSpotlight(index);
-    }, TRANSITION_DURATION / 2);
-  };
-
-  const handleComplete = () => {
-    localStorage.setItem(TOUR_KEY, "true");
-    onComplete();
-  };
 
   const handleNext = () => {
     if (isLast) {
@@ -375,12 +386,4 @@ export const GuidedTour = ({ onComplete }: GuidedTourProps) => {
       )}
     </>
   );
-};
-
-export const hasSeenTour = (): boolean => {
-  return localStorage.getItem(TOUR_KEY) === "true";
-};
-
-export const resetTour = (): void => {
-  localStorage.removeItem(TOUR_KEY);
 };

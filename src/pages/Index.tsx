@@ -30,7 +30,8 @@ import {
 } from "@/lib/guestLeaderboard";
 import { UsernameSetupScreen } from "@/components/UsernameSetupScreen";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
-import { GuidedTour, hasSeenTour } from "@/components/GuidedTour";
+import { GuidedTour } from "@/components/GuidedTour";
+import { hasSeenTour } from "@/lib/onboardingStorage";
 import {
   Dialog,
   DialogContent,

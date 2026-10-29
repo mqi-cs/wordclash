@@ -381,11 +381,12 @@ export const DailyQuestsSidebar = () => {
   const [now, setNow] = useState(() => Date.now());
   const [guestState, setGuestState] = useState(getGuestCosmeticsState);
 
+  const userId = user?.id;
   useEffect(() => {
-    if (user) {
+    if (userId) {
       seedQuests().catch(() => {});
     }
-  }, [user?.id]);
+  }, [seedQuests, userId]);
 
   useEffect(() => {
     if (user) return;

@@ -105,12 +105,21 @@ export const BotGame = ({
     [botDifficulty, gameMode, trackGame, updateStats, user],
   );
 
+  // The precompute effect below runs when a round completes, not whenever the
+  // bot's state changes (it updates that state itself), so it reads the rest
+  // through this ref.
+  const botInputsRef = useRef({ botState, botGuesses, botEvaluations, botDifficulty, gameMode });
+  useEffect(() => {
+    botInputsRef.current = { botState, botGuesses, botEvaluations, botDifficulty, gameMode };
+  });
+
   // --- Pre-compute bot's next guess while the player types ---
   useEffect(() => {
     // Don't precompute if game is over, or if it's the very first turn (bot needs to just pick)
     if (myGameOver || botGameOver) return;
 
     // After each round completes (bot has guessed), pre-compute the next guess
+    const { botState, botGuesses, botEvaluations, botDifficulty, gameMode } = botInputsRef.current;
     if (botGuesses.length > 0 && botGuesses.length === myGuesses.length) {
       // Both have same number of guesses — round is complete, precompute next bot guess
       const lastBotGuess = botGuesses[botGuesses.length - 1];
@@ -134,26 +143,28 @@ export const BotGame = ({
     };
   }, [botGuesses.length, myGuesses.length, myGameOver, botGameOver]);
 
-  const updateLetterStatus = (guess: string, evaluation: Array<"correct" | "present" | "absent">) => {
-    const newStatus = { ...myLetterStatus };
-    guess.split("").forEach((letter, i) => {
-      const currentStatus = newStatus[letter];
-      const newLetterStatus = evaluation[i];
+  const updateLetterStatus = useCallback((guess: string, evaluation: Array<"correct" | "present" | "absent">) => {
+    setMyLetterStatus((previousStatus) => {
+      const newStatus = { ...previousStatus };
+      guess.split("").forEach((letter, i) => {
+        const currentStatus = newStatus[letter];
+        const newLetterStatus = evaluation[i];
 
-      if (gameMode === "hard" && newLetterStatus !== "correct") {
-        return;
-      }
+        if (gameMode === "hard" && newLetterStatus !== "correct") {
+          return;
+        }
 
-      if (
-        !currentStatus ||
-        (currentStatus === "absent" && newLetterStatus !== "absent") ||
-        (currentStatus === "present" && newLetterStatus === "correct")
-      ) {
-        newStatus[letter] = newLetterStatus;
-      }
+        if (
+          !currentStatus ||
+          (currentStatus === "absent" && newLetterStatus !== "absent") ||
+          (currentStatus === "present" && newLetterStatus === "correct")
+        ) {
+          newStatus[letter] = newLetterStatus;
+        }
+      });
+      return newStatus;
     });
-    setMyLetterStatus(newStatus);
-  };
+  }, [gameMode]);
 
   const handleKeyPress = useCallback(
     (key: string) => {
@@ -232,7 +243,7 @@ export const BotGame = ({
 
     // Trigger bot turn — bot must always finish its guess for this round
     setWaitingForBot(true);
-  }, [myCurrentGuess, myGuesses, myEvaluations, targetWord, myGameOver, botGuesses.length, gameMode, waitingForBot]);
+  }, [myCurrentGuess, myGuesses, myEvaluations, targetWord, myGameOver, botGuesses.length, gameMode, waitingForBot, updateLetterStatus]);
 
   // ─── Bot turn effect ─────────────────────────────────────────────────
   useEffect(() => {
@@ -453,7 +464,8 @@ export const BotGame = ({
   }, [
     waitingForBot,
     myGuesses.length,
-    botGuesses.length,
+    botGuesses,
+    botEvaluations,
     botGameOver,
     targetWord,
     gameMode,
@@ -636,8 +648,6 @@ export const BotGame = ({
             maxGuesses={MAX_GUESSES}
             wordLength={WORD_LENGTH}
             shake={shake}
-            revealedHints={[]}
-            targetWord={targetWord}
           />
           <Keyboard
             onKeyPress={handleKeyPress}
