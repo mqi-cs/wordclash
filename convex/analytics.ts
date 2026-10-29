@@ -25,42 +25,17 @@ type MetricSnapshot = {
 
 const getUtcDayKey = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10);
 
-const getCounter = async (ctx: MutationCtx, key: CounterKey) => {
-  if (key.userId && key.dayKey) {
-    return await ctx.db
-      .query("analyticsCounters")
-      .withIndex("by_metric_user_and_day", (q) =>
-        q.eq("metric", key.metric).eq("userId", key.userId).eq("dayKey", key.dayKey),
-      )
-      .unique();
-  }
-
-  if (key.userId) {
-    const docs = await ctx.db
-      .query("analyticsCounters")
-      .withIndex("by_metric_and_user", (q) =>
-        q.eq("metric", key.metric).eq("userId", key.userId),
-      )
-      .collect();
-    return docs.find((d) => d.dayKey === undefined);
-  }
-
-  if (key.dayKey) {
-    const docs = await ctx.db
-      .query("analyticsCounters")
-      .withIndex("by_metric_and_day", (q) =>
-        q.eq("metric", key.metric).eq("dayKey", key.dayKey),
-      )
-      .collect();
-    return docs.find((d) => d.userId === undefined);
-  }
-
-  const docs = await ctx.db
+// Each counter is a single row keyed by (metric, userId?, dayKey?), with the
+// unused parts left unset. Look it up with every key part pinned (unset ones
+// as undefined) so the read stays one row; matching on a shorter prefix reads
+// every per-user and per-day row for the metric, which grows without bound.
+const getCounter = async (ctx: MutationCtx, key: CounterKey) =>
+  await ctx.db
     .query("analyticsCounters")
-    .withIndex("by_metric", (q) => q.eq("metric", key.metric))
-    .collect();
-  return docs.find((d) => d.userId === undefined && d.dayKey === undefined);
-};
+    .withIndex("by_metric_user_and_day", (q) =>
+      q.eq("metric", key.metric).eq("userId", key.userId).eq("dayKey", key.dayKey),
+    )
+    .first();
 
 const incrementCounter = async (ctx: MutationCtx, key: CounterKey) => {
   const existing = await getCounter(ctx, key);

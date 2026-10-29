@@ -1,6 +1,6 @@
 import { Id } from "./_generated/dataModel";
 import { MutationCtx, mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 
 export const DAILY_MODE_ROUND_LIMIT = 3;
@@ -68,7 +68,7 @@ export const consumeDailyRoundForUser = async (
   const currentPlayed = getCounterValue(existing);
 
   if (currentPlayed >= DAILY_MODE_ROUND_LIMIT) {
-    throw new Error(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
+    throw new ConvexError(`Daily limit reached for ${mode} mode. Come back tomorrow.`);
   }
 
   const nextPlayed = currentPlayed + 1;
@@ -188,7 +188,7 @@ export const consumeDailyRound = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in");
+      throw new ConvexError("Must be logged in");
     }
 
     return await consumeDailyRoundForUser(ctx, userId, args.mode);

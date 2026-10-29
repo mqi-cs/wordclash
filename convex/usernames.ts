@@ -1,10 +1,18 @@
-import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { ConvexError, v } from "convex/values";
+import { Doc, Id } from "./_generated/dataModel";
 import { DatabaseWriter, internalMutation } from "./_generated/server";
 import { assertValidUsername } from "./authShared";
 
 export const USERNAME_TAKEN_ERROR = "Username is already taken";
 const USERNAME_REGISTRY_ERROR = "Username registry is inconsistent";
+// An unattached claim is a signup that is still being created. It holds the
+// username for this long; after that it is treated as abandoned.
+const PENDING_SIGNUP_CLAIM_TTL_MS = 10 * 60 * 1000;
+
+type UsernameClaim = Doc<"usernameClaims">;
+
+const isPendingSignupClaim = (claim: UsernameClaim, now = Date.now()) =>
+  claim.userId === undefined && now - claim._creationTime < PENDING_SIGNUP_CLAIM_TTL_MS;
 
 const getUsernameClaims = async (db: DatabaseWriter, username: string) => {
   return await db
@@ -23,7 +31,7 @@ const getUsersWithUsername = async (db: DatabaseWriter, username: string) => {
 const getSingleClaim = async (db: DatabaseWriter, username: string) => {
   const claims = await getUsernameClaims(db, username);
   if (claims.length > 1) {
-    throw new Error(USERNAME_REGISTRY_ERROR);
+    throw new ConvexError(USERNAME_REGISTRY_ERROR);
   }
   return claims[0] ?? null;
 };
@@ -32,15 +40,21 @@ const assertUsernameAvailable = async (
   db: DatabaseWriter,
   username: string,
   currentUserId?: Id<"users">,
+  allowPendingSignupClaim = false,
 ) => {
   const claim = await getSingleClaim(db, username);
   if (claim && claim.userId !== undefined && claim.userId !== currentUserId) {
-    throw new Error(USERNAME_TAKEN_ERROR);
+    throw new ConvexError(USERNAME_TAKEN_ERROR);
+  }
+  // Without this, two signups racing for the same name would both pass and
+  // end up with duplicate usernames.
+  if (claim && !allowPendingSignupClaim && isPendingSignupClaim(claim)) {
+    throw new ConvexError(USERNAME_TAKEN_ERROR);
   }
 
   const users = await getUsersWithUsername(db, username);
   if (users.some((user) => user._id !== currentUserId)) {
-    throw new Error(USERNAME_TAKEN_ERROR);
+    throw new ConvexError(USERNAME_TAKEN_ERROR);
   }
 
   return claim;
@@ -50,14 +64,30 @@ export const reserveUsername = async (
   db: DatabaseWriter,
   username: string,
   userId?: Id<"users">,
+  allowPendingSignupClaim = false,
 ) => {
-  const existingClaim = await assertUsernameAvailable(db, username, userId);
+  const existingClaim = await assertUsernameAvailable(
+    db,
+    username,
+    userId,
+    allowPendingSignupClaim,
+  );
   if (!existingClaim) {
     await db.insert("usernameClaims", userId ? { username, userId } : { username });
     return;
   }
 
-  if (userId && existingClaim.userId !== userId) {
+  if (!userId) {
+    // Only an abandoned signup claim can reach here; replace it so the new
+    // reservation gets a fresh TTL.
+    if (existingClaim.userId === undefined) {
+      await db.delete(existingClaim._id);
+      await db.insert("usernameClaims", { username });
+    }
+    return;
+  }
+
+  if (existingClaim.userId !== userId) {
     await db.patch(existingClaim._id, { userId });
   }
 };
@@ -86,7 +116,8 @@ export const attachUsernameToUser = internalMutation({
   args: { username: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
     const username = assertValidUsername(args.username);
-    await reserveUsername(ctx.db, username, args.userId);
+    // Called by the signup flow right after it reserved this name itself.
+    await reserveUsername(ctx.db, username, args.userId, true);
     return null;
   },
 });

@@ -43,7 +43,8 @@ export default defineSchema({
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
-    .index("by_username", ["username"]),
+    .index("by_username", ["username"])
+    .searchIndex("search_username", { searchField: "username" }),
 
   usernameClaims: defineTable({
     username: v.string(),
@@ -216,6 +217,13 @@ export default defineSchema({
     guessNumber: v.number(),
     wordIndex: v.optional(v.number()), // For timed mode
   }).index("by_game_and_player", ["gameId", "playerId"]),
+
+  // One row per (game, player) once that player's multiplayer result has been
+  // applied to their stats, so a finished game can't be counted twice.
+  gameResultsRecorded: defineTable({
+    gameId: v.id("games"),
+    userId: v.id("users"),
+  }).index("by_game_and_user", ["gameId", "userId"]),
 
   // Pending Invites
   invitations: defineTable({

@@ -1,5 +1,5 @@
 import { mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
 
@@ -11,7 +11,7 @@ export const captureUserEvent = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     // Normalize event name to snake_case
@@ -20,7 +20,7 @@ export const captureUserEvent = mutation({
       .replace(/\s+/g, "_")
       .toLowerCase();
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: normalizedEvent,
       properties: args.properties ?? {},

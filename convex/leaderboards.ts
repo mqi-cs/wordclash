@@ -1,6 +1,6 @@
 import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import {
   DAILY_MODE_ROUND_LIMIT,
@@ -302,7 +302,7 @@ export const startSoloRound = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in to start a ranked round");
+      throw new ConvexError("Must be logged in to start a ranked round");
     }
 
     const now = Date.now();
@@ -313,12 +313,12 @@ export const startSoloRound = mutation({
     await syncDailyRoundUsageForUser(ctx, userId, args.mode, existing?.rounds.length ?? 0);
 
     if (existing?.rounds.some((round) => isRoundInProgress(args.mode, round))) {
-      throw new Error("Finish or abandon your current ranked round first.");
+      throw new ConvexError("Finish or abandon your current ranked round first.");
     }
 
     const nextSlot = (existing?.rounds.length ?? 0) + 1;
     if (nextSlot > DAILY_MODE_ROUND_LIMIT) {
-      throw new Error(`Daily limit reached for ${args.mode} mode. Come back tomorrow.`);
+      throw new ConvexError(`Daily limit reached for ${args.mode} mode. Come back tomorrow.`);
     }
 
     await consumeDailyRoundForUser(ctx, userId, args.mode);
@@ -382,18 +382,18 @@ export const finishSoloRound = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in to finish a ranked round");
+      throw new ConvexError("Must be logged in to finish a ranked round");
     }
 
     const dayKey = getTodayKey();
     const existing = await getDailySeriesForUser(ctx, userId, args.mode, dayKey);
     if (!existing) {
-      throw new Error("No active ranked round found");
+      throw new ConvexError("No active ranked round found");
     }
 
     const targetRound = existing.rounds.find((round) => round.slot === args.slot);
     if (!targetRound || !isRoundInProgress(args.mode, targetRound)) {
-      throw new Error("Ranked round is not active");
+      throw new ConvexError("Ranked round is not active");
     }
 
     const now = Date.now();
@@ -478,7 +478,7 @@ export const abandonSoloRound = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in to abandon a ranked round");
+      throw new ConvexError("Must be logged in to abandon a ranked round");
     }
 
     const dayKey = getTodayKey();
@@ -530,7 +530,7 @@ export const importGuestDailySeries = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in to import guest leaderboard progress");
+      throw new ConvexError("Must be logged in to import guest leaderboard progress");
     }
 
     const todayKey = getTodayKey();
@@ -544,6 +544,10 @@ export const importGuestDailySeries = mutation({
     }
 
     const now = Date.now();
+    const dayStart = Date.parse(`${todayKey}T00:00:00.000Z`);
+    // Guest timestamps come from the browser. completedAt breaks ranking
+    // ties, so keep them within today and not in the future.
+    const clampToToday = (timestamp: number) => Math.min(Math.max(timestamp, dayStart), now);
     const { displayName, usernameLower } = await getUserDisplayInfo(ctx, userId);
     const sanitizedRounds = args.rounds
       .slice(0, DAILY_MODE_ROUND_LIMIT)
@@ -552,6 +556,10 @@ export const importGuestDailySeries = mutation({
         normalizeRoundForMode(args.mode, {
           ...round,
           slot: index + 1,
+          startedAt: clampToToday(round.startedAt),
+          ...(round.finishedAt !== undefined
+            ? { finishedAt: clampToToday(round.finishedAt) }
+            : {}),
           importedFromGuest: true,
         }),
       );

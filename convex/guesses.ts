@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { evaluateGuess, isValidGuessFormat } from "./shared/gameLogic";
 import { internal } from "./_generated/api";
@@ -21,13 +21,13 @@ export const getGuesses = query({
   args: { gameId: v.id("games") },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     // Verify the caller is in this game
     const game = await ctx.db.get(args.gameId);
     if (!game) return [];
     if (!isParticipant(game, userId)) {
-      throw new Error("You are not part of this game");
+      throw new ConvexError("You are not part of this game");
     }
 
     const guesses = await ctx.db
@@ -35,7 +35,15 @@ export const getGuesses = query({
       .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId))
       .collect();
 
-    return guesses.sort((a, b) => a.guessNumber - b.guessNumber);
+    // Opponents' words stay hidden until the game is over: a solved guess is
+    // the target word itself. Their colour patterns are still shown.
+    const revealOpponentWords = game.status === "finished" || game.status === "abandoned";
+
+    return guesses
+      .sort((a, b) => a.guessNumber - b.guessNumber)
+      .map((guess) =>
+        revealOpponentWords || guess.playerId === userId ? guess : { ...guess, guess: "" },
+      );
   },
 });
 
@@ -43,31 +51,31 @@ export const submitGuess = mutation({
   args: { gameId: v.id("games"), guess: v.string() },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) throw new ConvexError("Unauthorized");
 
     const game = await ctx.db.get(args.gameId);
-    if (!game) throw new Error("Game not found");
-    if (!isParticipant(game, userId)) throw new Error("You are not part of this game");
-    if (game.status !== "in_progress") throw new Error("Game is not active");
+    if (!game) throw new ConvexError("Game not found");
+    if (!isParticipant(game, userId)) throw new ConvexError("You are not part of this game");
+    if (game.status !== "in_progress") throw new ConvexError("Game is not active");
 
     const now = Date.now();
     const mode = game.mode ?? "classic";
 
     // For timed mode, block if time is up
     if (mode === "timed" && game.gameEndTime && now > game.gameEndTime) {
-      throw new Error("Time is up!");
+      throw new ConvexError("Time is up!");
     }
 
     const normalizedGuess = args.guess.toUpperCase();
     if (!isValidGuessFormat(normalizedGuess)) {
-      throw new Error("Invalid guess format — must be exactly 5 letters");
+      throw new ConvexError("Invalid guess format — must be exactly 5 letters");
     }
 
     const secret = await ctx.db
       .query("gameSecrets")
       .withIndex("by_game", (q) => q.eq("gameId", args.gameId))
       .unique();
-    if (!secret) throw new Error("Target word not configured for this game yet");
+    if (!secret) throw new ConvexError("Target word not configured for this game yet");
 
     const existingGuesses = await ctx.db
       .query("guesses")
@@ -89,13 +97,36 @@ export const submitGuess = mutation({
       }
     }
 
+    if (mode !== "timed" && solvedCount > 0) {
+      throw new ConvexError("You already solved this word");
+    }
+
     const guessesOnCurrentWord = existingGuesses.filter(g => (g.wordIndex ?? 0) === wordIndex);
     const guessNumber = guessesOnCurrentWord.length + 1;
 
     const maxGuesses = mode === "hard" ? 10 : mode === "timed" ? 999 : 6;
 
     if (guessNumber > maxGuesses) {
-      throw new Error("Maximum guesses reached");
+      throw new ConvexError("Maximum guesses reached");
+    }
+
+    // Classic/hard challenges are turn-based: the host goes first and players
+    // alternate. Mirrors the turn logic in MultiplayerGame.
+    if (game.gameType === "challenge" && mode !== "timed") {
+      const opponentId = getGamePlayerIds(game).find((playerId) => playerId !== userId);
+      if (opponentId) {
+        const opponentGuesses = await ctx.db
+          .query("guesses")
+          .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId).eq("playerId", opponentId))
+          .collect();
+        const isMyTurn =
+          existingGuesses.length === opponentGuesses.length
+            ? game.player1Id === userId
+            : existingGuesses.length < opponentGuesses.length;
+        if (!isMyTurn) {
+          throw new ConvexError("It's not your turn yet");
+        }
+      }
     }
 
     const evaluation = evaluateGuess(normalizedGuess, targetWord, mode);
@@ -142,9 +173,27 @@ export const submitGuess = mutation({
         isDone,
         hasWon,
         attempts: hasWon ? onLatestWord.length : 999, // Attempts for the word solved
+        guessCount: onLatestWord.length,
         solvedCount: solved.length,
       };
     }));
+
+    // In a turn-based challenge, once someone has solved it the other player
+    // only gets to match their number of guesses. Without this the game
+    // stalls: the solver can't move and it is never the other player's turn.
+    if (game.gameType === "challenge" && mode !== "timed") {
+      const winningAttempts = playerSummaries
+        .filter(p => p.hasWon)
+        .map(p => p.attempts);
+      if (winningAttempts.length > 0) {
+        const fewestWinningAttempts = Math.min(...winningAttempts);
+        for (const summary of playerSummaries) {
+          if (!summary.isDone && summary.guessCount >= fewestWinningAttempts) {
+            summary.isDone = true;
+          }
+        }
+      }
+    }
 
     const allDone = playerSummaries.every(p => p.isDone);
 
@@ -180,7 +229,7 @@ export const submitGuess = mutation({
       });
     }
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "guess submitted",
       properties: {

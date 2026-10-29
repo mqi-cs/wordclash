@@ -1,6 +1,6 @@
 import { MutationCtx, mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
 import { ANALYTICS_METRICS, incrementMetric } from "./analytics";
@@ -9,38 +9,10 @@ type GameDoc = Doc<"games">;
 export type GameMode = "classic" | "hard" | "timed" | "multiplayer";
 type UserStatsDoc = Doc<"userStats">;
 
-const VALID_MODES: GameMode[] = ["classic", "hard", "timed", "multiplayer"];
-
 const getGamePlayerIds = (game: GameDoc): Id<"users">[] =>
   [game.player1Id, game.player2Id, game.player3Id, game.player4Id].filter(
     (playerId): playerId is Id<"users"> => playerId !== undefined,
   );
-
-const getWonCount = (stats: UserStatsDoc, mode: GameMode) => {
-  switch (mode) {
-    case "classic":
-      return stats.classic_won;
-    case "hard":
-      return stats.hard_won;
-    case "timed":
-      return stats.timed_won;
-    case "multiplayer":
-      return stats.multiplayer_won;
-  }
-};
-
-const getPlayedCount = (stats: UserStatsDoc, mode: GameMode) => {
-  switch (mode) {
-    case "classic":
-      return stats.classic_played;
-    case "hard":
-      return stats.hard_played;
-    case "timed":
-      return stats.timed_played;
-    case "multiplayer":
-      return stats.multiplayer_played;
-  }
-};
 
 type StatsUpdateInput = {
   userId: Id<"users">;
@@ -60,21 +32,37 @@ export const applyStatsUpdate = async (
   let greenLetters = args.greenLetters;
 
   // For multiplayer, verify the result from actual game data
-  if (args.mode === "multiplayer" && args.gameId) {
-    const game = await ctx.db.get(args.gameId);
+  if (args.mode === "multiplayer") {
+    if (!args.gameId) {
+      throw new ConvexError("Multiplayer results must reference a game");
+    }
+    const gameId = args.gameId;
+    const game = await ctx.db.get(gameId);
     if (!game || game.status !== "finished") {
-      throw new Error("Game is not finished");
+      throw new ConvexError("Game is not finished");
     }
     if (!getGamePlayerIds(game).includes(userId)) {
-      throw new Error("You are not part of this game");
+      throw new ConvexError("You are not part of this game");
     }
+
+    // Each player's result counts once, however many times the client
+    // reports it (reopening a finished game re-runs the report).
+    const alreadyRecorded = await ctx.db
+      .query("gameResultsRecorded")
+      .withIndex("by_game_and_user", (q) => q.eq("gameId", gameId).eq("userId", userId))
+      .first();
+    if (alreadyRecorded) {
+      return null;
+    }
+    await ctx.db.insert("gameResultsRecorded", { gameId, userId });
+
     // Derive the actual result from the game, not from client claims
     won = game.winnerId === userId;
 
     // Count actual green letters from guesses
     const myGuesses = await ctx.db
       .query("guesses")
-      .withIndex("by_game_and_player", (q) => q.eq("gameId", args.gameId!).eq("playerId", userId))
+      .withIndex("by_game_and_player", (q) => q.eq("gameId", gameId).eq("playerId", userId))
       .collect();
     greenLetters = myGuesses.reduce((total, g) => {
       return total + g.evaluation.filter(e => e === "correct").length;
@@ -213,7 +201,7 @@ export const applyStatsUpdate = async (
     has_signed_up: true,
   };
 
-  ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+  await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
     distinctId: userId,
     event: "game_completed",
     properties: {
@@ -228,7 +216,7 @@ export const applyStatsUpdate = async (
     personProperties: userProperties,
   });
 
-  ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+  await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
     distinctId: userId,
     event: "stats_updated",
     properties: {
@@ -249,36 +237,6 @@ export const applyStatsUpdate = async (
     nextStats,
   };
 };
-
-// Fetch leaderboard — bounded scan with take()
-export const getLeaderboard = query({
-  args: { mode: v.string(), limit: v.optional(v.number()) },
-  handler: async (ctx, args) => {
-    if (!VALID_MODES.includes(args.mode as GameMode)) {
-      throw new Error("Invalid game mode");
-    }
-    const mode = args.mode as GameMode;
-
-    const maxResults = Math.min(args.limit || 10, 50); // Cap at 50
-
-    // Bounded: take at most 200 entries to sort through
-    const stats = await ctx.db.query("userStats").take(200);
-
-    const sorted = stats.sort((a, b) => getWonCount(b, mode) - getWonCount(a, mode));
-    const limited = sorted.slice(0, maxResults);
-
-    return await Promise.all(limited.map(async (stat) => {
-      const user = await ctx.db.get(stat.userId);
-      return {
-        userId: stat.userId,
-        username: user?.username || user?.name || user?.googleName || "Unknown User",
-        [`${mode}_won`]: getWonCount(stat, mode),
-        [`${mode}_played`]: getPlayedCount(stat, mode),
-        best_streak: stat.best_streak,
-      };
-    }));
-  },
-});
 
 // Get stats for current user
 export const getMyStats = query({
@@ -308,7 +266,7 @@ export const updateStats = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (!userId) {
-      throw new Error("Must be logged in to update stats");
+      throw new ConvexError("Must be logged in to update stats");
     }
     await applyStatsUpdate(ctx, {
       userId,

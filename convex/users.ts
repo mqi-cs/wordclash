@@ -2,7 +2,7 @@ import { auth } from "./auth";
 import { assertValidUsername } from "./authShared";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { assignUsernameToUser, USERNAME_TAKEN_ERROR } from "./usernames";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 
 const clampAuditLimit = (requestedLimit: number | undefined) => {
@@ -41,19 +41,19 @@ export const completeProfile = mutation({
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx);
     if (userId === null) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const user = await ctx.db.get(userId);
     if (!user) {
-      throw new Error("Unauthorized");
+      throw new ConvexError("Unauthorized");
     }
 
     const username = assertValidUsername(args.username);
     await assignUsernameToUser(ctx.db, userId, username, user.username);
     await ctx.db.patch(userId, { username });
 
-    ctx.scheduler.runAfter(0, internal.posthog.identifyUser, {
+    await ctx.scheduler.runAfter(0, internal.posthog.identifyUser, {
       distinctId: userId,
       properties: {
         username,
@@ -61,7 +61,7 @@ export const completeProfile = mutation({
       setOnce: { signup_method: "google" },
     });
 
-    ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: userId,
       event: "profile completed",
       properties: {

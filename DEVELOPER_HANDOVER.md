@@ -44,6 +44,9 @@ During the migration, 13 critical vulnerabilities were patched. **Do not undo th
 2. **Query Bounds:** All public queries like `getLeaderboard` or user searches have hard `.take(100)` limits attached to them in `stats.ts` and `friends.ts`. This prevents DDOS attacks from pulling the entire database into browser memory.
 3. **Data Leaks:** The `viewer` query in `users.ts` explicitly strips out sensitive token data, returning only `_id`, `name`, and `email`.
 4. **Rate Limiting:** Friend requests and Game Creation mutations have strict time-based rate limiters to prevent bot spamming.
+5. **User-facing errors:** Throw `ConvexError("message")`, not `Error`, from Convex functions. Production deployments replace plain `Error` messages with "Server Error"; on the client, read messages with `getErrorMessage` from `src/lib/errors.ts`.
+6. **Hidden opponent guesses:** `guesses.getGuesses` blanks other players' words until the game is finished (a solved guess *is* the target word). Only colour patterns are shared mid-game.
+7. **Stats are recorded once:** Multiplayer results are deduplicated per player and game (`gameResultsRecorded`). Ranked solo rounds record stats inside `leaderboards.finishSoloRound`, so don't also call `stats.updateStats` for them.
 
 ---
 

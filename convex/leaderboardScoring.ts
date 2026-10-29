@@ -23,6 +23,15 @@ export type LeaderboardSeriesSummary = {
 };
 
 const CLASSIC_HARD_SOLVE_WEIGHT = 1_000_000;
+const MAX_GUESSES_BY_MODE = { classic: 6, hard: 10 } as const;
+// Far above anything reachable in a 75s round plus bonuses; it only exists to
+// stop absurd client-reported values from topping the board.
+export const MAX_TIMED_WORDS_PER_ROUND = 100;
+
+// Round results are reported by the client, so every number is forced into
+// the range the game can actually produce before it is scored.
+const clampInteger = (value: number, min: number, max: number) =>
+  Number.isFinite(value) ? Math.min(Math.max(Math.round(value), min), max) : min;
 
 const getSolvedWords = (
   mode: LeaderboardMode,
@@ -79,7 +88,11 @@ export const normalizeRoundForMode = (
       };
     }
 
-    const wordsCompleted = Math.max(0, round.wordsCompleted ?? round.adjustedScore ?? 0);
+    const wordsCompleted = clampInteger(
+      round.wordsCompleted ?? round.adjustedScore ?? 0,
+      0,
+      MAX_TIMED_WORDS_PER_ROUND,
+    );
     return {
       slot: round.slot,
       status: round.status === "abandoned" ? "abandoned" : "won",
@@ -96,15 +109,24 @@ export const normalizeRoundForMode = (
     };
   }
 
+  const maxGuesses = MAX_GUESSES_BY_MODE[mode];
+  // A solved word took at least one guess; at most one hint per guess.
+  const minScore = round.status === "won" ? 1 : 0;
   return {
     slot: round.slot,
     status: round.status,
     startedAt: round.startedAt,
     ...(round.finishedAt ? { finishedAt: round.finishedAt } : {}),
     ...(round.importedFromGuest ? { importedFromGuest: true } : {}),
-    ...(typeof round.rawGuesses === "number" ? { rawGuesses: round.rawGuesses } : {}),
-    ...(typeof round.hintUses === "number" ? { hintUses: round.hintUses } : {}),
-    ...(typeof round.adjustedScore === "number" ? { adjustedScore: round.adjustedScore } : {}),
+    ...(typeof round.rawGuesses === "number"
+      ? { rawGuesses: clampInteger(round.rawGuesses, minScore, maxGuesses) }
+      : {}),
+    ...(typeof round.hintUses === "number"
+      ? { hintUses: clampInteger(round.hintUses, 0, maxGuesses) }
+      : {}),
+    ...(typeof round.adjustedScore === "number"
+      ? { adjustedScore: clampInteger(round.adjustedScore, minScore, maxGuesses * 2) }
+      : {}),
   };
 };
 

@@ -1,8 +1,13 @@
 import { createAccount } from "@convex-dev/auth/server";
 import { httpAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
-import { assertValidEmail, assertValidPassword, assertValidUsername } from "./authShared";
+import { ConvexError, v } from "convex/values";
+import {
+  assertValidEmail,
+  assertValidPassword,
+  assertValidUsername,
+  getErrorText,
+} from "./authShared";
 import { rateLimiter } from "./rateLimits";
 import { reserveUsername, USERNAME_TAKEN_ERROR } from "./usernames";
 
@@ -96,8 +101,7 @@ const getClientIp = (request: Request) => {
   return ip ?? SHARED_IP_FALLBACK;
 };
 
-const isDuplicateSignupError = (error: unknown) =>
-  error instanceof Error && error.message.includes("already exists");
+const isDuplicateSignupError = (error: unknown) => getErrorText(error).includes("already exists");
 
 export const preparePasswordSignup = internalMutation({
   args: { email: v.string(), username: v.string() },
@@ -113,7 +117,7 @@ export const preparePasswordSignup = internalMutation({
       .unique();
 
     if (existingPasswordAccount) {
-      throw new Error("An account with this email already exists");
+      throw new ConvexError("An account with this email already exists");
     }
 
     const existingUsers = await ctx.db
@@ -122,7 +126,7 @@ export const preparePasswordSignup = internalMutation({
       .take(1);
 
     if (existingUsers.length > 0) {
-      throw new Error("An account with this email already exists");
+      throw new ConvexError("An account with this email already exists");
     }
 
     await reserveUsername(ctx.db, normalizedUsername);
@@ -180,11 +184,7 @@ export const passwordSignup = httpAction(async (ctx, request) => {
     normalizedUsername = assertValidUsername(username);
     assertValidPassword(password);
   } catch (error) {
-    return jsonResponse(
-      400,
-      { error: error instanceof Error ? error.message : "Invalid signup payload" },
-      origin,
-    );
+    return jsonResponse(400, { error: getErrorText(error) || "Invalid signup payload" }, origin);
   }
 
   const clientIp = getClientIp(request);
@@ -244,20 +244,20 @@ export const passwordSignup = httpAction(async (ctx, request) => {
       });
     }
 
-    if (error instanceof Error && error.message === USERNAME_TAKEN_ERROR) {
+    if (getErrorText(error) === USERNAME_TAKEN_ERROR) {
       return jsonResponse(409, { error: USERNAME_TAKEN_ERROR }, origin);
     }
     if (isDuplicateSignupError(error)) {
       return jsonResponse(409, { error: "An account with this email already exists" }, origin);
     }
-    if (error instanceof Error && error.message === "An account with this email already exists") {
-      return jsonResponse(409, { error: error.message }, origin);
-    }
     throw error;
   }
 
+  // Analytics are scheduled rather than awaited: the account already exists at
+  // this point, so a PostHog outage or missing config must not turn a
+  // successful signup into a 500.
   if (newUserId) {
-    await ctx.runAction(internal.posthog.identifyUser, {
+    await ctx.scheduler.runAfter(0, internal.posthog.identifyUser, {
       distinctId: newUserId,
       properties: {
         username: normalizedUsername,
@@ -265,7 +265,7 @@ export const passwordSignup = httpAction(async (ctx, request) => {
       },
       setOnce: { signup_method: "password" },
     });
-    await ctx.runAction(internal.posthog.captureEvent, {
+    await ctx.scheduler.runAfter(0, internal.posthog.captureEvent, {
       distinctId: newUserId,
       event: "user signed up",
       properties: {
